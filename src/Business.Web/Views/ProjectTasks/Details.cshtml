@@ -1,0 +1,67 @@
+@model ProjectTask
+@{
+    ViewData["Title"] = "Görev Detayı";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">
+                @(Model.Project?.Code
+                    ?? Model.Customer?.Name
+                    ?? Model.ManualProjectName
+                    ?? Model.ManualCustomerName
+                    ?? "Genel")
+            </p>
+            <h2>@Model.Title</h2>
+        </div>
+        <div class="project-header-actions">
+            <span class="status-pill">@Model.Status.ToDisplayName()</span>
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+            }
+            @if (Model.Status != WorkTaskStatus.InReview && Model.Status != WorkTaskStatus.Done)
+            {
+                <form asp-action="SubmitForReview" asp-route-id="@Model.Id" method="post" class="inline-form">
+                    <button class="btn btn-outline-primary btn-sm" type="submit">Kontrole Gönder</button>
+                </form>
+            }
+            @if (User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager))
+            {
+                <form asp-action="Complete" asp-route-id="@Model.Id" method="post" class="inline-form">
+                    <button class="btn btn-success btn-sm" type="submit">Tamamlandı Yap</button>
+                </form>
+            }
+            @if (User.IsInRole(AppRoles.Admin))
+            {
+                <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="inline-form">
+                    <input type="hidden" name="returnUrl" value="@Url.Action("Index", "ProjectTasks", Model.ProjectId.HasValue ? new { projectId = Model.ProjectId } : null)" />
+                    <button class="btn btn-outline-danger btn-sm" type="submit">Sil</button>
+                </form>
+            }
+        </div>
+    </div>
+    <div class="mb-3">
+        <div class="progress">
+            <div class="progress-bar" style="width:@Model.ProgressPercent%">%@Model.ProgressPercent</div>
+        </div>
+    </div>
+    <dl class="row">
+        <dt class="col-sm-3">Sorumlu</dt><dd class="col-sm-9">@ViewBag.ResponsibleName</dd>
+        <dt class="col-sm-3">Atanan kişiler</dt><dd class="col-sm-9">@(((IReadOnlyList<string>)ViewBag.AssignedUsers).Any() ? string.Join(", ", (IReadOnlyList<string>)ViewBag.AssignedUsers) : "-")</dd>
+        <dt class="col-sm-3">Kategori</dt><dd class="col-sm-9">@(Model.TaskCategory?.Name ?? "-")</dd>
+        <dt class="col-sm-3">Proje</dt><dd class="col-sm-9">@(Model.Project?.Name ?? Model.ManualProjectName ?? "-")</dd>
+        <dt class="col-sm-3">Müşteri</dt><dd class="col-sm-9">@(Model.Project?.Customer?.Name ?? Model.Customer?.Name ?? Model.ManualCustomerName ?? "-")</dd>
+        <dt class="col-sm-3">Öncelik</dt><dd class="col-sm-9">@Model.Priority.ToDisplayName()</dd>
+        <dt class="col-sm-3">Başlangıç</dt><dd class="col-sm-9">@(Model.StartDate?.ToString("dd.MM.yyyy") ?? "-")</dd>
+        <dt class="col-sm-3">Termin</dt><dd class="col-sm-9">@(Model.DueDate?.ToString("dd.MM.yyyy") ?? "-")</dd>
+        <dt class="col-sm-3">Oluşturma</dt><dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+        <dt class="col-sm-3">Açıklama</dt><dd class="col-sm-9">@(Model.Description ?? "-")</dd>
+    </dl>
+</section>
+
+@if (ViewBag.Activity is Business.Web.ViewModels.RecordActivityViewModel activity)
+{
+    @await Html.PartialAsync("_RecordActivity", activity)
+}

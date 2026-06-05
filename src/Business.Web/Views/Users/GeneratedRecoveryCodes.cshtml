@@ -1,0 +1,30 @@
+@model GeneratedAdminRecoveryCodesViewModel
+@{
+    ViewData["Title"] = "Kurtarma Kodları";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Admin kurtarma</p>
+            <h2>Kurtarma kodları</h2>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Kullanıcılara Dön</a>
+    </div>
+
+    <div class="alert alert-warning">
+        Bu kodlar tekrar gösterilmeyecek. Kodları güvenli bir yerde saklayın. Kullanılan kod otomatik olarak geçersizleşir.
+    </div>
+
+    <div class="recovery-code-list">
+        <div>
+            <span class="text-muted">Admin</span>
+            <strong>@Model.FullName</strong>
+            <small>@Model.Email</small>
+        </div>
+        @foreach (var code in Model.Codes)
+        {
+            <code>@code</code>
+        }
+    </div>
+</section>

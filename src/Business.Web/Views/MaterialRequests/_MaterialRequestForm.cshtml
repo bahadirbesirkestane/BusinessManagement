@@ -1,0 +1,38 @@
+@model MaterialRequest
+
+<section class="panel-block form-panel">
+    <div class="panel-heading"><div><p class="section-kicker">Atölye / proje ekibi</p><h2>@ViewData["Title"]</h2></div></div>
+    <form method="post" class="app-form">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="mb-3">
+                <label asp-for="ProjectId" class="form-label">Proje</label>
+                <select asp-for="ProjectId" class="form-select">
+                    <option value="">Genel</option>
+                    @foreach (var project in ViewBag.Projects)
+                    {
+                        <option value="@project.Id">@project.Code - @project.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="MaterialId" class="form-label">Malzeme sınıfı</label>
+                <select asp-for="MaterialId" class="form-select">
+                    <option value="">Seçilmedi</option>
+                    @foreach (var material in ViewBag.Materials)
+                    {
+                        <option value="@material.Id">@material.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3 wide"><label asp-for="RequestedItem" class="form-label">İstenen malzeme</label><input asp-for="RequestedItem" class="form-control" placeholder="Örn. 30x3 mm paslanmaz lama" /></div>
+            <div class="mb-3"><label asp-for="QuantityText" class="form-label">Adet / miktar</label><input asp-for="QuantityText" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Quality" class="form-label">Kalite</label><input asp-for="Quality" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Status" class="form-label">Durum</label><select asp-for="Status" asp-items="Html.GetEnumSelectList<MaterialRequestStatus>()" class="form-select"></select></div>
+            <div class="mb-3"><label asp-for="NeededBy" class="form-label">Gerekli tarih</label><input asp-for="NeededBy" type="date" class="form-control" /></div>
+            <div class="mb-3 wide"><label asp-for="Notes" class="form-label">Not</label><textarea asp-for="Notes" class="form-control" rows="3"></textarea></div>
+        </div>
+        <div class="form-actions"><a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a><button class="btn btn-primary" type="submit">Kaydet</button></div>
+    </form>
+</section>

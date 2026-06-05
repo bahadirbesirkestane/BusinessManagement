@@ -1,0 +1,48 @@
+@model IReadOnlyList<Project>
+@{
+    ViewData["Title"] = "Proje Maliyetleri";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Projeler</p>
+            <h2>Proje maliyetleri</h2>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Tüm Projeler</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    <th>Kod</th>
+                    <th>Proje</th>
+                    <th>Müşteri</th>
+                    <th>Bütçe</th>
+                    <th>Maliyet Kalemleri</th>
+                    <th>Sipariş Tutarı</th>
+                    <th>Toplam</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var project in Model)
+            {
+                var costItemsTotal = project.CostItems.Sum(x => x.Amount);
+                var orderTotal = project.PurchaseOrders.Sum(x => (x.UnitPrice ?? 0) * (x.Quantity ?? 0));
+                var total = costItemsTotal + orderTotal;
+                <tr>
+                    <td><strong>@project.Code</strong></td>
+                    <td>@project.Name</td>
+                    <td>@(project.Customer?.Name ?? project.CustomerName ?? "-")</td>
+                    <td>@(project.Budget?.ToString("N2") ?? "-") @project.Currency</td>
+                    <td>@costItemsTotal.ToString("N2") @project.Currency</td>
+                    <td>@orderTotal.ToString("N2") @project.Currency</td>
+                    <td><strong>@total.ToString("N2") @project.Currency</strong></td>
+                    <td class="text-end"><a asp-action="Details" asp-route-id="@project.Id">Detay</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

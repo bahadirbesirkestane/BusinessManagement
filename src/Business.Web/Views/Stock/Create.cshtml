@@ -1,0 +1,20 @@
+@model StockItem
+@{
+    ViewData["Title"] = "Stok Ekle";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Stok / Depo</p>
+            <h2>Stok satırı ekle</h2>
+        </div>
+    </div>
+    <form asp-action="Create" method="post">
+        <partial name="_StockForm" model="Model" />
+        <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+        </div>
+    </form>
+</section>

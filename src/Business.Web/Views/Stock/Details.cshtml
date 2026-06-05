@@ -1,0 +1,119 @@
+@model StockMaterialDetailsViewModel
+@{
+    ViewData["Title"] = "Stok Detayı";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">@(Model.Material.CategoryName ?? Model.Material.Category.ToDisplayName())</p>
+            <h2>@Model.Material.Name stok listesi</h2>
+        </div>
+        <div class="actions-row">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Stok Durumu</a>
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+            {
+                <a class="btn btn-primary btn-sm" asp-action="Create" asp-route-materialId="@Model.Material.Id">Stok Satırı Ekle</a>
+            }
+        </div>
+    </div>
+
+    <form asp-action="Details" asp-route-id="@Model.Material.Id" method="get" class="list-filter-bar">
+        <div class="filter-field filter-search">
+            <span class="filter-icon" aria-hidden="true">⌕</span>
+            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Tür, ölçü, konum, not ara" />
+        </div>
+        <select name="status" class="form-select form-select-sm">
+            <option value="">Tüm durumlar</option>
+            @foreach (StockStatus item in Enum.GetValues<StockStatus>())
+            {
+                <option value="@item" selected="@(ViewBag.FilterStatus == item)">@item.ToDisplayName()</option>
+            }
+        </select>
+        <select name="sort" class="form-select form-select-sm">
+            <option value="">Sırala: Tür</option>
+            <option value="thickness" selected="@(ViewBag.Sort == "thickness")">Kalınlık</option>
+            <option value="dimensions" selected="@(ViewBag.Sort == "dimensions")">Ölçü</option>
+            <option value="quantity" selected="@(ViewBag.Sort == "quantity")">Miktar</option>
+            <option value="status" selected="@(ViewBag.Sort == "status")">Durum</option>
+            <option value="location" selected="@(ViewBag.Sort == "location")">Konum</option>
+        </select>
+        <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
+        <a class="icon-filter-button clear" asp-action="Details" asp-route-id="@Model.Material.Id" title="Temizle" aria-label="Temizle">×</a>
+    </form>
+
+    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+    {
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        </form>
+    }
+
+    @if (!Model.Groups.Any())
+    {
+        <div class="empty-state">Bu malzeme için stok satırı bulunamadı.</div>
+    }
+    else
+    {
+        <div class="stock-group-stack">
+            @foreach (var group in Model.Groups)
+            {
+                <section class="stock-group">
+                    <div class="stock-group-heading">
+                        <h3>@group.Key</h3>
+                        <span>@group.Count() satır</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table app-table align-middle">
+                            <thead>
+                                <tr>
+                                    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+                                    {
+                                        <th></th>
+                                    }
+                                    <th>Kalınlık</th>
+                                    <th>Ölçü</th>
+                                    <th>Adet / Miktar</th>
+                                    <th>Birim</th>
+                                    <th>Durum</th>
+                                    <th>Konum</th>
+                                    <th>Not</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in group)
+                                {
+                                    <tr class="status-row status-@item.Status.ToString().ToLowerInvariant()">
+                                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+                                        {
+                                            <td><input type="checkbox" name="ids" value="@item.Id" form="bulkDeleteForm" /></td>
+                                        }
+                                        <td>@(item.Thickness ?? "-")</td>
+                                        <td>@(item.Dimensions ?? "-")</td>
+                                        <td>@(item.QuantityText ?? item.Quantity?.ToString("0.###") ?? "-")</td>
+                                        <td>@(item.Unit ?? "-")</td>
+                                        <td><span class="status-pill status-@item.Status.ToString().ToLowerInvariant()">@item.Status.ToDisplayName()</span></td>
+                                        <td>@(item.Location ?? "-")</td>
+                                        <td>@(item.Notes ?? "-")</td>
+                                        <td class="text-end">
+                                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@item.Id">Düzenle</a>
+                                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="inline-form">
+                                                    <input type="hidden" name="materialId" value="@Model.Material.Id" />
+                                                    <button class="link-button text-danger" type="submit">Sil</button>
+                                                </form>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            }
+        </div>
+    }
+</section>

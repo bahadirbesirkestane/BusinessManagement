@@ -1,0 +1,15 @@
+@model PurchaseOrder
+@{
+    ViewData["Title"] = "Sipariş Sil";
+}
+
+<section class="panel-block">
+    <div class="panel-heading"><div><p class="section-kicker">Silme onayı</p><h2>@Model.OrderNumber</h2></div></div>
+    <p>Bu sipariş kaydı silinir. Bağlı maliyet kalemleri korunur; sipariş bağlantıları boşaltılır. Devam etmek istiyor musun?</p>
+    <form asp-action="Delete" method="post" class="form-actions">
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+        <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+        <button class="btn btn-danger" type="submit">Sil</button>
+    </form>
+</section>

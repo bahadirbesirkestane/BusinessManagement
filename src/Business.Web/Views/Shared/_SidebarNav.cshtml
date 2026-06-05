@@ -1,0 +1,274 @@
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<ApplicationUser> UserManager
+
+@{
+    var currentPath = Context.Request.Path.Value ?? "/";
+    var currentUser = User.Identity?.IsAuthenticated == true
+        ? await UserManager.GetUserAsync(User)
+        : null;
+    var displayName = !string.IsNullOrWhiteSpace(currentUser?.FullName)
+        ? currentUser.FullName
+        : User.Identity?.Name;
+
+    var groups = new[]
+    {
+        new
+        {
+            Title = "Dashboard",
+            Items = new[]
+            {
+                (Label: "Genel Bakış", Url: "/Dashboard"),
+                (Label: "Bugünkü İşler", Url: "/Dashboard/Today"),
+                (Label: "Geciken İşler", Url: "/Dashboard/Overdue"),
+                (Label: "Kritik Uyarılar", Url: "/Dashboard/CriticalAlerts")
+            }
+        },
+        new
+        {
+            Title = "Projeler",
+            Items = new[]
+            {
+                (Label: "Tüm Projeler", Url: "/Projects"),
+                (Label: "Tamamlanan Projeler", Url: "/Projects/Completed"),
+                (Label: "Proje Takvimi", Url: "/Projects/Calendar")
+            }
+        },
+        new
+        {
+            Title = "Görevler",
+            Items = new[]
+            {
+                (Label: "Tüm Görevler", Url: "/ProjectTasks"),
+                (Label: "Görev Kategorileri", Url: "/TaskCategories")
+            }
+        },
+        new
+        {
+            Title = "Siparişler",
+            Items = new[]
+            {
+                (Label: "Tüm Siparişler", Url: "/PurchaseOrders"),
+                (Label: "Hızlı Sipariş", Url: "/PurchaseOrders/QuickCreate")
+            }
+        },
+        new
+        {
+            Title = "Malzemeler",
+            Items = new[]
+            {
+                (Label: "Malzeme Listesi", Url: "/Materials"),
+                (Label: "Malzeme İhtiyaç Listesi", Url: "/MaterialRequests"),
+                (Label: "Malzeme Kategorileri", Url: "/MaterialCategories")
+            }
+        },
+        new
+        {
+            Title = "Müşteriler",
+            Items = new[]
+            {
+                (Label: "Müşteri Listesi", Url: "/Customers"),
+                (Label: "Yeni Müşteri", Url: "/Customers/Create")
+            }
+        },
+        new
+        {
+            Title = "Tedarikçiler",
+            Items = new[]
+            {
+                (Label: "Tedarikçi Listesi", Url: "/Suppliers")
+            }
+        },
+        new
+        {
+            Title = "Stok / Depo",
+            Items = new[]
+            {
+                (Label: "Stok Durumu", Url: "/Stock"),
+                (Label: "Stok Girişleri", Url: "/Stock/Create"),
+                (Label: "Stok Çıkışları", Url: "/Stock/OutOfStock"),
+                (Label: "Kritik Stoklar", Url: "/Stock/Critical")
+            }
+        },
+        new
+        {
+            Title = "Maliyet",
+            Items = new[]
+            {
+                (Label: "Proje Maliyetleri", Url: "/Costs/Projects"),
+                (Label: "Sipariş Maliyetleri", Url: "/Costs/PurchaseOrders"),
+                (Label: "Malzeme Giderleri", Url: "/Costs/Materials"),
+                (Label: "Genel Giderler", Url: "/Costs/General")
+            }
+        },
+        new
+        {
+            Title = "Faturalar",
+            Items = new[]
+            {
+                (Label: "Fatura Listesi", Url: "/Invoices")
+            }
+        },
+        new
+        {
+            Title = "Kullanıcılar",
+            Items = new[]
+            {
+                (Label: "Kullanıcılar", Url: "/Users"),
+                (Label: "Roller", Url: "/Roles"),
+                (Label: "Departmanlar", Url: "/Departments")
+            }
+        },
+        new
+        {
+            Title = "Ayarlar",
+            Items = new[]
+            {
+                (Label: "Yedekleme", Url: "/Backup")
+            }
+        }
+    };
+
+    bool IsGroupOpen(IEnumerable<(string Label, string Url)> items)
+    {
+        return items.Any(item => CanSeeItem(item.Url) && currentPath.StartsWith(item.Url, StringComparison.OrdinalIgnoreCase));
+    }
+
+    bool IsActiveLink(string url)
+    {
+        return currentPath.Equals(url, StringComparison.OrdinalIgnoreCase);
+    }
+
+    bool CanSeeItem(string url)
+    {
+        bool HasPermission(params string[] permissions)
+        {
+            return User.IsInRole(AppRoles.Admin) ||
+                   permissions.Any(permission => User.HasClaim(AppClaimTypes.Permission, permission));
+        }
+
+        if (url.StartsWith("/Dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.DashboardView);
+        }
+
+        if (url.StartsWith("/ProjectTasks", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.TasksView, AppPermissions.TasksCreate, AppPermissions.TasksUpdate, AppPermissions.TasksChangeStatus, AppPermissions.TasksComplete);
+        }
+
+        if (url.StartsWith("/TaskCategories", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.ProjectsManage);
+        }
+
+        if (url.StartsWith("/Projects", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.ProjectsView, AppPermissions.ProjectsCreate, AppPermissions.ProjectsUpdate, AppPermissions.ProjectsChangeStatus, AppPermissions.ProjectsManage);
+        }
+
+        if (url.StartsWith("/PurchaseOrders", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.PurchasingView, AppPermissions.PurchasingCreate, AppPermissions.PurchasingUpdate, AppPermissions.PurchasingChangeStatus, AppPermissions.PurchasingManage);
+        }
+
+        if (url.StartsWith("/MaterialRequests", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.MaterialRequestsView, AppPermissions.MaterialRequestsManage);
+        }
+
+        if (url.StartsWith("/MaterialCategories", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.MaterialsManage);
+        }
+
+        if (url.StartsWith("/Materials", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.MaterialsView, AppPermissions.MaterialsManage);
+        }
+
+        if (url.StartsWith("/Suppliers", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.SuppliersView, AppPermissions.SuppliersManage);
+        }
+
+        if (url.StartsWith("/Customers/Create", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.CustomersManage);
+        }
+
+        if (url.StartsWith("/Customers", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.CustomersView, AppPermissions.CustomersManage);
+        }
+
+        if (url.StartsWith("/Invoices", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.InvoicesView, AppPermissions.InvoicesManage);
+        }
+
+        if (url.StartsWith("/Stock/Create", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.StockManage);
+        }
+
+        if (url.StartsWith("/Stock", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.StockView, AppPermissions.StockManage);
+        }
+
+        if (url.StartsWith("/Costs", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.CostsView, AppPermissions.CostsManage);
+        }
+
+        if (url.StartsWith("/Users", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.UsersView, AppPermissions.UsersManage);
+        }
+
+        if (url.StartsWith("/Roles", StringComparison.OrdinalIgnoreCase) ||
+            url.StartsWith("/Departments", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.UsersManage, AppPermissions.RolesManage);
+        }
+
+        if (url.StartsWith("/Backup", StringComparison.OrdinalIgnoreCase))
+        {
+            return User.IsInRole(AppRoles.Admin);
+        }
+
+        return true;
+    }
+}
+
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <div class="side-user">@displayName</div>
+
+    foreach (var group in groups)
+    {
+        if (!group.Items.Any(item => CanSeeItem(item.Url)))
+        {
+            continue;
+        }
+
+        var isOpen = IsGroupOpen(group.Items);
+        <details class="side-group" @(isOpen ? "open" : "")>
+            <summary>@group.Title</summary>
+            <div class="side-subnav">
+                @foreach (var item in group.Items)
+                {
+                    if (!CanSeeItem(item.Url))
+                    {
+                        continue;
+                    }
+                    <a class="@(IsActiveLink(item.Url) ? "active" : "")" href="@item.Url">@item.Label</a>
+                }
+            </div>
+        </details>
+    }
+}
+else
+{
+    <a href="/">Giriş</a>
+}

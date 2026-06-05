@@ -1,0 +1,163 @@
+@model ProjectTask
+
+@{
+    var useProject = Model.ProjectId.HasValue;
+    var useCustomer = !useProject && Model.CustomerId.HasValue;
+    var useManualProject = !useProject && !string.IsNullOrWhiteSpace(Model.ManualProjectName);
+    var useManualCustomer = !useProject && !useCustomer && !string.IsNullOrWhiteSpace(Model.ManualCustomerName);
+}
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Görevler</p>
+            <h2>@ViewData["Title"]</h2>
+        </div>
+    </div>
+    <form method="post" class="app-form" id="taskForm">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="mb-3 wide">
+                <label class="form-label">Bağlantı</label>
+                <div class="check-grid task-relation-grid">
+                    <label class="check-card">
+                        <input type="checkbox" id="useProject" @(useProject ? "checked" : "") />
+                        <span>Projeye bağla</span>
+                    </label>
+                    <label class="check-card">
+                        <input type="checkbox" id="useCustomer" @(useCustomer ? "checked" : "") />
+                        <span>Müşteriye bağla</span>
+                    </label>
+                    <label class="check-card">
+                        <input type="checkbox" id="useManualProject" @(useManualProject ? "checked" : "") />
+                        <span>Projeyi elle yaz</span>
+                    </label>
+                    <label class="check-card">
+                        <input type="checkbox" id="useManualCustomer" @(useManualCustomer ? "checked" : "") />
+                        <span>Müşteriyi elle yaz</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="ProjectId" class="form-label">Proje</label>
+                <select asp-for="ProjectId" class="form-select relation-field" data-relation="project">
+                    <option value="">Genel</option>
+                    @foreach (var project in ViewBag.Projects)
+                    {
+                        <option value="@project.Id">@project.Code - @project.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="CustomerId" class="form-label">Müşteri</label>
+                <select asp-for="CustomerId" class="form-select relation-field" data-relation="customer">
+                    <option value="">Genel</option>
+                    @foreach (var customer in ViewBag.Customers)
+                    {
+                        <option value="@customer.Id">@customer.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ManualProjectName" class="form-label">Proje elle giriş</label>
+                <input asp-for="ManualProjectName" class="form-control relation-field" data-relation="manual-project" />
+            </div>
+            <div class="mb-3">
+                <label asp-for="ManualCustomerName" class="form-label">Müşteri elle giriş</label>
+                <input asp-for="ManualCustomerName" class="form-control relation-field" data-relation="manual-customer" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="TaskCategoryId" class="form-label">Kategori</label>
+                <select asp-for="TaskCategoryId" class="form-select">
+                    <option value="">Seçilmedi</option>
+                    @foreach (var category in ViewBag.TaskCategories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ResponsibleUserId" class="form-label">Sorumlu Kişi</label>
+                <select asp-for="ResponsibleUserId" class="form-select">
+                    <option value="">Sorumlu seçilmedi</option>
+                    @foreach (var user in ViewBag.Users)
+                    {
+                        <option value="@user.Id">@user.FullName</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3 wide">
+                <label class="form-label">Atanan Kişiler</label>
+                <select name="AssignedUserIds" class="form-select" multiple size="5">
+                    <option value="">Atanmamış</option>
+                    @foreach (var user in ViewBag.Users)
+                    {
+                        <option value="@user.Id" selected="@Model.Assignments.Any(x => x.UserId == user.Id)">@user.FullName</option>
+                    }
+                </select>
+                <small class="text-muted">Birden fazla kişi seçebilirsin.</small>
+            </div>
+            <div class="mb-3"><label asp-for="Status" class="form-label">Durum</label><select asp-for="Status" asp-items="Html.GetEnumSelectList<WorkTaskStatus>()" class="form-select"></select></div>
+            <div class="mb-3 wide"><label asp-for="Title" class="form-label">Başlık</label><input asp-for="Title" class="form-control" /><span asp-validation-for="Title" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Priority" class="form-label">Öncelik</label><select asp-for="Priority" asp-items="Html.GetEnumSelectList<ProjectPriority>()" class="form-select"></select></div>
+            <div class="mb-3"><label asp-for="ProgressPercent" class="form-label">İlerleme (%)</label><input asp-for="ProgressPercent" type="number" min="0" max="100" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="StartDate" class="form-label">Başlangıç</label><input asp-for="StartDate" type="date" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="DueDate" class="form-label">Termin</label><input asp-for="DueDate" type="date" class="form-control" /></div>
+            <div class="mb-3 wide"><label asp-for="Description" class="form-label">Açıklama</label><textarea asp-for="Description" class="form-control" rows="3"></textarea></div>
+            <div class="mb-3 wide"><label asp-for="Notes" class="form-label">Not</label><textarea asp-for="Notes" class="form-control" rows="3"></textarea></div>
+        </div>
+        <div class="form-actions">
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+        </div>
+    </form>
+</section>
+
+<script>
+    (() => {
+        const flags = {
+            project: document.getElementById('useProject'),
+            customer: document.getElementById('useCustomer'),
+            manualProject: document.getElementById('useManualProject'),
+            manualCustomer: document.getElementById('useManualCustomer')
+        };
+
+        const fields = {
+            project: document.querySelector('[data-relation="project"]'),
+            customer: document.querySelector('[data-relation="customer"]'),
+            manualProject: document.querySelector('[data-relation="manual-project"]'),
+            manualCustomer: document.querySelector('[data-relation="manual-customer"]')
+        };
+
+        function disableField(field, disabled) {
+            field.disabled = disabled;
+            field.classList.toggle('is-disabled-soft', disabled);
+            if (disabled) field.value = '';
+        }
+
+        function setExclusive(activeKey) {
+            Object.entries(flags).forEach(([key, checkbox]) => {
+                if (key !== activeKey) checkbox.checked = false;
+            });
+            sync();
+        }
+
+        function sync() {
+            const projectOn = flags.project.checked;
+            disableField(fields.project, !projectOn);
+            disableField(fields.customer, projectOn || !flags.customer.checked);
+            disableField(fields.manualProject, projectOn || !flags.manualProject.checked);
+            disableField(fields.manualCustomer, projectOn || flags.customer.checked || !flags.manualCustomer.checked);
+        }
+
+        flags.project.addEventListener('change', () => flags.project.checked ? setExclusive('project') : sync());
+        flags.customer.addEventListener('change', () => flags.customer.checked ? setExclusive('customer') : sync());
+        flags.manualProject.addEventListener('change', () => flags.manualProject.checked ? setExclusive('manualProject') : sync());
+        flags.manualCustomer.addEventListener('change', () => flags.manualCustomer.checked ? setExclusive('manualCustomer') : sync());
+
+        sync();
+    })();
+</script>

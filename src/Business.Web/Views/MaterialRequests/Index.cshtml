@@ -1,0 +1,120 @@
+@model IReadOnlyList<Business.Domain.Entities.MaterialRequest>
+@{
+    ViewData["Title"] = "Malzeme İhtiyaçları";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Atölye ve proje ekibi</p>
+            <h2>Gerekli malzeme listesi</h2>
+        </div>
+        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
+        {
+            <a class="btn btn-primary btn-sm" asp-action="Create">Yeni talep</a>
+        }
+    </div>
+
+    <form asp-action="Index" method="get" class="list-filter-bar list-filter-bar-wide">
+        @if (ViewBag.ProjectId is not null)
+        {
+            <input type="hidden" name="projectId" value="@ViewBag.ProjectId" />
+        }
+        <div class="filter-field filter-search">
+            <span class="filter-icon" aria-hidden="true">⌕</span>
+            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Malzeme, kalite, proje veya not ara" />
+        </div>
+        @if (ViewBag.ProjectId is null)
+        {
+            <select name="projectId" class="form-select form-select-sm">
+                <option value="">Proje</option>
+                @foreach (var project in ViewBag.Projects)
+                {
+                    <option value="@project.Id">@project.Code - @project.Name</option>
+                }
+            </select>
+        }
+        <select name="status" class="form-select form-select-sm">
+            <option value="">Durum</option>
+            @foreach (MaterialRequestStatus item in Enum.GetValues<MaterialRequestStatus>())
+            {
+                <option value="@item" selected="@(ViewBag.FilterStatus == item)">@item.ToDisplayName()</option>
+            }
+        </select>
+        <select name="materialId" class="form-select form-select-sm">
+            <option value="">Malzeme</option>
+            @foreach (var material in ViewBag.Materials)
+            {
+                <option value="@material.Id" selected="@(ViewBag.FilterMaterialId == material.Id)">@material.Name</option>
+            }
+        </select>
+        <input name="neededFrom" value="@ViewBag.FilterNeededFrom" type="date" class="form-control form-control-sm" title="Başlangıç tarihi" />
+        <input name="neededTo" value="@ViewBag.FilterNeededTo" type="date" class="form-control form-control-sm" title="Bitiş tarihi" />
+        <select name="sort" class="form-select form-select-sm">
+            <option value="">Sırala: Yeni</option>
+            <option value="item" selected="@(ViewBag.Sort == "item")">Malzeme adı</option>
+            <option value="project" selected="@(ViewBag.Sort == "project")">Proje</option>
+            <option value="material" selected="@(ViewBag.Sort == "material")">Tanımlı malzeme</option>
+            <option value="status" selected="@(ViewBag.Sort == "status")">Durum</option>
+            <option value="needed" selected="@(ViewBag.Sort == "needed")">Gerekli tarih</option>
+            <option value="oldest" selected="@(ViewBag.Sort == "oldest")">Eski kayıt</option>
+        </select>
+        <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
+        <a class="icon-filter-button clear" asp-action="Index" asp-route-projectId="@ViewBag.ProjectId" title="Temizle" aria-label="Temizle">×</a>
+    </form>
+
+    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
+    {
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        </form>
+    }
+
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
+                    {
+                        <th></th>
+                    }
+                    <th>Malzeme</th>
+                    <th>Proje</th>
+                    <th>Miktar</th>
+                    <th>Kalite</th>
+                    <th>Gerekli tarih</th>
+                    <th>Durum</th>
+                    <th>Not</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var request in Model)
+                {
+                    <tr class="status-row status-@request.Status.ToString().ToLowerInvariant()">
+                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
+                        {
+                            <td><input type="checkbox" name="ids" value="@request.Id" form="bulkDeleteForm" /></td>
+                        }
+                        <td><strong>@request.RequestedItem</strong><small class="d-block text-muted">@request.Material?.Name</small></td>
+                        <td>@(request.Project?.Code ?? "Genel")</td>
+                        <td>@(request.QuantityText ?? request.Quantity?.ToString("0.###") ?? "-")</td>
+                        <td>@(request.Quality ?? "-")</td>
+                        <td>@request.NeededBy.ToString("dd.MM.yyyy")</td>
+                        <td><span class="status-pill status-@request.Status.ToString().ToLowerInvariant()">@request.Status.ToDisplayName()</span></td>
+                        <td>@(request.Notes ?? "-")</td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@request.Id">Detay</a>
+                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
+                            {
+                                <span> · </span><a asp-action="Edit" asp-route-id="@request.Id">Düzenle</a>
+                                <span> · </span><a class="text-danger" asp-action="Delete" asp-route-id="@request.Id">Sil</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

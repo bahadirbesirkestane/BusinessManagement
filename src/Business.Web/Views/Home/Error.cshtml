@@ -1,0 +1,20 @@
+@model Business.Web.Models.ErrorViewModel
+@{
+    ViewData["Title"] = "Hata";
+}
+
+<section class="panel-block error-panel">
+    <div>
+        <p class="section-kicker">Beklenmeyen hata</p>
+        <h2>Bir şey ters gitti</h2>
+        <p>İşlem tamamlanamadı. Sayfayı yenileyebilir veya panele geri dönebilirsiniz.</p>
+        @if (!string.IsNullOrWhiteSpace(Model.RequestId))
+        {
+            <small>Hata takip kodu: <code>@Model.RequestId</code></small>
+        }
+    </div>
+    <div class="form-actions">
+        <a class="btn btn-outline-secondary" href="javascript:history.back()">Geri Dön</a>
+        <a class="btn btn-primary" asp-controller="Dashboard" asp-action="Index">Panele Git</a>
+    </div>
+</section>

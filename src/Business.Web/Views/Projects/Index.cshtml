@@ -1,0 +1,126 @@
+@model IReadOnlyList<Business.Domain.Entities.Project>
+@{
+    ViewData["Title"] = "Projeler";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Proje merkezi</p>
+            <h2>@(ViewBag.ProjectListTitle ?? "Proje listesi")</h2>
+        </div>
+        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+        {
+            <a class="btn btn-primary btn-sm" asp-action="Create">Yeni proje</a>
+        }
+    </div>
+
+    <form asp-action="Index" method="get" class="list-filter-bar">
+        <div class="filter-field filter-search">
+            <span class="filter-icon" aria-hidden="true">⌕</span>
+            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Kod, proje, müşteri ara" />
+        </div>
+        <select name="status" class="form-select form-select-sm">
+            <option value="">Durum</option>
+            @foreach (ProjectStatus item in Enum.GetValues<ProjectStatus>())
+            {
+                <option value="@item" selected="@(ViewBag.FilterStatus == item)">@item.ToDisplayName()</option>
+            }
+        </select>
+        <select name="priority" class="form-select form-select-sm">
+            <option value="">Öncelik</option>
+            @foreach (ProjectPriority item in Enum.GetValues<ProjectPriority>())
+            {
+                <option value="@item" selected="@(ViewBag.FilterPriority == item)">@item.ToDisplayName()</option>
+            }
+        </select>
+        <select name="customerId" class="form-select form-select-sm">
+            <option value="">Müşteri</option>
+            @foreach (var customer in ViewBag.Customers)
+            {
+                <option value="@customer.Id" selected="@(ViewBag.FilterCustomerId == customer.Id)">@customer.Name</option>
+            }
+        </select>
+        <select name="sort" class="form-select form-select-sm">
+            <option value="">Sırala: Yeni</option>
+            <option value="code" selected="@(ViewBag.Sort == "code")">Kod</option>
+            <option value="name" selected="@(ViewBag.Sort == "name")">Proje adı</option>
+            <option value="target" selected="@(ViewBag.Sort == "target")">Hedef tarih</option>
+            <option value="status" selected="@(ViewBag.Sort == "status")">Durum</option>
+            <option value="created" selected="@(ViewBag.Sort == "created")">Eski kayıt</option>
+        </select>
+        <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
+        <a class="icon-filter-button clear" asp-action="Index" title="Temizle" aria-label="Temizle">×</a>
+    </form>
+
+    @if (User.IsInRole(AppRoles.Admin))
+    {
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        </form>
+    }
+
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    @if (User.IsInRole(AppRoles.Admin))
+                    {
+                        <th></th>
+                    }
+                    <th>Kod</th>
+                    <th>Proje</th>
+                    <th>Müşteri</th>
+                    <th>Durum</th>
+                    <th>Hedef</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var project in Model)
+                {
+                    <tr class="status-row status-@project.Status.ToString().ToLowerInvariant()">
+                        @if (User.IsInRole(AppRoles.Admin))
+                        {
+                            <td><input type="checkbox" name="ids" value="@project.Id" form="bulkDeleteForm" /></td>
+                        }
+                        <td><strong>@project.Code</strong></td>
+                        <td>@project.Name</td>
+                        <td>@(project.Customer?.Name ?? project.CustomerName ?? "-")</td>
+                        <td>
+                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                            {
+                                <form asp-action="UpdateStatus" method="post" class="inline-status-form">
+                                    <input type="hidden" name="id" value="@project.Id" />
+                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                    <select name="status" class="status-select status-@project.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Proje durumu">
+                                        @foreach (ProjectStatus status in Enum.GetValues<ProjectStatus>())
+                                        {
+                                            <option value="@status" selected="@(project.Status == status)">@status.ToDisplayName()</option>
+                                        }
+                                    </select>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="status-pill status-@project.Status.ToString().ToLowerInvariant()">@project.Status.ToDisplayName()</span>
+                            }
+                        </td>
+                        <td>@(project.TargetEndDate?.ToString("dd.MM.yyyy") ?? "-")</td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@project.Id">Detay</a>
+                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                            {
+                                <span> · </span><a asp-action="Edit" asp-route-id="@project.Id">Düzenle</a>
+                            }
+                            @if (User.IsInRole(AppRoles.Admin))
+                            {
+                                <span> · </span><a class="text-danger" asp-action="Delete" asp-route-id="@project.Id">Sil</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

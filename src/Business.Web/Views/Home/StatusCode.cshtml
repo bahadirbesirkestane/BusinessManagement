@@ -1,0 +1,35 @@
+@model int
+@{
+    ViewData["Title"] = Model switch
+    {
+        403 => "Yetkisiz İşlem",
+        404 => "Sayfa Bulunamadı",
+        _ => "İşlem Tamamlanamadı"
+    };
+
+    var title = Model switch
+    {
+        403 => "Bu işlem için yetkiniz yok",
+        404 => "Aradığınız sayfa bulunamadı",
+        _ => "İstek tamamlanamadı"
+    };
+
+    var message = Model switch
+    {
+        403 => "Bu sayfayı görüntülemek veya işlem yapmak için gerekli yetkiye sahip değilsiniz.",
+        404 => "Bağlantı değişmiş, kaldırılmış veya hatalı yazılmış olabilir.",
+        _ => "İstek beklenen şekilde tamamlanamadı. Tekrar deneyebilir veya panele dönebilirsiniz."
+    };
+}
+
+<section class="panel-block error-panel">
+    <div>
+        <p class="section-kicker">HTTP @Model</p>
+        <h2>@title</h2>
+        <p>@message</p>
+    </div>
+    <div class="form-actions">
+        <a class="btn btn-outline-secondary" href="javascript:history.back()">Geri Dön</a>
+        <a class="btn btn-primary" asp-controller="Dashboard" asp-action="Index">Panele Git</a>
+    </div>
+</section>

@@ -1,0 +1,65 @@
+@model IReadOnlyList<Business.Domain.Entities.Customer>
+@{
+    ViewData["Title"] = "Müşteriler";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Cari kartlar</p>
+            <h2>Müşteri listesi</h2>
+        </div>
+        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage))
+        {
+            <a class="btn btn-primary btn-sm" asp-action="Create">Yeni müşteri</a>
+        }
+    </div>
+
+    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage))
+    {
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        </form>
+    }
+
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    <th>Müşteri</th>
+                    <th></th>
+                    <th>Vergi no</th>
+                    <th>İletişim</th>
+                    <th>Vade</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var customer in Model)
+                {
+                    <tr>
+                        <td><strong>@customer.Name</strong><small class="d-block text-muted">@customer.ContactPerson</small></td>
+                        <td>
+                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage))
+                            {
+                                <input type="checkbox" name="ids" value="@customer.Id" form="bulkDeleteForm" />
+                            }
+                        </td>
+                        <td>@(customer.TaxNumber ?? "-")</td>
+                        <td>@(customer.Phone ?? customer.Email ?? "-")</td>
+                        <td>@(customer.PaymentTerm ?? "-")</td>
+                        <td><span class="status-pill">@(customer.IsActive ? "Aktif" : "Pasif")</span></td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@customer.Id">Detay</a>
+                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage))
+                            {
+                                <span> · </span><a asp-action="Edit" asp-route-id="@customer.Id">Düzenle</a>
+                                <span> · </span><a class="text-danger" asp-action="Delete" asp-route-id="@customer.Id">Sil</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

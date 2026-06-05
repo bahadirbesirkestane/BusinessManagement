@@ -1,0 +1,17 @@
+@model MaterialCategoryDefinition
+
+<div class="form-grid">
+    <div class="mb-3 wide">
+        <label asp-for="Name" class="form-label">Kategori adı</label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3 wide">
+        <label asp-for="Description" class="form-label">Açıklama</label>
+        <textarea asp-for="Description" rows="3" class="form-control"></textarea>
+    </div>
+    <div class="form-check wide">
+        <input asp-for="IsActive" class="form-check-input" />
+        <label asp-for="IsActive" class="form-check-label">Aktif</label>
+    </div>
+</div>

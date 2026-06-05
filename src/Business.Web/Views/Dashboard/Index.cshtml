@@ -1,0 +1,101 @@
+@model Business.Web.ViewModels.DashboardViewModel
+@{
+    ViewData["Title"] = "Yönetim Paneli";
+}
+
+<div class="metric-grid">
+    <div class="metric-card">
+        <span>Aktif proje</span>
+        <strong>@Model.ActiveProjectCount</strong>
+        <small>Planlanan, devam eden ve bekleyen işler</small>
+    </div>
+    <div class="metric-card">
+        <span>Açık sipariş</span>
+        <strong>@Model.OpenOrderCount</strong>
+        <small>Teslim veya iptal edilmemiş kalemler</small>
+    </div>
+    <div class="metric-card">
+        <span>Malzeme talebi</span>
+        <strong>@Model.PendingMaterialRequestCount</strong>
+        <small>Ustadan gelen bekleyen ihtiyaçlar</small>
+    </div>
+    <div class="metric-card">
+        <span>Tedarikçi</span>
+        <strong>@Model.SupplierCount</strong>
+        <small>Kayıtlı firma ve kişiler</small>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <section class="panel-block">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Proje akışı</p>
+                <h2>Son projeler</h2>
+            </div>
+            <a asp-controller="Projects" asp-action="Index">Tümünü gör</a>
+        </div>
+        <div class="list-stack">
+            @foreach (var project in Model.RecentProjects)
+            {
+                <a class="list-row" asp-controller="Projects" asp-action="Details" asp-route-id="@project.Id">
+                    <span>
+                        <strong>@project.Code</strong>
+                        <small>@project.Name</small>
+                    </span>
+                    <span class="status-pill">@project.Status.ToDisplayName()</span>
+                </a>
+            }
+        </div>
+    </section>
+
+    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingView))
+    {
+        <section class="panel-block">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Satın alma</p>
+                    <h2>Son siparişler</h2>
+                </div>
+                <a asp-controller="PurchaseOrders" asp-action="Index">Liste</a>
+            </div>
+            <div class="list-stack">
+                @foreach (var order in Model.RecentOrders)
+                {
+                    <div class="list-row">
+                        <span>
+                            <strong>@order.Content</strong>
+                            <small>@(order.Project?.Code ?? "Genel") · @(order.Supplier?.Name ?? "Tedarikçi yok")</small>
+                        </span>
+                        <span class="status-pill">@order.Status.ToDisplayName()</span>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsView))
+    {
+        <section class="panel-block">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Atölye</p>
+                    <h2>Malzeme ihtiyaçları</h2>
+                </div>
+                <a asp-controller="MaterialRequests" asp-action="Create">Yeni talep</a>
+            </div>
+            <div class="list-stack">
+                @foreach (var request in Model.MaterialRequests)
+                {
+                    <div class="list-row">
+                        <span>
+                            <strong>@request.RequestedItem</strong>
+                            <small>@(request.Project?.Code ?? "Genel") · @request.QuantityText</small>
+                        </span>
+                        <span class="status-pill">@request.Status.ToDisplayName()</span>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>

@@ -1,0 +1,26 @@
+@model Invoice
+
+<section class="panel-block form-panel">
+    <div class="panel-heading"><div><p class="section-kicker">Gelir / gider</p><h2>@ViewData["Title"]</h2></div></div>
+    <form method="post" class="app-form">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="mb-3"><label asp-for="InvoiceNumber" class="form-label">Fatura no</label><input asp-for="InvoiceNumber" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Type" class="form-label">Tür</label><select asp-for="Type" asp-items="Html.GetEnumSelectList<InvoiceType>()" class="form-select"></select></div>
+            <div class="mb-3"><label asp-for="Status" class="form-label">Durum</label><select asp-for="Status" asp-items="Html.GetEnumSelectList<InvoiceStatus>()" class="form-select"></select></div>
+            <div class="mb-3"><label asp-for="CustomerId" class="form-label">Müşteri</label><select asp-for="CustomerId" class="form-select"><option value="">Seçilmedi</option>@foreach (var customer in ViewBag.Customers){<option value="@customer.Id">@customer.Name</option>}</select></div>
+            <div class="mb-3"><label asp-for="SupplierId" class="form-label">Tedarikçi</label><select asp-for="SupplierId" class="form-select"><option value="">Seçilmedi</option>@foreach (var supplier in ViewBag.Suppliers){<option value="@supplier.Id">@supplier.Name</option>}</select></div>
+            <div class="mb-3"><label asp-for="ProjectId" class="form-label">Proje</label><select asp-for="ProjectId" class="form-select"><option value="">Seçilmedi</option>@foreach (var project in ViewBag.Projects){<option value="@project.Id">@project.Code - @project.Name</option>}</select></div>
+            <div class="mb-3"><label asp-for="PurchaseOrderId" class="form-label">Sipariş</label><select asp-for="PurchaseOrderId" class="form-select"><option value="">Seçilmedi</option>@foreach (var order in ViewBag.PurchaseOrders){<option value="@order.Id">@order.OrderNumber - @order.Content</option>}</select></div>
+            <div class="mb-3"><label asp-for="IssueDate" class="form-label">Fatura tarihi</label><input asp-for="IssueDate" type="date" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="DueDate" class="form-label">Vade tarihi</label><input asp-for="DueDate" type="date" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="SubTotal" class="form-label">Ara toplam</label><input asp-for="SubTotal" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="VatTotal" class="form-label">KDV</label><input asp-for="VatTotal" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="DiscountTotal" class="form-label">İskonto</label><input asp-for="DiscountTotal" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Currency" class="form-label">Para birimi</label><input asp-for="Currency" class="form-control" /></div>
+            <div class="mb-3 wide"><label asp-for="Notes" class="form-label">Not</label><textarea asp-for="Notes" class="form-control" rows="3"></textarea></div>
+        </div>
+        <div class="form-actions"><a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a><button class="btn btn-primary" type="submit">Kaydet</button></div>
+    </form>
+</section>

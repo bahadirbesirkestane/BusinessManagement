@@ -1,0 +1,6 @@
+@model Business.Web.ViewModels.UserFormViewModel
+@{
+    ViewData["Title"] = "Kullanıcı Düzenle";
+}
+
+@await Html.PartialAsync("_UserForm", Model)

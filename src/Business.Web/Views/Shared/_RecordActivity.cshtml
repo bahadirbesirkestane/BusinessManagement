@@ -1,0 +1,101 @@
+@using Microsoft.AspNetCore.Identity
+@model Business.Web.ViewModels.RecordActivityViewModel
+@inject UserManager<ApplicationUser> UserManager
+
+@functions {
+    private async Task<string> GetDisplayNameAsync(string? userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return "Sistem";
+        }
+
+        if (Model.UserNames.TryGetValue(userId, out var name))
+        {
+            return name;
+        }
+
+        var user = await UserManager.FindByIdAsync(userId);
+        return user?.FullName ?? user?.Email ?? "Bilinmeyen kullanıcı";
+    }
+}
+
+<section class="panel-block activity-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Kayıt geçmişi</p>
+            <h2>Yorumlar ve Dosyalar</h2>
+        </div>
+    </div>
+
+    <div class="activity-grid">
+        <div>
+            <form asp-controller="RecordActivity" asp-action="AddComment" method="post" class="activity-form">
+                <input type="hidden" name="ownerType" value="@Model.OwnerType" />
+                <input type="hidden" name="ownerId" value="@Model.OwnerId" />
+                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                <textarea name="commentText" class="form-control" rows="3" placeholder="Yorum ekle"></textarea>
+                <button class="btn btn-primary" type="submit">Yorum Ekle</button>
+            </form>
+
+            <div class="list-stack mt-3">
+                @foreach (var comment in Model.Comments)
+                {
+                    var creator = await GetDisplayNameAsync(comment.CreatedByUserId);
+                    <div class="list-row">
+                        <span>
+                            <strong>@comment.CommentText</strong>
+                            <small>@creator · @comment.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+                        </span>
+                        @if (User.IsInRole(AppRoles.Admin))
+                        {
+                            <form asp-controller="RecordActivity" asp-action="DeleteComment" asp-route-id="@comment.Id" method="post" class="inline-form">
+                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                <button class="link-button text-danger" type="submit">Sil</button>
+                            </form>
+                        }
+                    </div>
+                }
+                @if (!Model.Comments.Any())
+                {
+                    <p class="empty-note">Henüz yorum yok.</p>
+                }
+            </div>
+        </div>
+
+        <div>
+            <form asp-controller="RecordActivity" asp-action="AddFile" method="post" enctype="multipart/form-data" class="activity-form">
+                <input type="hidden" name="ownerType" value="@Model.OwnerType" />
+                <input type="hidden" name="ownerId" value="@Model.OwnerId" />
+                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                <input type="file" name="file" class="form-control" />
+                <input type="text" name="description" class="form-control" placeholder="Açıklama" />
+                <button class="btn btn-outline-primary" type="submit">Dosya Ekle</button>
+            </form>
+
+            <div class="list-stack mt-3">
+                @foreach (var file in Model.Files)
+                {
+                    var creator = await GetDisplayNameAsync(file.CreatedByUserId);
+                    <div class="list-row">
+                        <span>
+                            <strong><a href="@file.RelativePath" target="_blank">@file.OriginalFileName</a></strong>
+                            <small>@creator · @file.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm") · @(file.Description ?? "-")</small>
+                        </span>
+                        @if (User.IsInRole(AppRoles.Admin))
+                        {
+                            <form asp-controller="RecordActivity" asp-action="DeleteFile" asp-route-id="@file.Id" method="post" class="inline-form">
+                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                <button class="link-button text-danger" type="submit">Sil</button>
+                            </form>
+                        }
+                    </div>
+                }
+                @if (!Model.Files.Any())
+                {
+                    <p class="empty-note">Henüz dosya yok.</p>
+                }
+            </div>
+        </div>
+    </div>
+</section>

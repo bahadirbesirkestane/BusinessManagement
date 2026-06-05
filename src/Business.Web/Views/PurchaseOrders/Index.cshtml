@@ -1,0 +1,165 @@
+@model IReadOnlyList<Business.Domain.Entities.PurchaseOrder>
+@{
+    ViewData["Title"] = "Satın Alma";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Sipariş takibi</p>
+            <h2>Genel ve proje siparişleri</h2>
+        </div>
+        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+        {
+            <div class="toolbar-actions">
+                <a class="btn btn-outline-primary btn-sm" asp-action="QuickCreate" asp-route-projectId="@ViewBag.ProjectId">Hızlı sipariş</a>
+                <a class="btn btn-primary btn-sm" asp-action="Create">Yeni sipariş</a>
+            </div>
+        }
+    </div>
+
+    <form asp-action="Index" method="get" class="list-filter-bar list-filter-bar-wide">
+        @if (ViewBag.ProjectId is not null)
+        {
+            <input type="hidden" name="projectId" value="@ViewBag.ProjectId" />
+        }
+        <div class="filter-field filter-search">
+            <span class="filter-icon" aria-hidden="true">⌕</span>
+            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Sipariş no, içerik, kalite, tedarikçi, malzeme ara" />
+        </div>
+        <select name="status" class="form-select form-select-sm">
+            <option value="">Durum</option>
+            @foreach (PurchaseOrderStatus item in Enum.GetValues<PurchaseOrderStatus>())
+            {
+                <option value="@item" selected="@(ViewBag.FilterStatus == item)">@item.ToDisplayName()</option>
+            }
+        </select>
+        <select name="scope" class="form-select form-select-sm">
+            <option value="">Kapsam</option>
+            @foreach (PurchaseOrderScope item in Enum.GetValues<PurchaseOrderScope>())
+            {
+                <option value="@item" selected="@(ViewBag.FilterScope == item)">@item.ToDisplayName()</option>
+            }
+        </select>
+        <select name="supplierId" class="form-select form-select-sm">
+            <option value="">Tedarikçi</option>
+            @foreach (var supplier in ViewBag.Suppliers)
+            {
+                <option value="@supplier.Id" selected="@(ViewBag.FilterSupplierId == supplier.Id)">@supplier.Name</option>
+            }
+        </select>
+        <select name="materialId" class="form-select form-select-sm">
+            <option value="">Malzeme</option>
+            @foreach (var material in ViewBag.Materials)
+            {
+                <option value="@material.Id" selected="@(ViewBag.FilterMaterialId == material.Id)">@material.Name</option>
+            }
+        </select>
+        <select name="requestedByUserId" class="form-select form-select-sm">
+            <option value="">Siparis veren</option>
+            @foreach (var user in ViewBag.Users)
+            {
+                <option value="@user.Id" selected="@(ViewBag.FilterRequestedByUserId == user.Id)">@user.FullName</option>
+            }
+        </select>
+        <input name="requestedBy" value="@ViewBag.FilterRequestedBy" class="form-control form-control-sm" placeholder="Veren kisi ara" />
+        <input name="dateFrom" value="@ViewBag.FilterDateFrom" type="date" class="form-control form-control-sm" title="Başlangıç tarihi" />
+        <input name="dateTo" value="@ViewBag.FilterDateTo" type="date" class="form-control form-control-sm" title="Bitiş tarihi" />
+        <select name="sort" class="form-select form-select-sm">
+            <option value="">Sırala: Yeni</option>
+            <option value="orderNumber" selected="@(ViewBag.Sort == "orderNumber")">Sipariş no</option>
+            <option value="content" selected="@(ViewBag.Sort == "content")">İçerik</option>
+            <option value="project" selected="@(ViewBag.Sort == "project")">Proje</option>
+            <option value="supplier" selected="@(ViewBag.Sort == "supplier")">Tedarikçi</option>
+            <option value="requester" selected="@(ViewBag.Sort == "requester")">Siparis veren</option>
+            <option value="status" selected="@(ViewBag.Sort == "status")">Durum</option>
+            <option value="date" selected="@(ViewBag.Sort == "date")">Sipariş tarihi</option>
+            <option value="arrival" selected="@(ViewBag.Sort == "arrival")">Varış tarihi</option>
+            <option value="total" selected="@(ViewBag.Sort == "total")">Tutar</option>
+        </select>
+        <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
+        <a class="icon-filter-button clear" asp-action="Index" asp-route-projectId="@ViewBag.ProjectId" title="Temizle" aria-label="Temizle">×</a>
+    </form>
+
+    @if (User.IsInRole(AppRoles.Admin))
+    {
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        </form>
+    }
+
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    <th>Sipariş</th>
+                    @if (User.IsInRole(AppRoles.Admin))
+                    {
+                        <th></th>
+                    }
+                    <th>Proje</th>
+                    <th>Adet / miktar</th>
+                    <th>Kalite</th>
+                    <th>Veren</th>
+                    <th>Tedarikçi</th>
+                    <th>Tarih</th>
+                    <th>Durum</th>
+                    <th>Birim fiyat</th>
+                    <th>Tutar</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Model)
+                {
+                    <tr class="status-row status-@order.Status.ToString().ToLowerInvariant()">
+                        <td><strong>@order.Content</strong><small class="d-block text-muted">@order.Notes</small></td>
+                        @if (User.IsInRole(AppRoles.Admin))
+                        {
+                            <td><input type="checkbox" name="ids" value="@order.Id" form="bulkDeleteForm" /></td>
+                        }
+                        <td>@(order.Project?.Code ?? "Genel")</td>
+                        <td>@(order.QuantityText ?? order.Quantity?.ToString("0.###") ?? "-")</td>
+                        <td>@(order.Quality ?? "-")</td>
+                        <td>@(order.RequestedBy ?? "-")</td>
+                        <td>@(order.Supplier?.Name ?? "-")</td>
+                        <td>@(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-")</td>
+                        <td>
+                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+                            {
+                                <form asp-action="UpdateStatus" method="post" class="inline-status-form">
+                                    <input type="hidden" name="id" value="@order.Id" />
+                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                    <select name="status" class="status-select status-@order.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Sipariş durumu">
+                                        @foreach (PurchaseOrderStatus status in Enum.GetValues<PurchaseOrderStatus>())
+                                        {
+                                            <option value="@status" selected="@(order.Status == status)">@status.ToDisplayName()</option>
+                                        }
+                                    </select>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="status-pill status-@order.Status.ToString().ToLowerInvariant()">@order.Status.ToDisplayName()</span>
+                            }
+                        </td>
+                        <td>@(order.UnitPriceText ?? order.UnitPrice?.ToString("N2") ?? "-")</td>
+                        <td>@((order.OrderTotal ?? ((order.UnitPrice ?? 0) * (order.Quantity ?? 0))).ToString("N2")) @order.Currency</td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@order.Id">Detay</a>
+                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+                            {
+                                <span> · </span><a asp-action="Edit" asp-route-id="@order.Id">Düzenle</a>
+                            }
+                            @if (User.IsInRole(AppRoles.Admin))
+                            {
+                                <span> · </span><a class="text-danger" asp-action="Delete" asp-route-id="@order.Id" asp-route-returnUrl="@($"{Context.Request.Path}{Context.Request.QueryString}")">Sil</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

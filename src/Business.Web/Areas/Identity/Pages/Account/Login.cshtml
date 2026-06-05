@@ -1,0 +1,47 @@
+@page
+@model Business.Web.Areas.Identity.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Giriş";
+}
+
+<section class="panel-block form-panel auth-recovery-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Oturum</p>
+            <h2>Giriş yap</h2>
+        </div>
+    </div>
+
+    <form method="post" class="app-form">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <input type="hidden" asp-for="ReturnUrl" />
+
+        <div class="form-grid">
+            <div class="mb-3 wide">
+                <label asp-for="Input.Email" class="form-label"></label>
+                <input asp-for="Input.Email" class="form-control" autocomplete="username" />
+                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            </div>
+            <div class="mb-3 wide">
+                <label asp-for="Input.Password" class="form-label"></label>
+                <input asp-for="Input.Password" class="form-control" autocomplete="current-password" />
+                <span asp-validation-for="Input.Password" class="text-danger"></span>
+            </div>
+            <div class="mb-3 wide">
+                <label class="check-card check-inline">
+                    <input asp-for="Input.RememberMe" />
+                    <span>Beni hatırla</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn-outline-secondary" asp-controller="AdminRecovery" asp-action="Reset">Admin Kurtarma</a>
+            <button class="btn btn-primary" type="submit">Giriş</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

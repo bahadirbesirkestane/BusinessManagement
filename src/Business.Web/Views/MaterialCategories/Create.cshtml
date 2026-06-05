@@ -1,0 +1,15 @@
+@model MaterialCategoryDefinition
+@{
+    ViewData["Title"] = "Kategori Ekle";
+}
+
+<section class="panel-block form-panel">
+    <div class="panel-heading"><div><p class="section-kicker">Malzemeler</p><h2>Kategori ekle</h2></div></div>
+    <form asp-action="Create" method="post" class="app-form">
+        <partial name="_MaterialCategoryForm" model="Model" />
+        <div class="form-actions">
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+        </div>
+    </form>
+</section>

@@ -1,0 +1,35 @@
+@model PurchaseOrder
+
+<section class="panel-block form-panel">
+    <div class="panel-heading"><div><p class="section-kicker">Satın alma</p><h2>@ViewData["Title"]</h2></div></div>
+    <form method="post" class="app-form">
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="RequestedBy" />
+        <input type="hidden" asp-for="RequestedByUserId" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="mb-3"><label asp-for="OrderNumber" class="form-label">Sipariş no</label><input asp-for="OrderNumber" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Scope" class="form-label">Kapsam</label><select asp-for="Scope" asp-items="Html.GetEnumSelectList<PurchaseOrderScope>()" class="form-select"></select></div>
+            <div class="mb-3"><label asp-for="ProjectId" class="form-label">Proje</label><select asp-for="ProjectId" class="form-select"><option value="">Genel</option>@foreach (var project in ViewBag.Projects){<option value="@project.Id">@project.Code - @project.Name</option>}</select></div>
+            <div class="mb-3"><label asp-for="SupplierId" class="form-label">Tedarikçi</label><select asp-for="SupplierId" class="form-select"><option value="">Seçilmedi</option>@foreach (var supplier in ViewBag.Suppliers){<option value="@supplier.Id">@supplier.Name</option>}</select></div>
+            <div class="mb-3"><label asp-for="MaterialId" class="form-label">Malzeme</label><select asp-for="MaterialId" class="form-select"><option value="">Seçilmedi</option>@foreach (var material in ViewBag.Materials){<option value="@material.Id">@material.Name</option>}</select></div>
+            <div class="mb-3"><label asp-for="Status" class="form-label">Durum</label><select asp-for="Status" asp-items="Html.GetEnumSelectList<PurchaseOrderStatus>()" class="form-select"></select></div>
+            <div class="mb-3 wide"><label asp-for="Content" class="form-label">Sipariş içeriği</label><input asp-for="Content" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="QuantityText" class="form-label">Adet / miktar</label><input asp-for="QuantityText" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Quality" class="form-label">Kalite</label><input asp-for="Quality" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="OrderDate" class="form-label">Sipariş tarihi</label><input asp-for="OrderDate" type="date" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="ExpectedArrivalDate" class="form-label">Beklenen varış</label><input asp-for="ExpectedArrivalDate" type="date" class="form-control" /></div>
+            @if (!string.IsNullOrWhiteSpace(Model.RequestedBy))
+            {
+                <div class="mb-3"><label asp-for="RequestedBy" class="form-label">Veren kişi</label><input asp-for="RequestedBy" class="form-control" readonly /></div>
+            }
+            <div class="mb-3"><label asp-for="PaymentTerm" class="form-label">Vade</label><input asp-for="PaymentTerm" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="UnitPrice" class="form-label">Birim fiyat</label><input asp-for="UnitPrice" type="number" step="0.01" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="UnitPriceText" class="form-label">Birim fiyat metni</label><input asp-for="UnitPriceText" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="OrderTotal" class="form-label">Sipariş tutarı</label><input asp-for="OrderTotal" type="number" step="0.01" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Currency" class="form-label">Para birimi</label><input asp-for="Currency" class="form-control" /></div>
+            <div class="mb-3 wide"><label asp-for="Notes" class="form-label">Not</label><textarea asp-for="Notes" class="form-control" rows="3"></textarea></div>
+        </div>
+        <div class="form-actions"><a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a><button class="btn btn-primary" type="submit">Kaydet</button></div>
+    </form>
+</section>

@@ -1,0 +1,116 @@
+namespace Business.Infrastructure.Identity;
+
+public static class AppPermissionCatalog
+{
+    public static readonly IReadOnlyDictionary<string, string[]> RolePermissions = new Dictionary<string, string[]>
+    {
+        [AppRoles.Admin] =
+        [
+            AppPermissions.DashboardView,
+            AppPermissions.ProjectsView,
+            AppPermissions.ProjectsCreate,
+            AppPermissions.ProjectsUpdate,
+            AppPermissions.ProjectsDelete,
+            AppPermissions.ProjectsChangeStatus,
+            AppPermissions.ProjectsManage,
+            AppPermissions.TasksView,
+            AppPermissions.TasksCreate,
+            AppPermissions.TasksUpdate,
+            AppPermissions.TasksDelete,
+            AppPermissions.TasksChangeStatus,
+            AppPermissions.TasksComplete,
+            AppPermissions.PurchasingView,
+            AppPermissions.PurchasingCreate,
+            AppPermissions.PurchasingUpdate,
+            AppPermissions.PurchasingDelete,
+            AppPermissions.PurchasingChangeStatus,
+            AppPermissions.PurchasingManage,
+            AppPermissions.SuppliersView,
+            AppPermissions.SuppliersManage,
+            AppPermissions.MaterialsView,
+            AppPermissions.MaterialsManage,
+            AppPermissions.StockView,
+            AppPermissions.StockManage,
+            AppPermissions.ProductionUpdatesView,
+            AppPermissions.MaterialRequestsView,
+            AppPermissions.MaterialRequestsManage,
+            AppPermissions.CustomersView,
+            AppPermissions.CustomersManage,
+            AppPermissions.InvoicesView,
+            AppPermissions.InvoicesManage,
+            AppPermissions.CostsView,
+            AppPermissions.CostsManage,
+            AppPermissions.UsersView,
+            AppPermissions.UsersManage,
+            AppPermissions.RolesManage,
+            AppPermissions.SettingsManage
+        ],
+        [AppRoles.Manager] =
+        [
+            AppPermissions.DashboardView,
+            AppPermissions.ProjectsView,
+            AppPermissions.ProjectsCreate,
+            AppPermissions.ProjectsUpdate,
+            AppPermissions.ProjectsChangeStatus,
+            AppPermissions.ProjectsManage,
+            AppPermissions.TasksView,
+            AppPermissions.TasksCreate,
+            AppPermissions.TasksUpdate,
+            AppPermissions.TasksChangeStatus,
+            AppPermissions.TasksComplete,
+            AppPermissions.PurchasingView,
+            AppPermissions.SuppliersView,
+            AppPermissions.MaterialsView,
+            AppPermissions.StockView,
+            AppPermissions.ProductionUpdatesView,
+            AppPermissions.MaterialRequestsView,
+            AppPermissions.CustomersView,
+            AppPermissions.InvoicesView,
+            AppPermissions.CostsView,
+            AppPermissions.UsersView
+        ],
+        [AppRoles.Purchasing] =
+        [
+            AppPermissions.DashboardView,
+            AppPermissions.ProjectsView,
+            AppPermissions.TasksView,
+            AppPermissions.PurchasingView,
+            AppPermissions.PurchasingCreate,
+            AppPermissions.PurchasingUpdate,
+            AppPermissions.PurchasingDelete,
+            AppPermissions.PurchasingChangeStatus,
+            AppPermissions.PurchasingManage,
+            AppPermissions.SuppliersView,
+            AppPermissions.SuppliersManage,
+            AppPermissions.MaterialsView,
+            AppPermissions.StockView,
+            AppPermissions.StockManage,
+            AppPermissions.CustomersView,
+            AppPermissions.InvoicesView
+        ],
+        [AppRoles.ProjectUser] =
+        [
+            AppPermissions.DashboardView,
+            AppPermissions.ProjectsView,
+            AppPermissions.TasksView,
+            AppPermissions.TasksCreate,
+            AppPermissions.TasksUpdate,
+            AppPermissions.TasksChangeStatus,
+            AppPermissions.ProductionUpdatesView,
+            AppPermissions.MaterialRequestsView,
+            AppPermissions.MaterialRequestsManage,
+            AppPermissions.MaterialsView,
+            AppPermissions.StockView,
+            AppPermissions.CustomersView
+        ],
+        [AppRoles.Workshop] =
+        [
+            AppPermissions.DashboardView,
+            AppPermissions.TasksView,
+            AppPermissions.MaterialRequestsView,
+            AppPermissions.MaterialRequestsManage,
+            AppPermissions.MaterialsView,
+            AppPermissions.StockView
+        ]
+    };
+}

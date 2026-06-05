@@ -1,0 +1,35 @@
+@model IReadOnlyList<MaterialCategoryDefinition>
+@{
+    ViewData["Title"] = "Malzeme Kategorileri";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Malzemeler</p>
+            <h2>Malzeme kategorileri</h2>
+        </div>
+        <a class="btn btn-primary btn-sm" asp-action="Create">Kategori Ekle</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead><tr><th>Ad</th><th>Açıklama</th><th>Durum</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var category in Model)
+            {
+                <tr class="@(category.IsActive ? "" : "row-muted")">
+                    <td><strong>@category.Name</strong></td>
+                    <td>@(category.Description ?? "-")</td>
+                    <td><span class="status-pill @(category.IsActive ? "status-success" : "status-danger")">@(category.IsActive ? "Aktif" : "Pasif")</span></td>
+                    <td class="text-end">
+                        <a asp-action="Edit" asp-route-id="@category.Id">Düzenle</a>
+                        <form asp-action="Delete" asp-route-id="@category.Id" method="post" class="inline-form">
+                            <button class="link-button text-danger" type="submit">Sil</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

@@ -1,0 +1,27 @@
+@model IReadOnlyList<PurchaseOrder>
+@{
+    ViewData["Title"] = "Malzeme Giderleri";
+    var groups = Model.GroupBy(x => x.Material?.Name ?? "Malzeme seçilmedi").OrderBy(x => x.Key).ToList();
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Maliyet</p>
+            <h2>Malzeme giderleri</h2>
+        </div>
+    </div>
+    <div class="list-stack">
+        @foreach (var group in groups)
+        {
+            var total = group.Sum(x => x.OrderTotal ?? ((x.UnitPrice ?? 0) * (x.Quantity ?? 0)));
+            <div class="list-row">
+                <span>
+                    <strong>@group.Key</strong>
+                    <small>@group.Count() sipariş</small>
+                </span>
+                <strong>@total.ToString("N2") TRY</strong>
+            </div>
+        }
+    </div>
+</section>

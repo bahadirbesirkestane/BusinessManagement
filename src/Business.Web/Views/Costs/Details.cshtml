@@ -1,0 +1,120 @@
+@model Project
+@{
+    ViewData["Title"] = "Maliyet Detayı";
+    var costItemsTotal = Model.CostItems.Sum(x => x.Amount);
+    var orderTotal = Model.PurchaseOrders.Sum(x => x.OrderTotal ?? ((x.UnitPrice ?? 0) * (x.Quantity ?? 0)));
+    var total = costItemsTotal + orderTotal;
+}
+
+<section class="project-header">
+    <div>
+        <p class="section-kicker">@Model.Code</p>
+        <h2>@Model.Name - maliyet detayı</h2>
+        <p>@(Model.Customer?.Name ?? Model.CustomerName ?? "Müşteri yok")</p>
+    </div>
+    <div class="project-header-actions">
+        <span class="status-pill">@total.ToString("N2") @Model.Currency</span>
+        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+        {
+            <a class="btn btn-primary btn-sm" asp-action="Create" asp-route-projectId="@Model.Id">Maliyet kalemi ekle</a>
+        }
+    </div>
+</section>
+
+<div class="dashboard-grid">
+    <section class="panel-block">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Özet</p>
+                <h2>Toplamlar</h2>
+            </div>
+        </div>
+        <dl class="row mb-0">
+            <dt class="col-sm-5">Proje bütçesi</dt><dd class="col-sm-7">@(Model.Budget?.ToString("N2") ?? "-") @Model.Currency</dd>
+            <dt class="col-sm-5">Elle girilen maliyetler</dt><dd class="col-sm-7">@costItemsTotal.ToString("N2") @Model.Currency</dd>
+            <dt class="col-sm-5">Projeye bağlı siparişler</dt><dd class="col-sm-7">@orderTotal.ToString("N2") @Model.Currency</dd>
+            <dt class="col-sm-5">Toplam maliyet</dt><dd class="col-sm-7"><strong>@total.ToString("N2") @Model.Currency</strong></dd>
+            @if (Model.Budget.HasValue)
+            {
+                var remaining = Model.Budget.Value - total;
+                <dt class="col-sm-5">Bütçe farkı</dt><dd class="col-sm-7"><strong>@remaining.ToString("N2") @Model.Currency</strong></dd>
+            }
+        </dl>
+    </section>
+
+    <section class="panel-block">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Sipariş</p>
+                <h2>Projeye bağlı siparişler</h2>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table app-table align-middle">
+                <thead><tr><th>Sipariş</th><th>Tedarikçi</th><th>Durum</th><th>Tutar</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var order in Model.PurchaseOrders)
+                {
+                    var amount = order.OrderTotal ?? ((order.UnitPrice ?? 0) * (order.Quantity ?? 0));
+                    <tr>
+                        <td><strong>@order.OrderNumber</strong><small class="d-block text-muted">@order.Content</small></td>
+                        <td>@(order.Supplier?.Name ?? "-")</td>
+                        <td><span class="status-pill status-@order.Status.ToString().ToLowerInvariant()">@order.Status.ToDisplayName()</span></td>
+                        <td>@amount.ToString("N2") @order.Currency</td>
+                        <td class="text-end"><a asp-controller="PurchaseOrders" asp-action="Details" asp-route-id="@order.Id">Sipariş</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<section class="panel-block mt-3">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Maliyet</p>
+            <h2>Maliyet kalemleri</h2>
+        </div>
+    </div>
+    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+    {
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        </form>
+    }
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead><tr><th>Tarih</th><th>Tür</th><th>Açıklama</th><th>Bağlı sipariş</th><th>Tutar</th><th>Not</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var item in Model.CostItems)
+            {
+                <tr>
+                    <td>
+                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+                        {
+                            <input type="checkbox" name="ids" value="@item.Id" form="bulkDeleteForm" />
+                        }
+                    </td>
+                    <td>@(item.CostDate?.ToString("dd.MM.yyyy") ?? item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy"))</td>
+                    <td>@item.Type.ToDisplayName()</td>
+                    <td><strong>@item.Description</strong></td>
+                    <td>@(item.PurchaseOrder?.OrderNumber ?? "-")</td>
+                    <td>@item.Amount.ToString("N2") @item.Currency</td>
+                    <td>@(item.Notes ?? "-")</td>
+                    <td class="text-end">
+                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+                        {
+                            <a asp-action="Edit" asp-route-id="@item.Id">Düzenle</a>
+                            <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline">
+                                <button class="btn btn-link btn-sm text-danger p-0 ms-2" type="submit">Sil</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

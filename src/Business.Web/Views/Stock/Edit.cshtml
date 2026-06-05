@@ -1,0 +1,21 @@
+@model StockItem
+@{
+    ViewData["Title"] = "Stok Düzenle";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Stok / Depo</p>
+            <h2>Stok satırını düzenle</h2>
+        </div>
+    </div>
+    <form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+        <input type="hidden" asp-for="Id" />
+        <partial name="_StockForm" model="Model" />
+        <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+        </div>
+    </form>
+</section>

@@ -1,0 +1,55 @@
+@model IReadOnlyList<ProjectCostItem>
+@{
+    ViewData["Title"] = "Genel Giderler";
+    var total = Model.Sum(x => x.Amount);
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Maliyet</p>
+            <h2>Genel giderler</h2>
+        </div>
+        <span class="status-pill">@total.ToString("N2") TRY</span>
+    </div>
+    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+    {
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        </form>
+    }
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead><tr><th>Tarih</th><th>Proje</th><th>Tür</th><th>Açıklama</th><th>Tutar</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>
+                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+                        {
+                            <input type="checkbox" name="ids" value="@item.Id" form="bulkDeleteForm" />
+                        }
+                    </td>
+                    <td>@(item.CostDate?.ToString("dd.MM.yyyy") ?? item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy"))</td>
+                    <td>@(item.Project?.Code ?? "Genel")</td>
+                    <td>@item.Type.ToDisplayName()</td>
+                    <td>@item.Description</td>
+                    <td>@item.Amount.ToString("N2") @item.Currency</td>
+                    <td class="text-end">
+                        @if (item.ProjectId.HasValue)
+                        {
+                            <a asp-action="Details" asp-route-id="@item.ProjectId">Proje maliyeti</a>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Genel gider</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

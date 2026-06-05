@@ -1,0 +1,34 @@
+@model Project
+@{
+    ViewData["Title"] = "Güncelleme Geçmişi";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">@Model.Code</p>
+            <h2>Güncelleme Geçmişi</h2>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Details" asp-route-id="@Model.Id">Projeye Dön</a>
+    </div>
+    <div class="list-stack">
+        @foreach (var update in Model.Updates.OrderByDescending(x => x.CreatedAt))
+        {
+            <div class="list-row">
+                <span>
+                    <strong>@update.Title</strong>
+                    <small>@update.Description</small>
+                    <small>@update.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+                </span>
+                @if (User.IsInRole(AppRoles.Admin))
+                {
+                    <form asp-action="DeleteUpdate" method="post" class="inline-form">
+                        <input type="hidden" name="id" value="@update.Id" />
+                        <input type="hidden" name="projectId" value="@Model.Id" />
+                        <button class="link-button text-danger" type="submit">Sil</button>
+                    </form>
+                }
+            </div>
+        }
+    </div>
+</section>

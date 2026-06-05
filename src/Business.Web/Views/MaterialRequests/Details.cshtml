@@ -1,0 +1,25 @@
+@model MaterialRequest
+@{
+    ViewData["Title"] = "Malzeme Talebi Detayı";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div><p class="section-kicker">İhtiyaç</p><h2>@Model.RequestedItem</h2></div>
+        <div class="actions-row">
+            <span class="status-pill">@Model.Status.ToDisplayName()</span>
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+                <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id">Sil</a>
+            }
+        </div>
+    </div>
+    <dl class="row">
+        <dt class="col-sm-3">Proje</dt><dd class="col-sm-9">@(Model.Project?.Code ?? "Genel")</dd>
+        <dt class="col-sm-3">Malzeme sınıfı</dt><dd class="col-sm-9">@(Model.Material?.Name ?? "-")</dd>
+        <dt class="col-sm-3">Miktar</dt><dd class="col-sm-9">@(Model.QuantityText ?? Model.Quantity?.ToString("0.###") ?? "-")</dd>
+        <dt class="col-sm-3">Kalite</dt><dd class="col-sm-9">@(Model.Quality ?? "-")</dd>
+        <dt class="col-sm-3">Not</dt><dd class="col-sm-9">@(Model.Notes ?? "-")</dd>
+    </dl>
+</section>

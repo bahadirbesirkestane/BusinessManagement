@@ -1,0 +1,77 @@
+@model IReadOnlyList<StockMaterialGroupViewModel>
+@{
+    ViewData["Title"] = "Stok Durumu";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Stok / Depo</p>
+            <h2>Stoğu olan malzemeler</h2>
+        </div>
+        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+        {
+            <a class="btn btn-primary btn-sm" asp-action="Create">Stok Ekle</a>
+        }
+    </div>
+
+    <form asp-action="Index" method="get" class="list-filter-bar">
+        <div class="filter-field filter-search">
+            <span class="filter-icon" aria-hidden="true">⌕</span>
+            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Malzeme, tür, ölçü, konum ara" />
+        </div>
+        <select name="category" class="form-select form-select-sm">
+            <option value="">Kategori</option>
+            @foreach (var category in ViewBag.MaterialCategories)
+            {
+                <option value="@category.Name" selected="@(ViewBag.FilterCategory == category.Name)">@category.Name</option>
+            }
+        </select>
+        <select name="status" class="form-select form-select-sm">
+            <option value="">Durum</option>
+            @foreach (StockStatus item in Enum.GetValues<StockStatus>())
+            {
+                <option value="@item" selected="@(ViewBag.FilterStatus == item)">@item.ToDisplayName()</option>
+            }
+        </select>
+        <select name="sort" class="form-select form-select-sm">
+            <option value="">Sırala: Malzeme</option>
+            <option value="type" selected="@(ViewBag.Sort == "type")">Tür</option>
+            <option value="quantity" selected="@(ViewBag.Sort == "quantity")">Miktar</option>
+            <option value="status" selected="@(ViewBag.Sort == "status")">Durum</option>
+            <option value="location" selected="@(ViewBag.Sort == "location")">Konum</option>
+        </select>
+        <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
+        <a class="icon-filter-button clear" asp-action="Index" title="Temizle" aria-label="Temizle">×</a>
+    </form>
+
+    @if (Model.Count == 0)
+    {
+        <div class="empty-state">Stokta görünen malzeme bulunamadı.</div>
+    }
+    else
+    {
+        <div class="stock-material-grid">
+            @foreach (var group in Model)
+            {
+                <a class="stock-material-card" asp-action="Details" asp-route-id="@group.Material.Id">
+                    <span>
+                        <strong>@group.Material.Name</strong>
+                        <small>@(group.Material.CategoryName ?? group.Material.Category.ToDisplayName())</small>
+                    </span>
+                    <span class="stock-card-meta">
+                        <span>@group.Items.Count çeşit</span>
+                        @if (group.TotalQuantity > 0)
+                        {
+                            <strong>@group.TotalQuantity.ToString("0.###") @group.UnitText</strong>
+                        }
+                        @if (group.LowStockCount > 0)
+                        {
+                            <em>@group.LowStockCount kritik</em>
+                        }
+                    </span>
+                </a>
+            }
+        </div>
+    }
+</section>

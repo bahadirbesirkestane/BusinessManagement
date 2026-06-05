@@ -1,0 +1,18 @@
+@model Invoice
+@{
+    ViewData["Title"] = "Fatura Detayı";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div><p class="section-kicker">@Model.Type.ToDisplayName()</p><h2>@Model.InvoiceNumber</h2></div>
+        <span class="status-pill">@Model.Status.ToDisplayName()</span>
+    </div>
+    <dl class="row">
+        <dt class="col-sm-3">Cari</dt><dd class="col-sm-9">@(Model.Customer?.Name ?? Model.Supplier?.Name ?? "-")</dd>
+        <dt class="col-sm-3">Proje</dt><dd class="col-sm-9">@(Model.Project?.Code ?? "-")</dd>
+        <dt class="col-sm-3">Tarih</dt><dd class="col-sm-9">@Model.IssueDate.ToString("dd.MM.yyyy")</dd>
+        <dt class="col-sm-3">Toplam</dt><dd class="col-sm-9">@Model.GrandTotal.ToString("N2") @Model.Currency</dd>
+        <dt class="col-sm-3">Not</dt><dd class="col-sm-9">@(Model.Notes ?? "-")</dd>
+    </dl>
+</section>

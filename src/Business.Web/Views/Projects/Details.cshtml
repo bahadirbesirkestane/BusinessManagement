@@ -1,0 +1,145 @@
+@model Business.Web.ViewModels.ProjectDetailsViewModel
+@{
+    ViewData["Title"] = Model.Project.Code;
+    var visibleProjectTasks = ViewBag.VisibleProjectTasks as IReadOnlyList<ProjectTask> ?? [];
+}
+
+<section class="project-header">
+    <div>
+        <p class="section-kicker">@Model.Project.Code</p>
+        <h2>@Model.Project.Name</h2>
+        <p>@(Model.Project.Description ?? "Proje açıklaması henüz girilmedi.")</p>
+    </div>
+    <div class="project-header-actions">
+        <span class="status-pill">@Model.Project.Status.ToDisplayName()</span>
+        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+        {
+            <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Project.Id">Projeyi Düzenle</a>
+        }
+        @if (User.IsInRole(AppRoles.Admin))
+        {
+            <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Project.Id">Sil</a>
+        }
+    </div>
+</section>
+
+<div class="dashboard-grid">
+    <section class="panel-block">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Görevler</p>
+                <h2>Proje işleri</h2>
+            </div>
+            <a class="btn btn-outline-primary btn-sm" asp-controller="ProjectTasks" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
+        </div>
+        <div class="list-stack">
+            @foreach (var task in visibleProjectTasks.Take(6))
+            {
+                <a class="list-row list-row-link" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
+                    <span>
+                        <strong>@task.Title</strong>
+                        <small>@(task.TaskCategory?.Name ?? "Kategori yok") · %@task.ProgressPercent · @task.Assignments.Count atanan</small>
+                    </span>
+                    <span class="status-pill">@task.Status.ToDisplayName()</span>
+                </a>
+            }
+            @if (!visibleProjectTasks.Any())
+            {
+                <p class="empty-note">Bu projeye bağlı görev yok.</p>
+            }
+        </div>
+    </section>
+
+    @if (Model.CanViewPurchasing)
+    {
+        <section class="panel-block">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Satın alma</p>
+                    <h2>Siparişler</h2>
+                </div>
+                <a class="btn btn-outline-primary btn-sm" asp-controller="PurchaseOrders" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
+            </div>
+            <div class="list-stack">
+                @foreach (var order in Model.Project.PurchaseOrders.OrderByDescending(x => x.CreatedAt).Take(6))
+                {
+                    <a class="list-row list-row-link" asp-controller="PurchaseOrders" asp-action="Details" asp-route-id="@order.Id">
+                        <span>
+                            <strong>@order.Content</strong>
+                            <small>@order.QuantityText · @(order.Supplier?.Name ?? "Tedarikçi yok")</small>
+                        </span>
+                        <span class="status-pill">@order.Status.ToDisplayName()</span>
+                    </a>
+                }
+                @if (!Model.Project.PurchaseOrders.Any())
+                {
+                    <p class="empty-note">Bu projeye bağlı sipariş yok.</p>
+                }
+            </div>
+        </section>
+    }
+
+    <section class="panel-block">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Malzeme</p>
+                <h2>İhtiyaç listesi</h2>
+            </div>
+            <a class="btn btn-outline-primary btn-sm" asp-controller="MaterialRequests" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
+        </div>
+        <div class="list-stack">
+            @foreach (var request in Model.Project.MaterialRequests.OrderByDescending(x => x.CreatedAt).Take(7))
+            {
+                <div class="list-row">
+                    <span>
+                        <strong>@request.RequestedItem</strong>
+                        <small>@request.QuantityText · @request.Quality</small>
+                    </span>
+                    <span class="status-pill">@request.Status.ToDisplayName()</span>
+                </div>
+            }
+            @if (!Model.Project.MaterialRequests.Any())
+            {
+                <p class="empty-note">Bu projeye bağlı ihtiyaç kaydı yok.</p>
+            }
+        </div>
+    </section>
+
+    @if (Model.CanViewProductionUpdates)
+    {
+        <section class="panel-block">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Proje</p>
+                    <h2>Güncellemeler</h2>
+                </div>
+                <a class="btn btn-outline-primary btn-sm" asp-action="Updates" asp-route-id="@Model.Project.Id">Güncelleme Geçmişi</a>
+            </div>
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+            {
+                <form asp-action="AddUpdate" asp-route-id="@Model.Project.Id" method="post" class="activity-form mb-3">
+                    <input name="title" class="form-control" placeholder="Güncelleme başlığı" />
+                    <textarea name="description" class="form-control" rows="2" placeholder="Açıklama"></textarea>
+                    <button class="btn btn-primary btn-sm" type="submit">Güncelleme Ekle</button>
+                </form>
+            }
+            <div class="list-stack">
+                @foreach (var update in Model.Project.Updates.OrderByDescending(x => x.CreatedAt).Take(5))
+                {
+                    <div class="list-row">
+                        <span>
+                            <strong>@update.Title</strong>
+                            <small>@update.Description</small>
+                        </span>
+                        <small>@update.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@if (Model.Activity is not null)
+{
+    @await Html.PartialAsync("_RecordActivity", Model.Activity)
+}

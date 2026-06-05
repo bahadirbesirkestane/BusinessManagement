@@ -1,0 +1,44 @@
+@model IReadOnlyList<Supplier>
+@{
+    ViewData["Title"] = "Tedarikçiler";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div><p class="section-kicker">Satın alma</p><h2>Tedarikçi listesi</h2></div>
+        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.SuppliersManage))
+        {
+            <a class="btn btn-primary btn-sm" asp-action="Create">Yeni tedarikçi</a>
+        }
+    </div>
+    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.SuppliersManage))
+    {
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        </form>
+    }
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead><tr><th>Ad</th><th>Tür</th><th>İletişim</th><th>Vade</th><th>Güvenilirlik</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var supplier in Model)
+                {
+                    <tr>
+                        <td>
+                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.SuppliersManage))
+                            {
+                                <input type="checkbox" name="ids" value="@supplier.Id" form="bulkDeleteForm" />
+                            }
+                        </td>
+                        <td><strong>@supplier.Name</strong><small class="d-block text-muted">@supplier.Notes</small></td>
+                        <td>@(supplier.Type ?? "-")</td>
+                        <td>@(supplier.Phone ?? supplier.Email ?? "-")</td>
+                        <td>@(supplier.PaymentTerm ?? "-")</td>
+                        <td><span class="status-pill">@supplier.Reliability.ToDisplayName()</span></td>
+                        <td class="text-end"><a asp-action="Details" asp-route-id="@supplier.Id">Detay</a> · <a asp-action="Edit" asp-route-id="@supplier.Id">Düzenle</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

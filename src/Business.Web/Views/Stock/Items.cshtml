@@ -1,0 +1,58 @@
+@model IReadOnlyList<StockItem>
+@{
+    var title = ViewData["Title"]?.ToString() ?? "Stok Listesi";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Stok / Depo</p>
+            <h2>@title</h2>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Stok Durumu</a>
+    </div>
+    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+    {
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        </form>
+    }
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+                    {
+                        <th></th>
+                    }
+                    <th>Malzeme</th>
+                    <th>Tür</th>
+                    <th>Kalınlık</th>
+                    <th>Ölçü</th>
+                    <th>Adet / Miktar</th>
+                    <th>Durum</th>
+                    <th>Konum</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr class="status-row status-@item.Status.ToString().ToLowerInvariant()">
+                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+                        {
+                            <td><input type="checkbox" name="ids" value="@item.Id" form="bulkDeleteForm" /></td>
+                        }
+                        <td><strong>@(item.Material?.Name ?? "-")</strong></td>
+                        <td>@item.Name</td>
+                        <td>@(item.Thickness ?? "-")</td>
+                        <td>@(item.Dimensions ?? "-")</td>
+                        <td>@(item.QuantityText ?? item.Quantity?.ToString("0.###") ?? "-") @(item.Unit ?? "")</td>
+                        <td><span class="status-pill status-@item.Status.ToString().ToLowerInvariant()">@item.Status.ToDisplayName()</span></td>
+                        <td>@(item.Location ?? "-")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

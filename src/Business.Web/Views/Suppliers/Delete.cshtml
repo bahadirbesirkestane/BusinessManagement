@@ -1,0 +1,5 @@
+@model Supplier
+@{
+    ViewData["Title"] = "Tedarikçi Sil";
+}
+<section class="panel-block"><div class="panel-heading"><div><p class="section-kicker">Silme onayı</p><h2>@Model.Name</h2></div></div><p>Bu tedarikçiyi silmek istediğine emin misin?</p><form asp-action="Delete" method="post" class="form-actions"><input type="hidden" asp-for="Id" /><a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a><button class="btn btn-danger" type="submit">Sil</button></form></section>

@@ -1,0 +1,22 @@
+@model Department
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Departmanlar</p>
+            <h2>@ViewData["Title"]</h2>
+        </div>
+    </div>
+    <form method="post" class="app-form">
+        <input type="hidden" asp-for="Id" />
+        <div class="form-grid">
+            <div class="mb-3"><label asp-for="Name" class="form-label">Ad</label><input asp-for="Name" class="form-control" /></div>
+            <div class="mb-3 wide"><label asp-for="Description" class="form-label">Açıklama</label><textarea asp-for="Description" class="form-control" rows="3"></textarea></div>
+            <div class="mb-3 wide"><label class="check-card check-inline"><input asp-for="IsActive" /><span>Aktif</span></label></div>
+        </div>
+        <div class="form-actions">
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+        </div>
+    </form>
+</section>

@@ -1,0 +1,28 @@
+@model Customer
+@{
+    ViewData["Title"] = "Müşteri Detayı";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Cari kart</p>
+            <h2>@Model.Name</h2>
+        </div>
+        <div class="actions-row">
+            <a asp-action="Index">Listeye dön</a>
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage))
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+                <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id">Sil</a>
+            }
+        </div>
+    </div>
+    <dl class="row">
+        <dt class="col-sm-3">Vergi no</dt><dd class="col-sm-9">@(Model.TaxNumber ?? "-")</dd>
+        <dt class="col-sm-3">Vergi dairesi</dt><dd class="col-sm-9">@(Model.TaxOffice ?? "-")</dd>
+        <dt class="col-sm-3">İletişim</dt><dd class="col-sm-9">@(Model.Phone ?? Model.Email ?? "-")</dd>
+        <dt class="col-sm-3">Adres</dt><dd class="col-sm-9">@(Model.Address ?? "-")</dd>
+        <dt class="col-sm-3">Not</dt><dd class="col-sm-9">@(Model.Notes ?? "-")</dd>
+    </dl>
+</section>

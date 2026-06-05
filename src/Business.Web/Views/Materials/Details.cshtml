@@ -1,0 +1,29 @@
+@model Material
+@{
+    ViewData["Title"] = "Malzeme Detayı";
+}
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">@(Model.CategoryName ?? Model.Category.ToDisplayName())</p>
+            <h2>@Model.Name</h2>
+        </div>
+        <div class="actions-row">
+            @if (User.IsInRole(AppRoles.Admin) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockView) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage))
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-controller="Stock" asp-action="Details" asp-route-id="@Model.Id">Stok Listesi</a>
+            }
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialsManage))
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+                <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id">Sil</a>
+            }
+        </div>
+    </div>
+    <dl class="row">
+        <dt class="col-sm-3">Tip</dt><dd class="col-sm-9">@(Model.Type ?? "-")</dd>
+        <dt class="col-sm-3">Kalite</dt><dd class="col-sm-9">@(Model.Grade ?? "-")</dd>
+        <dt class="col-sm-3">Ölçü</dt><dd class="col-sm-9">@(Model.Dimensions ?? "-")</dd>
+        <dt class="col-sm-3">Not</dt><dd class="col-sm-9">@(Model.Notes ?? "-")</dd>
+    </dl>
+</section>

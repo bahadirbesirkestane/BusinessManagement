@@ -1,0 +1,37 @@
+@model PurchaseOrder
+@{
+    ViewData["Title"] = "Sipariş Detayı";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">@Model.OrderNumber</p>
+            <h2>@Model.Content</h2>
+        </div>
+        <div class="project-header-actions">
+            <span class="status-pill">@Model.Status.ToDisplayName()</span>
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+            }
+            @if (User.IsInRole(AppRoles.Admin))
+            {
+                <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id" asp-route-returnUrl="@Url.Action("Index", "PurchaseOrders", Model.ProjectId.HasValue ? new { projectId = Model.ProjectId } : null)">Sil</a>
+            }
+        </div>
+    </div>
+    <dl class="row">
+        <dt class="col-sm-3">Proje</dt><dd class="col-sm-9">@(Model.Project?.Code ?? "Genel")</dd>
+        <dt class="col-sm-3">Tedarikçi</dt><dd class="col-sm-9">@(Model.Supplier?.Name ?? "-")</dd>
+        <dt class="col-sm-3">Miktar</dt><dd class="col-sm-9">@(Model.QuantityText ?? Model.Quantity?.ToString("0.###") ?? "-")</dd>
+        <dt class="col-sm-3">Birim fiyat</dt><dd class="col-sm-9">@(Model.UnitPriceText ?? Model.UnitPrice?.ToString("N2") ?? "-")</dd>
+        <dt class="col-sm-3">Sipariş tutarı</dt><dd class="col-sm-9">@((Model.OrderTotal ?? ((Model.UnitPrice ?? 0) * (Model.Quantity ?? 0))).ToString("N2")) @Model.Currency</dd>
+        <dt class="col-sm-3">Not</dt><dd class="col-sm-9">@(Model.Notes ?? "-")</dd>
+    </dl>
+</section>
+
+@if (ViewBag.Activity is Business.Web.ViewModels.RecordActivityViewModel activity)
+{
+    @await Html.PartialAsync("_RecordActivity", activity)
+}

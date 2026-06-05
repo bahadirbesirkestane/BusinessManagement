@@ -1,0 +1,35 @@
+@model IReadOnlyList<PurchaseOrder>
+@{
+    ViewData["Title"] = "Sipariş Maliyetleri";
+    var total = Model.Sum(x => x.OrderTotal ?? ((x.UnitPrice ?? 0) * (x.Quantity ?? 0)));
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Maliyet</p>
+            <h2>Sipariş maliyetleri</h2>
+        </div>
+        <span class="status-pill">@total.ToString("N2") TRY</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead><tr><th>Sipariş</th><th>Proje</th><th>Tedarikçi</th><th>Malzeme</th><th>Birim fiyat</th><th>Tutar</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var order in Model)
+            {
+                var amount = order.OrderTotal ?? ((order.UnitPrice ?? 0) * (order.Quantity ?? 0));
+                <tr>
+                    <td><strong>@order.OrderNumber</strong><small class="d-block text-muted">@order.Content</small></td>
+                    <td>@(order.Project?.Code ?? "Genel")</td>
+                    <td>@(order.Supplier?.Name ?? "-")</td>
+                    <td>@(order.Material?.Name ?? "-")</td>
+                    <td>@(order.UnitPriceText ?? order.UnitPrice?.ToString("N2") ?? "-")</td>
+                    <td><strong>@amount.ToString("N2") @order.Currency</strong></td>
+                    <td class="text-end"><a asp-controller="PurchaseOrders" asp-action="Details" asp-route-id="@order.Id">Detay</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

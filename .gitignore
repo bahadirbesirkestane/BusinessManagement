@@ -1,0 +1,14 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.log
+app.db
+
+src/Business.Web/App_Data/DataProtectionKeys/
+src/Business.Web/wwwroot/uploads/
+src/Business.Web/logs/
+artifacts/
+BusinessManagement/
+*.xlsx

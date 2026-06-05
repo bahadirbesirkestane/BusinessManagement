@@ -1,0 +1,111 @@
+@model IReadOnlyList<Business.Domain.Entities.Invoice>
+@{
+    ViewData["Title"] = "Faturalar";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Gelir / gider</p>
+            <h2>Fatura listesi</h2>
+        </div>
+        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.InvoicesManage))
+        {
+            <a class="btn btn-primary btn-sm" asp-action="Create">Yeni fatura</a>
+        }
+    </div>
+
+    <form asp-action="Index" method="get" class="list-filter-bar list-filter-bar-wide">
+        <div class="filter-field filter-search">
+            <span class="filter-icon" aria-hidden="true">⌕</span>
+            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Fatura no, müşteri, tedarikçi, proje ara" />
+        </div>
+        <select name="type" class="form-select form-select-sm">
+            <option value="">Tür</option>
+            @foreach (InvoiceType item in Enum.GetValues<InvoiceType>())
+            {
+                <option value="@item" selected="@(ViewBag.FilterType == item)">@item.ToDisplayName()</option>
+            }
+        </select>
+        <select name="status" class="form-select form-select-sm">
+            <option value="">Durum</option>
+            @foreach (InvoiceStatus item in Enum.GetValues<InvoiceStatus>())
+            {
+                <option value="@item" selected="@(ViewBag.FilterStatus == item)">@item.ToDisplayName()</option>
+            }
+        </select>
+        <select name="customerId" class="form-select form-select-sm">
+            <option value="">Müşteri</option>
+            @foreach (var customer in ViewBag.Customers)
+            {
+                <option value="@customer.Id" selected="@(ViewBag.FilterCustomerId == customer.Id)">@customer.Name</option>
+            }
+        </select>
+        <select name="supplierId" class="form-select form-select-sm">
+            <option value="">Tedarikçi</option>
+            @foreach (var supplier in ViewBag.Suppliers)
+            {
+                <option value="@supplier.Id" selected="@(ViewBag.FilterSupplierId == supplier.Id)">@supplier.Name</option>
+            }
+        </select>
+        <select name="projectId" class="form-select form-select-sm">
+            <option value="">Proje</option>
+            @foreach (var project in ViewBag.Projects)
+            {
+                <option value="@project.Id" selected="@(ViewBag.FilterProjectId == project.Id)">@project.Code - @project.Name</option>
+            }
+        </select>
+        <input name="dateFrom" value="@ViewBag.FilterDateFrom" type="date" class="form-control form-control-sm" />
+        <input name="dateTo" value="@ViewBag.FilterDateTo" type="date" class="form-control form-control-sm" />
+        <select name="sort" class="form-select form-select-sm">
+            <option value="">Sırala: Yeni</option>
+            <option value="number" selected="@(ViewBag.Sort == "number")">Fatura no</option>
+            <option value="type" selected="@(ViewBag.Sort == "type")">Tür</option>
+            <option value="status" selected="@(ViewBag.Sort == "status")">Durum</option>
+            <option value="party" selected="@(ViewBag.Sort == "party")">Cari</option>
+            <option value="amount" selected="@(ViewBag.Sort == "amount")">Tutar</option>
+            <option value="date" selected="@(ViewBag.Sort == "date")">Tarih</option>
+            <option value="due" selected="@(ViewBag.Sort == "due")">Vade</option>
+        </select>
+        <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
+        <a class="icon-filter-button clear" asp-action="Index" title="Temizle" aria-label="Temizle">×</a>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    <th>Fatura</th>
+                    <th>Tür</th>
+                    <th>Bağlantı</th>
+                    <th>Tarih</th>
+                    <th>Vade</th>
+                    <th>Tutar</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var invoice in Model)
+                {
+                    var party = invoice.Customer?.Name ?? invoice.Supplier?.Name ?? "-";
+                    <tr>
+                        <td><strong>@invoice.InvoiceNumber</strong><small class="d-block text-muted">@party</small></td>
+                        <td>@invoice.Type.ToDisplayName()</td>
+                        <td>@(invoice.Project?.Code ?? "-")</td>
+                        <td>@invoice.IssueDate.ToString("dd.MM.yyyy")</td>
+                        <td>@(invoice.DueDate?.ToString("dd.MM.yyyy") ?? "-")</td>
+                        <td>@invoice.GrandTotal.ToString("N2") @invoice.Currency</td>
+                        <td><span class="status-pill">@invoice.Status.ToDisplayName()</span></td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@invoice.Id">Detay</a>
+                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.InvoicesManage))
+                            {
+                                <span> · </span><a asp-action="Edit" asp-route-id="@invoice.Id">Düzenle</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

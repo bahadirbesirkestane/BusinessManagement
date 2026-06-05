@@ -1,0 +1,54 @@
+@model GenerateAdminRecoveryCodesViewModel
+@{
+    ViewData["Title"] = "Kurtarma Kodu Üret";
+}
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Admin kurtarma</p>
+            <h2>Kurtarma kodu üret</h2>
+        </div>
+    </div>
+
+    <div class="alert alert-warning">
+        Kodlar yalnızca bu işlemden sonra bir kez gösterilir. Güvenli bir yerde saklayın; veritabanında düz metin olarak tutulmaz.
+    </div>
+
+    <form method="post" class="app-form">
+        <input type="hidden" asp-for="UserId" />
+        <input type="hidden" asp-for="FullName" />
+        <input type="hidden" asp-for="Email" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="form-grid">
+            <div class="mb-3">
+                <label class="form-label">Admin</label>
+                <input value="@Model.FullName" class="form-control" disabled />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">E-posta</label>
+                <input value="@Model.Email" class="form-control" disabled />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Count" class="form-label"></label>
+                <input asp-for="Count" type="number" min="1" max="5" class="form-control" />
+                <span asp-validation-for="Count" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ExpiresAt" class="form-label"></label>
+                <input asp-for="ExpiresAt" type="date" class="form-control" />
+                <span asp-validation-for="ExpiresAt" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            <button class="btn btn-primary" type="submit">Kod Üret</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

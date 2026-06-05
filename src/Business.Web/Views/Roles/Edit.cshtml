@@ -1,0 +1,40 @@
+@model Business.Web.ViewModels.RolePermissionViewModel
+@{
+    ViewData["Title"] = "Rol Yetkileri";
+    var groups = AppPermissions.All.GroupBy(x => x.Group);
+}
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Rol Yönetimi</p>
+            <h2>@Model.RoleName</h2>
+        </div>
+    </div>
+    <form method="post" class="app-form" asp-action="@(string.IsNullOrWhiteSpace(Model.RoleId) ? "Create" : "Edit")" asp-route-id="@Model.RoleId">
+        <input type="hidden" asp-for="RoleId" />
+        <div class="mb-3">
+            <label asp-for="RoleName" class="form-label">Rol Adı</label>
+            <input asp-for="RoleName" class="form-control" />
+        </div>
+        @foreach (var group in groups)
+        {
+            <div class="permission-group">
+                <h3>@group.Key</h3>
+                <div class="check-grid">
+                    @foreach (var permission in group)
+                    {
+                        <label class="check-card">
+                            <input type="checkbox" name="SelectedPermissions" value="@permission.Value" checked="@Model.SelectedPermissions.Contains(permission.Value)" />
+                            <span>@permission.Name</span>
+                        </label>
+                    }
+                </div>
+            </div>
+        }
+        <div class="form-actions">
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+        </div>
+    </form>
+</section>

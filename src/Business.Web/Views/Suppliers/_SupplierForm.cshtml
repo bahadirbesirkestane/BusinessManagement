@@ -1,0 +1,21 @@
+@model Supplier
+
+<section class="panel-block form-panel">
+    <div class="panel-heading"><div><p class="section-kicker">Tedarikçi kartı</p><h2>@ViewData["Title"]</h2></div></div>
+    <form method="post" class="app-form">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="mb-3 wide"><label asp-for="Name" class="form-label">Ad</label><input asp-for="Name" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Type" class="form-label">Tür</label><input asp-for="Type" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Reliability" class="form-label">Güvenilirlik</label><select asp-for="Reliability" asp-items="Html.GetEnumSelectList<SupplierReliability>()" class="form-select"></select></div>
+            <div class="mb-3"><label asp-for="Phone" class="form-label">Telefon</label><input asp-for="Phone" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Email" class="form-label">E-posta</label><input asp-for="Email" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="PaymentTerm" class="form-label">Vade</label><input asp-for="PaymentTerm" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Website" class="form-label">Web sitesi</label><input asp-for="Website" class="form-control" /></div>
+            <div class="mb-3 wide"><label asp-for="Address" class="form-label">Adres</label><textarea asp-for="Address" class="form-control" rows="2"></textarea></div>
+            <div class="mb-3 wide"><label asp-for="Notes" class="form-label">Not</label><textarea asp-for="Notes" class="form-control" rows="3"></textarea></div>
+        </div>
+        <div class="form-actions"><a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a><button class="btn btn-primary" type="submit">Kaydet</button></div>
+    </form>
+</section>

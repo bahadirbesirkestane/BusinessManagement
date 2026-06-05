@@ -1,0 +1,107 @@
+@model Supplier
+@{
+    ViewData["Title"] = "Tedarikçi Detayı";
+    var canViewOrders = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingView) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
+    var orders = Model.PurchaseOrders
+        .OrderByDescending(x => x.OrderDate ?? x.CreatedAt)
+        .ToList();
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">@Model.Type</p>
+            <h2>@Model.Name</h2>
+        </div>
+        <div class="actions-row">
+            <span class="status-pill">@Model.Reliability.ToDisplayName()</span>
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.SuppliersManage))
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+                <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id">Sil</a>
+            }
+        </div>
+    </div>
+
+    <dl class="row">
+        <dt class="col-sm-3">İletişim</dt>
+        <dd class="col-sm-9">@(Model.Phone ?? Model.Email ?? "-")</dd>
+        <dt class="col-sm-3">Vade</dt>
+        <dd class="col-sm-9">@(Model.PaymentTerm ?? "-")</dd>
+        <dt class="col-sm-3">Adres</dt>
+        <dd class="col-sm-9">@(Model.Address ?? "-")</dd>
+        <dt class="col-sm-3">Web sitesi</dt>
+        <dd class="col-sm-9">@(Model.Website ?? "-")</dd>
+        <dt class="col-sm-3">Not</dt>
+        <dd class="col-sm-9">@(Model.Notes ?? "-")</dd>
+    </dl>
+</section>
+
+@if (canViewOrders)
+{
+    <section class="panel-block">
+        <details class="collapsible-section">
+            <summary>
+                <span>Siparişleri göster</span>
+                <strong>@orders.Count sipariş</strong>
+            </summary>
+
+            @if (!orders.Any())
+            {
+                <div class="empty-state">Bu tedarikçiden alınmış sipariş bulunamadı.</div>
+            }
+            else
+            {
+                @if (User.IsInRole(AppRoles.Admin))
+                {
+                    <form id="supplierOrdersBulkDeleteForm" asp-controller="PurchaseOrders" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                        <button class="btn btn-outline-danger btn-sm" type="submit">Seçilen siparişleri sil</button>
+                    </form>
+                }
+                <div class="table-responsive">
+                    <table class="table app-table align-middle">
+                        <thead>
+                            <tr>
+                                @if (User.IsInRole(AppRoles.Admin))
+                                {
+                                    <th></th>
+                                }
+                                <th>No</th>
+                                <th>Sipariş</th>
+                                <th>Proje</th>
+                                <th>Malzeme</th>
+                                <th>Durum</th>
+                                <th>Tarih</th>
+                                <th class="text-end">Tutar</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in orders)
+                            {
+                                var total = order.OrderTotal ?? ((order.UnitPrice ?? 0) * (order.Quantity ?? 0));
+                                <tr class="status-row status-@order.Status.ToString().ToLowerInvariant()">
+                                    @if (User.IsInRole(AppRoles.Admin))
+                                    {
+                                        <td><input type="checkbox" name="ids" value="@order.Id" form="supplierOrdersBulkDeleteForm" /></td>
+                                    }
+                                    <td><strong>@order.OrderNumber</strong></td>
+                                    <td>@order.Content</td>
+                                    <td>@(order.Project?.Code ?? "-")</td>
+                                    <td>@(order.Material?.Name ?? "-")</td>
+                                    <td><span class="status-pill status-@order.Status.ToString().ToLowerInvariant()">@order.Status.ToDisplayName()</span></td>
+                                    <td>@(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-")</td>
+                                    <td class="text-end">@(total > 0 ? $"{total:N2} {order.Currency}" : "-")</td>
+                                    <td class="text-end"><a asp-controller="PurchaseOrders" asp-action="Details" asp-route-id="@order.Id">Detay</a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </details>
+    </section>
+}

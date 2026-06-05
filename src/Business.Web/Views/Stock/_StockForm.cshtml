@@ -1,0 +1,51 @@
+@model StockItem
+
+<div class="form-grid">
+    <div class="mb-3 wide">
+        <label asp-for="MaterialId" class="form-label">Malzeme</label>
+        <select asp-for="MaterialId" class="form-select">
+            <option value="">Seçilmedi</option>
+            @foreach (var material in ViewBag.Materials)
+            {
+                <option value="@material.Id">@material.Name</option>
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label">Tür / Çeşit</label>
+        <input asp-for="Name" class="form-control" placeholder="Boru, Mil, Profil" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Thickness" class="form-label">Kalınlık</label>
+        <input asp-for="Thickness" class="form-control" placeholder="0.80" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Dimensions" class="form-label">Ölçü</label>
+        <input asp-for="Dimensions" class="form-control" placeholder="20x20" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Quantity" class="form-label">Miktar</label>
+        <input asp-for="Quantity" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="QuantityText" class="form-label">Miktar metni</label>
+        <input asp-for="QuantityText" class="form-control" placeholder="5 Adet" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Unit" class="form-label">Birim</label>
+        <input asp-for="Unit" class="form-control" placeholder="Adet, kg, m" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Status" class="form-label">Durum</label>
+        <select asp-for="Status" asp-items="Html.GetEnumSelectList<StockStatus>()" class="form-select"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Location" class="form-label">Konum</label>
+        <input asp-for="Location" class="form-control" placeholder="Depo A / Raf 2" />
+    </div>
+    <div class="mb-3 wide">
+        <label asp-for="Notes" class="form-label">Not</label>
+        <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+    </div>
+</div>

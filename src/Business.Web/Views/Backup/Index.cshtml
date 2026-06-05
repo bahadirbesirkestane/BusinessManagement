@@ -1,0 +1,37 @@
+@{
+    ViewData["Title"] = "Yedekleme";
+    var modules = (IReadOnlyList<Business.Web.Controllers.BackupModuleViewModel>)ViewBag.Modules;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Ayarlar</p>
+            <h2>Yedekleme</h2>
+        </div>
+        <a class="btn btn-primary" asp-action="DownloadAll">Tümünü Excel İndir</a>
+    </div>
+
+    <div class="backup-hero">
+        <div>
+            <h3>Veritabanı bilgilerini Excel olarak dışa aktar</h3>
+            <p>Bu dosyalar SQL yedeği yerine geçmez; fakat projeleri, siparişleri, stokları, faturaları ve kullanıcı bilgilerini okunabilir şekilde saklamak ve gerektiğinde incelemek için güvenli bir operasyon yedeği sağlar.</p>
+        </div>
+        <a class="btn btn-outline-primary" asp-action="DownloadAll">Toplu Yedek Al</a>
+    </div>
+
+    <div class="backup-grid">
+        @foreach (var module in modules)
+        {
+            <article class="backup-card">
+                <div>
+                    <span class="status-pill">@counts.GetValueOrDefault(module.Key, 0) kayıt</span>
+                    <h3>@module.Title</h3>
+                    <p>@module.Description</p>
+                </div>
+                <a class="btn btn-sm btn-outline-secondary" asp-action="Download" asp-route-module="@module.Key">Excel İndir</a>
+            </article>
+        }
+    </div>
+</section>

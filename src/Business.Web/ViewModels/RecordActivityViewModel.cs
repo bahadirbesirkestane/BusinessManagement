@@ -1,0 +1,13 @@
+using Business.Domain.Entities;
+using Business.Domain.Enums;
+
+namespace Business.Web.ViewModels;
+
+public class RecordActivityViewModel
+{
+    public RecordOwnerType OwnerType { get; set; }
+    public Guid OwnerId { get; set; }
+    public IReadOnlyList<RecordComment> Comments { get; set; } = [];
+    public IReadOnlyList<RecordFile> Files { get; set; } = [];
+    public IReadOnlyDictionary<string, string> UserNames { get; set; } = new Dictionary<string, string>();
+}
