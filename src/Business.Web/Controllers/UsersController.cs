@@ -121,6 +121,14 @@ public class UsersController : Controller
                     <p>FirmaTakip sistemine erişiminiz için kullanıcı daveti oluşturuldu.</p>
                     <p><a href="{HtmlEncoder.Default.Encode(inviteLink)}">Hesabımı doğrula ve şifremi belirle</a></p>
                     <p>Bu bağlantı geçersiz veya süresi dolmuşsa sistem yöneticinizden yeni davet isteyin.</p>
+                    """,
+                TextBody = $"""
+                    Merhaba {user.FullName ?? user.Email!},
+
+                    FirmaTakip sistemine erişiminiz için kullanıcı daveti oluşturuldu.
+                    Davet linki: {inviteLink}
+
+                    Bu bağlantı geçersiz veya süresi dolmuşsa sistem yöneticinizden yeni davet isteyin.
                     """
             }, cancellationToken);
 

@@ -21,10 +21,10 @@ public sealed class SmtpEmailSender : IEmailSender
             string.IsNullOrWhiteSpace(_options.FromEmail))
         {
             _logger.LogInformation(
-                "SMTP ayarı bulunamadı. E-posta log'a yazıldı. Alıcı: {To}, Konu: {Subject}, İçerik: {HtmlBody}",
+                "SMTP ayarı bulunamadı. E-posta log'a yazıldı. Alıcı: {To}, Konu: {Subject}, İçerik: {Body}",
                 message.To,
                 message.Subject,
-                message.HtmlBody);
+                message.TextBody ?? message.HtmlBody);
             return;
         }
 
