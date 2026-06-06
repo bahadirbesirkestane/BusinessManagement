@@ -1,12 +1,16 @@
 using Business.Infrastructure.Identity;
 using Business.Infrastructure.Data;
 using Business.Application.Services;
+using Business.Web.Services;
 using Business.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text;
+using System.Text.Encodings.Web;
 
 namespace Business.Web.Controllers;
 
@@ -17,17 +21,23 @@ public class UsersController : Controller
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ApplicationDbContext _context;
     private readonly IAdminRecoveryCodeService _recoveryCodeService;
+    private readonly IEmailSender _emailSender;
+    private readonly ILogger<UsersController> _logger;
 
     public UsersController(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         ApplicationDbContext context,
-        IAdminRecoveryCodeService recoveryCodeService)
+        IAdminRecoveryCodeService recoveryCodeService,
+        IEmailSender emailSender,
+        ILogger<UsersController> logger)
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _context = context;
         _recoveryCodeService = recoveryCodeService;
+        _emailSender = emailSender;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index()
@@ -44,6 +54,7 @@ public class UsersController : Controller
                 FullName = user.FullName,
                 Email = user.Email,
                 IsActive = user.IsActive,
+                EmailConfirmed = user.EmailConfirmed,
                 RolesText = roles.Count == 0 ? "-" : string.Join(", ", roles)
             });
         }
@@ -51,27 +62,25 @@ public class UsersController : Controller
         return View(model);
     }
 
-    [Authorize(Policy = AppPolicies.CanManageUsers)]
+    [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> Create()
     {
-        ViewBag.Departments = await GetDepartmentsAsync();
-        return View(new UserFormViewModel { AvailableRoles = await GetRoleNamesAsync() });
+        return View(new UserInviteViewModel { AvailableRoles = await GetRoleNamesAsync() });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = AppPolicies.CanManageUsers)]
-    public async Task<IActionResult> Create(UserFormViewModel model)
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Create(UserInviteViewModel model, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(model.Password))
+        if (!await _roleManager.RoleExistsAsync(model.Role))
         {
-            ModelState.AddModelError(nameof(model.Password), "Yeni kullanıcı için parola zorunludur.");
+            ModelState.AddModelError(nameof(model.Role), "Geçerli bir rol seçin.");
         }
 
         if (!ModelState.IsValid)
         {
             model.AvailableRoles = await GetRoleNamesAsync();
-            ViewBag.Departments = await GetDepartmentsAsync();
             return View(model);
         }
 
@@ -79,24 +88,50 @@ public class UsersController : Controller
         {
             UserName = model.Email.Trim(),
             Email = model.Email.Trim(),
-            EmailConfirmed = true,
+            EmailConfirmed = false,
             FullName = model.FullName.Trim(),
-            PhoneNumber = model.PhoneNumber,
-            DepartmentId = model.DepartmentId,
-            IsActive = model.IsActive
+            IsActive = false
         };
 
-        var result = await _userManager.CreateAsync(user, model.Password!);
+        var result = await _userManager.CreateAsync(user);
         if (!result.Succeeded)
         {
             AddIdentityErrors(result);
             model.AvailableRoles = await GetRoleNamesAsync();
-            ViewBag.Departments = await GetDepartmentsAsync();
             return View(model);
         }
 
-        await SyncRolesAsync(user, model.SelectedRoles);
-        await SyncUserPermissionsAsync(user, model.SelectedPermissions);
+        var roleResult = await _userManager.AddToRoleAsync(user, model.Role);
+        if (!roleResult.Succeeded)
+        {
+            AddIdentityErrors(roleResult);
+            model.AvailableRoles = await GetRoleNamesAsync();
+            return View(model);
+        }
+
+        var inviteLink = await CreateInviteLinkAsync(user);
+        try
+        {
+            await _emailSender.SendAsync(new EmailMessage
+            {
+                To = user.Email!,
+                Subject = "FirmaTakip kullanıcı daveti",
+                HtmlBody = $"""
+                    <p>Merhaba {HtmlEncoder.Default.Encode(user.FullName ?? user.Email!)},</p>
+                    <p>FirmaTakip sistemine erişiminiz için kullanıcı daveti oluşturuldu.</p>
+                    <p><a href="{HtmlEncoder.Default.Encode(inviteLink)}">Hesabımı doğrula ve şifremi belirle</a></p>
+                    <p>Bu bağlantı geçersiz veya süresi dolmuşsa sistem yöneticinizden yeni davet isteyin.</p>
+                    """
+            }, cancellationToken);
+
+            TempData["Success"] = $"{user.Email} adresine kullanıcı daveti gönderildi.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Kullanıcı daveti e-postası gönderilemedi. UserId: {UserId}", user.Id);
+            TempData["Error"] = "Kullanıcı oluşturuldu ancak davet e-postası gönderilemedi. SMTP ayarlarını kontrol edin.";
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -207,19 +242,6 @@ public class UsersController : Controller
             return View(model);
         }
 
-        if (!string.IsNullOrWhiteSpace(model.Password))
-        {
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var passwordResult = await _userManager.ResetPasswordAsync(user, token, model.Password);
-            if (!passwordResult.Succeeded)
-            {
-                AddIdentityErrors(passwordResult);
-                model.AvailableRoles = await GetRoleNamesAsync();
-                ViewBag.Departments = await GetDepartmentsAsync();
-                return View(model);
-            }
-        }
-
         if (!await CanApplyRoleChangesAsync(user, model.SelectedRoles))
         {
             ModelState.AddModelError(string.Empty, "Sistemde en az bir aktif yönetici kalmalıdır.");
@@ -237,18 +259,9 @@ public class UsersController : Controller
     [Authorize(Policy = AppPolicies.CanManageUsers)]
     public async Task<IActionResult> ResetPassword(string id)
     {
-        var user = await _userManager.FindByIdAsync(id);
-        if (user is null)
-        {
-            return NotFound();
-        }
-
-        return View(new UserPasswordResetViewModel
-        {
-            UserId = user.Id,
-            FullName = user.FullName ?? string.Empty,
-            Email = user.Email ?? string.Empty
-        });
+        await Task.CompletedTask;
+        TempData["Error"] = "Kullanıcı şifresi admin tarafından belirlenemez. Kullanıcı davet bağlantısı üzerinden kendi şifresini belirlemelidir.";
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]
@@ -256,35 +269,8 @@ public class UsersController : Controller
     [Authorize(Policy = AppPolicies.CanManageUsers)]
     public async Task<IActionResult> ResetPassword(string id, UserPasswordResetViewModel model)
     {
-        if (id != model.UserId)
-        {
-            return BadRequest();
-        }
-
-        var user = await _userManager.FindByIdAsync(id);
-        if (user is null)
-        {
-            return NotFound();
-        }
-
-        model.FullName = user.FullName ?? string.Empty;
-        model.Email = user.Email ?? string.Empty;
-
-        if (!ModelState.IsValid)
-        {
-            return View(model);
-        }
-
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        var result = await _userManager.ResetPasswordAsync(user, token, model.NewPassword);
-        if (!result.Succeeded)
-        {
-            AddIdentityErrors(result);
-            return View(model);
-        }
-
-        await _userManager.UpdateSecurityStampAsync(user);
-        TempData["Success"] = $"{model.Email} kullanıcısının şifresi sıfırlandı.";
+        await Task.CompletedTask;
+        TempData["Error"] = "Kullanıcı şifresi admin tarafından belirlenemez. Kullanıcı davet bağlantısı üzerinden kendi şifresini belirlemelidir.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -369,6 +355,20 @@ public class UsersController : Controller
     private async Task<List<string>> GetRoleNamesAsync()
     {
         return await _roleManager.Roles.OrderBy(x => x.Name).Select(x => x.Name!).ToListAsync();
+    }
+
+    private async Task<string> CreateInviteLinkAsync(ApplicationUser user)
+    {
+        var emailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        var passwordToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var encodedEmailToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(emailToken));
+        var encodedPasswordToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(passwordToken));
+
+        return Url.Page(
+            "/Account/AcceptInvitation",
+            pageHandler: null,
+            values: new { area = "Identity", userId = user.Id, emailToken = encodedEmailToken, passwordToken = encodedPasswordToken },
+            protocol: Request.Scheme) ?? string.Empty;
     }
 
     private async Task SyncRolesAsync(ApplicationUser user, List<string> selectedRoles)

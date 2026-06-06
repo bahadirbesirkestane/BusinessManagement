@@ -35,15 +35,6 @@
                     }
                 </select>
             </div>
-            <div class="mb-3">
-                <label asp-for="Password" class="form-label"></label>
-                <input asp-for="Password" class="form-control" autocomplete="new-password" />
-                <span asp-validation-for="Password" class="text-danger"></span>
-                @if (!string.IsNullOrWhiteSpace(Model.Id))
-                {
-                    <small class="text-muted">Boş bırakırsan parola değişmez.</small>
-                }
-            </div>
             <div class="mb-3 wide">
                 <label class="form-label">Roller</label>
                 <div class="check-grid">
