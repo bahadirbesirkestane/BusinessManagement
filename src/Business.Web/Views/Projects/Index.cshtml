@@ -8,6 +8,7 @@
         <div>
             <p class="section-kicker">Proje merkezi</p>
             <h2>@(ViewBag.ProjectListTitle ?? "Proje listesi")</h2>
+            <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
         @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
         {

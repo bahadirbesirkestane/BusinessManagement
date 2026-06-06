@@ -8,6 +8,7 @@
         <div>
             <p class="section-kicker">@(Model.Material.CategoryName ?? Model.Material.Category.ToDisplayName())</p>
             <h2>@Model.Material.Name stok listesi</h2>
+            <p class="record-count">Kayıt sayısı: <strong>@Model.Groups.Sum(group => group.Count())</strong></p>
         </div>
         <div class="actions-row">
             <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Stok Durumu</a>

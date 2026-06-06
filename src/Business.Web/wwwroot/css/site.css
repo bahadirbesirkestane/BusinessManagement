@@ -1049,6 +1049,65 @@ a:hover {
   flex-wrap: wrap;
 }
 
+.record-count {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.detail-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-summary-card,
+.amount-breakdown > div,
+.detail-note {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 12px 14px;
+}
+
+.detail-summary-card span,
+.amount-breakdown span,
+.detail-note span {
+  display: block;
+  color: #64748b;
+  font-size: 0.78rem;
+  margin-bottom: 4px;
+}
+
+.detail-summary-card strong {
+  color: #0f172a;
+}
+
+.detail-summary-card.total {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.amount-breakdown {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.amount-breakdown .grand {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.detail-note {
+  margin-top: 12px;
+}
+
+.detail-note p {
+  margin: 0;
+  color: #334155;
+}
+
 .inline-form {
   display: inline-flex;
   margin: 0 0 0 8px;
@@ -1400,6 +1459,8 @@ a:hover {
 
 @media (max-width: 720px) {
   .metric-grid,
+  .detail-summary-grid,
+  .amount-breakdown,
   .form-grid,
   .check-grid,
   .activity-grid,

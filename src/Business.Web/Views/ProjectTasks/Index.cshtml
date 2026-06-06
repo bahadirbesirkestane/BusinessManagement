@@ -1,6 +1,7 @@
 @model IReadOnlyList<ProjectTask>
 @{
     var userNames = (IReadOnlyDictionary<string, string>)(ViewBag.UserNames ?? new Dictionary<string, string>());
+    var listAction = ViewBag.AssignedToMe == true ? "AssignedToMe" : "Index";
 }
 @{
     ViewData["Title"] = "Görevler";
@@ -10,14 +11,15 @@
     <div class="panel-heading">
         <div>
             <p class="section-kicker">Görevler</p>
-            <h2>Tüm Görevler</h2>
+            <h2>@(ViewBag.TaskListTitle ?? "Tüm Görevler")</h2>
+            <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
         @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
         {
             <a class="btn btn-primary" asp-action="Create">Görev Ekle</a>
         }
     </div>
-    <form asp-action="Index" method="get" class="list-filter-bar">
+    <form asp-action="@listAction" method="get" class="list-filter-bar">
         @if (ViewBag.ProjectId is not null)
         {
             <input type="hidden" name="projectId" value="@ViewBag.ProjectId" />
@@ -78,7 +80,7 @@
             <option value="created" selected="@(ViewBag.Sort == "created")">Eski kayıt</option>
         </select>
         <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
-        <a class="icon-filter-button clear" asp-action="Index" asp-route-projectId="@ViewBag.ProjectId" title="Temizle" aria-label="Temizle">×</a>
+        <a class="icon-filter-button clear" asp-action="@listAction" asp-route-projectId="@ViewBag.ProjectId" title="Temizle" aria-label="Temizle">×</a>
     </form>
     @if (User.IsInRole(AppRoles.Admin))
     {

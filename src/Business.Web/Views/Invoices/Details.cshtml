@@ -1,18 +1,131 @@
 @model Invoice
 @{
     ViewData["Title"] = "Fatura Detayı";
+    var partyName = Model.Customer?.Name ?? Model.Supplier?.Name ?? "-";
+    var connection = Model.Project is not null
+        ? $"{Model.Project.Code} - {Model.Project.Name}"
+        : Model.PurchaseOrder?.OrderNumber ?? "-";
 }
 
 <section class="panel-block">
     <div class="panel-heading">
-        <div><p class="section-kicker">@Model.Type.ToDisplayName()</p><h2>@Model.InvoiceNumber</h2></div>
-        <span class="status-pill">@Model.Status.ToDisplayName()</span>
+        <div>
+            <p class="section-kicker">@Model.Type.ToDisplayName()</p>
+            <h2>@Model.InvoiceNumber</h2>
+            <p class="record-count">@partyName</p>
+        </div>
+        <div class="toolbar-actions">
+            <span class="status-pill">@Model.Status.ToDisplayName()</span>
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.InvoicesManage))
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+                <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="inline-form">
+                    <button class="btn btn-outline-danger btn-sm" type="submit">Sil</button>
+                </form>
+            }
+        </div>
     </div>
-    <dl class="row">
-        <dt class="col-sm-3">Cari</dt><dd class="col-sm-9">@(Model.Customer?.Name ?? Model.Supplier?.Name ?? "-")</dd>
-        <dt class="col-sm-3">Proje</dt><dd class="col-sm-9">@(Model.Project?.Code ?? "-")</dd>
-        <dt class="col-sm-3">Tarih</dt><dd class="col-sm-9">@Model.IssueDate.ToString("dd.MM.yyyy")</dd>
-        <dt class="col-sm-3">Toplam</dt><dd class="col-sm-9">@Model.GrandTotal.ToString("N2") @Model.Currency</dd>
-        <dt class="col-sm-3">Not</dt><dd class="col-sm-9">@(Model.Notes ?? "-")</dd>
-    </dl>
+
+    <div class="detail-summary-grid">
+        <div class="detail-summary-card">
+            <span>Cari</span>
+            <strong>@partyName</strong>
+        </div>
+        <div class="detail-summary-card">
+            <span>Bağlantı</span>
+            <strong>@connection</strong>
+        </div>
+        <div class="detail-summary-card">
+            <span>Fatura Tarihi</span>
+            <strong>@Model.IssueDate.ToString("dd.MM.yyyy")</strong>
+        </div>
+        <div class="detail-summary-card">
+            <span>Vade</span>
+            <strong>@(Model.DueDate?.ToString("dd.MM.yyyy") ?? Model.PaymentTerm ?? "-")</strong>
+        </div>
+        <div class="detail-summary-card">
+            <span>Ödeme Tarihi</span>
+            <strong>@(Model.PaidAt?.ToString("dd.MM.yyyy") ?? "-")</strong>
+        </div>
+        <div class="detail-summary-card total">
+            <span>Genel Toplam</span>
+            <strong>@Model.GrandTotal.ToString("N2") @Model.Currency</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Tutar Özeti</p>
+            <h2>Hesap</h2>
+        </div>
+    </div>
+    <div class="amount-breakdown">
+        <div><span>Ara toplam</span><strong>@Model.SubTotal.ToString("N2") @Model.Currency</strong></div>
+        <div><span>KDV</span><strong>@Model.VatTotal.ToString("N2") @Model.Currency</strong></div>
+        <div><span>İskonto</span><strong>@Model.DiscountTotal.ToString("N2") @Model.Currency</strong></div>
+        <div class="grand"><span>Genel toplam</span><strong>@Model.GrandTotal.ToString("N2") @Model.Currency</strong></div>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Model.Notes))
+    {
+        <div class="detail-note">
+            <span>Not</span>
+            <p>@Model.Notes</p>
+        </div>
+    }
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Kalemler</p>
+            <h2>Fatura Satırları</h2>
+            <p class="record-count">Kayıt sayısı: <strong>@Model.Lines.Count</strong></p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    <th>Açıklama</th>
+                    <th>Malzeme</th>
+                    <th>Miktar</th>
+                    <th>Birim Fiyat</th>
+                    <th>KDV</th>
+                    <th>İskonto</th>
+                    <th>Toplam</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Lines.Any())
+                {
+                    foreach (var line in Model.Lines)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@line.Description</strong>
+                                @if (!string.IsNullOrWhiteSpace(line.Notes))
+                                {
+                                    <small class="d-block text-muted">@line.Notes</small>
+                                }
+                            </td>
+                            <td>@(line.Material?.Name ?? "-")</td>
+                            <td>@line.Quantity.ToString("N2") @(line.Unit ?? "")</td>
+                            <td>@line.UnitPrice.ToString("N2") @Model.Currency</td>
+                            <td>%@line.VatRate.ToString("N2")</td>
+                            <td>@line.DiscountAmount.ToString("N2") @Model.Currency</td>
+                            <td><strong>@line.LineTotal.ToString("N2") @Model.Currency</strong></td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" class="text-muted">Bu faturaya ait satır bulunmuyor.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </section>

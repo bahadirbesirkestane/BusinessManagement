@@ -8,6 +8,7 @@
         <div>
             <p class="section-kicker">Stok / Depo</p>
             <h2>Stoğu olan malzemeler</h2>
+            <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
         @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
         {

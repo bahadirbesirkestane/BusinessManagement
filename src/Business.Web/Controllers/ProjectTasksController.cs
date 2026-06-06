@@ -117,6 +117,82 @@ public class ProjectTasksController : Controller
         return View(tasks);
     }
 
+    public async Task<IActionResult> AssignedToMe(string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? sort, CancellationToken cancellationToken)
+    {
+        var userId = _userManager.GetUserId(User);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Challenge();
+        }
+
+        var query = _context.ProjectTasks
+            .Include(x => x.Project)
+            .Include(x => x.Customer)
+            .Include(x => x.TaskCategory)
+            .Include(x => x.Assignments)
+            .AsNoTracking()
+            .Where(x =>
+                x.AssignedToUserId == userId ||
+                x.ResponsibleUserId == userId ||
+                x.Assignments.Any(assignment => assignment.UserId == userId));
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            query = query.Where(x =>
+                x.Title.Contains(term) ||
+                (x.Description != null && x.Description.Contains(term)) ||
+                (x.ManualProjectName != null && x.ManualProjectName.Contains(term)) ||
+                (x.ManualCustomerName != null && x.ManualCustomerName.Contains(term)));
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.Status == status.Value);
+        }
+
+        if (priority.HasValue)
+        {
+            query = query.Where(x => x.Priority == priority.Value);
+        }
+
+        if (categoryId.HasValue)
+        {
+            query = query.Where(x => x.TaskCategoryId == categoryId.Value);
+        }
+
+        if (customerId.HasValue)
+        {
+            query = query.Where(x => x.CustomerId == customerId.Value || x.Project!.CustomerId == customerId.Value);
+        }
+
+        query = sort switch
+        {
+            "title" => query.OrderBy(x => x.Title),
+            "due" => query.OrderBy(x => x.DueDate ?? DateTime.MaxValue),
+            "priority" => query.OrderByDescending(x => x.Priority),
+            "status" => query.OrderBy(x => x.Status),
+            "progress" => query.OrderByDescending(x => x.ProgressPercent),
+            "created" => query.OrderBy(x => x.CreatedAt),
+            _ => query.OrderByDescending(x => x.CreatedAt)
+        };
+
+        ViewBag.TaskListTitle = "Bana Atanan Görevler";
+        ViewBag.AssignedToMe = true;
+        ViewBag.FilterQ = q;
+        ViewBag.FilterStatus = status;
+        ViewBag.FilterPriority = priority;
+        ViewBag.FilterCategoryId = categoryId;
+        ViewBag.FilterCustomerId = customerId;
+        ViewBag.Sort = sort;
+        await FillFilterLookupsAsync(cancellationToken);
+
+        var tasks = await query.ToListAsync(cancellationToken);
+        ViewBag.UserNames = await GetTaskListUserNamesAsync(tasks, cancellationToken);
+
+        return View(nameof(Index), tasks);
+    }
+
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
     {
         var task = await _context.ProjectTasks

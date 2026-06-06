@@ -8,6 +8,7 @@
         <div>
             <p class="section-kicker">Sipariş takibi</p>
             <h2>Genel ve proje siparişleri</h2>
+            <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
         @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
         {

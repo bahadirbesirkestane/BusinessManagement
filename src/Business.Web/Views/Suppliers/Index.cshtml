@@ -5,7 +5,11 @@
 
 <section class="panel-block">
     <div class="panel-heading">
-        <div><p class="section-kicker">Satın alma</p><h2>Tedarikçi listesi</h2></div>
+        <div>
+            <p class="section-kicker">Satın alma</p>
+            <h2>Tedarikçi listesi</h2>
+            <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
+        </div>
         @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.SuppliersManage))
         {
             <a class="btn btn-primary btn-sm" asp-action="Create">Yeni tedarikçi</a>
