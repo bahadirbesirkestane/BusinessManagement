@@ -56,76 +56,91 @@ public static class IdentitySeeder
             }
         }
 
-        foreach (var adminSeed in GetAdminSeeds(configuration))
+        var currentAdmins = await userManager.GetUsersInRoleAsync(AppRoles.Admin);
+        if (currentAdmins.Any(x => x.IsActive))
         {
-            var admin = await userManager.FindByEmailAsync(adminSeed.Email);
-            if (admin is null)
+            return;
+        }
+
+        var initialAdmin = GetInitialAdmin(configuration);
+        if (initialAdmin is null)
+        {
+            return;
+        }
+
+        var admin = await userManager.FindByEmailAsync(initialAdmin.Email);
+        if (admin is null)
+        {
+            admin = new ApplicationUser
             {
-                if (string.IsNullOrWhiteSpace(adminSeed.Password))
-                {
-                    continue;
-                }
+                UserName = initialAdmin.Email,
+                Email = initialAdmin.Email,
+                EmailConfirmed = true,
+                FullName = initialAdmin.FullName,
+                IsActive = true
+            };
 
-                admin = new ApplicationUser
-                {
-                    UserName = adminSeed.Email,
-                    Email = adminSeed.Email,
-                    EmailConfirmed = true,
-                    FullName = string.IsNullOrWhiteSpace(adminSeed.FullName) ? "Sistem Yöneticisi" : adminSeed.FullName
-                };
-
-                var result = await userManager.CreateAsync(admin, adminSeed.Password);
-                if (!result.Succeeded)
-                {
-                    throw new InvalidOperationException(string.Join("; ", result.Errors.Select(x => x.Description)));
-                }
+            var createResult = await userManager.CreateAsync(admin, initialAdmin.Password);
+            if (!createResult.Succeeded)
+            {
+                throw new InvalidOperationException(string.Join("; ", createResult.Errors.Select(x => x.Description)));
             }
-
-            if (!await userManager.IsInRoleAsync(admin, AppRoles.Admin))
+        }
+        else if (!admin.IsActive)
+        {
+            admin.IsActive = true;
+            var updateResult = await userManager.UpdateAsync(admin);
+            if (!updateResult.Succeeded)
             {
-                await userManager.AddToRoleAsync(admin, AppRoles.Admin);
+                throw new InvalidOperationException(string.Join("; ", updateResult.Errors.Select(x => x.Description)));
+            }
+        }
+
+        if (!await userManager.IsInRoleAsync(admin, AppRoles.Admin))
+        {
+            var roleResult = await userManager.AddToRoleAsync(admin, AppRoles.Admin);
+            if (!roleResult.Succeeded)
+            {
+                throw new InvalidOperationException(string.Join("; ", roleResult.Errors.Select(x => x.Description)));
             }
         }
     }
 
-    private static List<SeedAdminOptions> GetAdminSeeds(IConfiguration configuration)
+    private static InitialAdminOptions? GetInitialAdmin(IConfiguration configuration)
     {
-        if (!configuration.GetValue("SeedAdmin:Enabled", false))
+        var email = configuration["InitialAdmin:Email"] ?? configuration["SeedAdmin:Email"];
+        var password = configuration["InitialAdmin:Password"] ?? configuration["SeedAdmin:Password"];
+        var fullName = configuration["InitialAdmin:FullName"] ?? configuration["SeedAdmin:FullName"];
+        var enabled = configuration.GetValue("InitialAdmin:Enabled", !string.IsNullOrWhiteSpace(email) || configuration.GetValue("SeedAdmin:Enabled", false));
+
+        if (!enabled || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         {
-            return [];
+            return null;
         }
 
-        var admins = configuration
-            .GetSection("SeedAdmins")
-            .Get<List<SeedAdminOptions>>()?
-            .Where(x => !string.IsNullOrWhiteSpace(x.Email))
-            .Select(x => x with
-            {
-                Email = x.Email.Trim(),
-                Password = x.Password?.Trim(),
-                FullName = x.FullName?.Trim()
-            })
-            .ToList() ?? [];
-
-        var legacyEmail = configuration["SeedAdmin:Email"];
-        if (!string.IsNullOrWhiteSpace(legacyEmail) &&
-            admins.All(x => !string.Equals(x.Email, legacyEmail, StringComparison.OrdinalIgnoreCase)))
+        if (IsPlaceholder(email) || IsPlaceholder(password))
         {
-            admins.Add(new SeedAdminOptions
-            {
-                Email = legacyEmail.Trim(),
-                Password = configuration["SeedAdmin:Password"]?.Trim(),
-                FullName = configuration["SeedAdmin:FullName"]?.Trim()
-            });
+            return null;
         }
 
-        return admins;
+        return new InitialAdminOptions
+        {
+            Email = email.Trim(),
+            Password = password.Trim(),
+            FullName = string.IsNullOrWhiteSpace(fullName) ? "İlk Sistem Yöneticisi" : fullName.Trim()
+        };
     }
 
-    private sealed record SeedAdminOptions
+    private static bool IsPlaceholder(string value)
+    {
+        return value.Contains("CHANGE_", StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("YOUR_", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed record InitialAdminOptions
     {
         public string Email { get; init; } = string.Empty;
-        public string? Password { get; init; }
-        public string? FullName { get; init; }
+        public string Password { get; init; } = string.Empty;
+        public string FullName { get; init; } = string.Empty;
     }
 }

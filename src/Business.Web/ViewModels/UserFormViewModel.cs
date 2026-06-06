@@ -28,7 +28,7 @@ public class UserFormViewModel
     public bool IsActive { get; set; } = true;
 
     [DataType(DataType.Password)]
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "Parola 6 ile 100 karakter arasında olmalıdır.")]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "Parola 8 ile 100 karakter arasında olmalıdır.")]
     [Display(Name = "Parola")]
     public string? Password { get; set; }
 

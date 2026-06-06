@@ -45,6 +45,19 @@ public static class AppPermissionCatalog
             AppPermissions.RolesManage,
             AppPermissions.SettingsManage
         ],
+        [AppRoles.Employee] =
+        [
+            AppPermissions.DashboardView,
+            AppPermissions.ProjectsView,
+            AppPermissions.TasksView,
+            AppPermissions.TasksUpdate,
+            AppPermissions.TasksChangeStatus,
+            AppPermissions.ProductionUpdatesView,
+            AppPermissions.MaterialRequestsView,
+            AppPermissions.MaterialRequestsManage,
+            AppPermissions.MaterialsView,
+            AppPermissions.StockView
+        ],
         [AppRoles.Manager] =
         [
             AppPermissions.DashboardView,

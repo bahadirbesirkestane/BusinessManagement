@@ -10,6 +10,7 @@ public class UserPasswordResetViewModel
 
     [Required(ErrorMessage = "Yeni parola zorunludur.")]
     [DataType(DataType.Password)]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "Yeni parola 8 ile 100 karakter arasında olmalıdır.")]
     [Display(Name = "Yeni Parola")]
     public string NewPassword { get; set; } = string.Empty;
 
