@@ -1,0 +1,41 @@
+@page
+@model Business.Web.Areas.Identity.Pages.Account.Manage.EmailModel
+@{
+    ViewData["Title"] = "E-posta Yönetimi";
+}
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Identity Hesap Yönetimi</p>
+            <h2>E-posta Yönetimi</h2>
+        </div>
+    </div>
+
+    <div class="form-grid">
+        <div class="mb-3">
+            <label class="form-label">Mevcut E-posta</label>
+            <input class="form-control" value="@Model.CurrentEmail" disabled />
+            <small class="text-muted">Durum: @(Model.EmailConfirmed ? "Doğrulandı" : "Doğrulanmadı")</small>
+        </div>
+    </div>
+
+    <form method="post" class="app-form">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="mb-3 wide">
+                <label asp-for="Input.NewEmail" class="form-label"></label>
+                <input asp-for="Input.NewEmail" class="form-control" autocomplete="email" />
+                <span asp-validation-for="Input.NewEmail" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="form-actions">
+            <a class="btn btn-outline-secondary" asp-page="./Index">Hesap Yönetimine Dön</a>
+            <button class="btn btn-primary" type="submit">Doğrulama Linki Gönder</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

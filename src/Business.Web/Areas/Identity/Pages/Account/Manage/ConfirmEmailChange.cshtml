@@ -1,0 +1,22 @@
+@page
+@model Business.Web.Areas.Identity.Pages.Account.Manage.ConfirmEmailChangeModel
+@{
+    ViewData["Title"] = "E-posta Doğrulama";
+}
+
+<section class="panel-block form-panel auth-recovery-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Hesap Güvenliği</p>
+            <h2>E-posta Doğrulama</h2>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger">@Model.ErrorMessage</div>
+        <div class="form-actions">
+            <a class="btn btn-primary" asp-page="/Account/Manage/Index" asp-area="Identity">Hesap Ayarlarına Dön</a>
+        </div>
+    }
+</section>

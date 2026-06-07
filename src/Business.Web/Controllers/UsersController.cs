@@ -113,25 +113,7 @@ public class UsersController : Controller
         var inviteLink = await CreateInviteLinkAsync(user);
         try
         {
-            await _emailSender.SendAsync(new EmailMessage
-            {
-                To = user.Email!,
-                Subject = "FirmaTakip kullanıcı daveti",
-                HtmlBody = $"""
-                    <p>Merhaba {HtmlEncoder.Default.Encode(user.FullName ?? user.Email!)},</p>
-                    <p>FirmaTakip sistemine erişiminiz için kullanıcı daveti oluşturuldu.</p>
-                    <p><a href="{HtmlEncoder.Default.Encode(inviteLink)}">Hesabımı doğrula ve şifremi belirle</a></p>
-                    <p>Bu bağlantı geçersiz veya süresi dolmuşsa sistem yöneticinizden yeni davet isteyin.</p>
-                    """,
-                TextBody = $"""
-                    Merhaba {user.FullName ?? user.Email!},
-
-                    FirmaTakip sistemine erişiminiz için kullanıcı daveti oluşturuldu.
-                    Davet linki: {inviteLink}
-
-                    Bu bağlantı geçersiz veya süresi dolmuşsa sistem yöneticinizden yeni davet isteyin.
-                    """
-            }, cancellationToken);
+            await SendInvitationEmailAsync(user, inviteLink, cancellationToken);
 
             TempData["Success"] = $"{user.Email} adresine kullanıcı daveti gönderildi.";
         }
@@ -246,6 +228,70 @@ public class UsersController : Controller
         await _userManager.UpdateSecurityStampAsync(user);
 
         TempData["Success"] = $"{user.Email} için 2FA sıfırlandı. Kullanıcı bir sonraki girişte yeniden kurulum yapmalıdır.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> ResendInvitation(string id, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        if (user.EmailConfirmed || user.IsActive)
+        {
+            TempData["Error"] = "Davet bağlantısı yalnızca henüz aktifleştirilmemiş kullanıcılar için gönderilebilir.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        try
+        {
+            var inviteLink = await CreateInviteLinkAsync(user);
+            await SendInvitationEmailAsync(user, inviteLink, cancellationToken);
+            TempData["Success"] = $"{user.Email} adresine davet bağlantısı yeniden gönderildi.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Davet bağlantısı yeniden gönderilemedi. UserId: {UserId}", user.Id);
+            TempData["Error"] = "Davet bağlantısı gönderilemedi. SMTP ayarlarını kontrol edin.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> SendPasswordResetLink(string id, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        if (!user.IsActive || !user.EmailConfirmed)
+        {
+            TempData["Error"] = "Şifre sıfırlama linki yalnızca aktif ve e-postası doğrulanmış kullanıcılara gönderilebilir.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        try
+        {
+            var resetLink = await CreatePasswordResetLinkAsync(user);
+            await SendPasswordResetEmailAsync(user, resetLink, cancellationToken);
+            TempData["Success"] = $"{user.Email} adresine şifre sıfırlama bağlantısı gönderildi.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Şifre sıfırlama bağlantısı gönderilemedi. UserId: {UserId}", user.Id);
+            TempData["Error"] = "Şifre sıfırlama bağlantısı gönderilemedi. SMTP ayarlarını kontrol edin.";
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -415,6 +461,64 @@ public class UsersController : Controller
             pageHandler: null,
             values: new { area = "Identity", userId = user.Id, emailToken = encodedEmailToken, passwordToken = encodedPasswordToken },
             protocol: Request.Scheme) ?? string.Empty;
+    }
+
+    private async Task<string> CreatePasswordResetLinkAsync(ApplicationUser user)
+    {
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+        return Url.Page(
+            "/Account/ResetPassword",
+            pageHandler: null,
+            values: new { area = "Identity", userId = user.Id, token = encodedToken },
+            protocol: Request.Scheme) ?? string.Empty;
+    }
+
+    private async Task SendInvitationEmailAsync(ApplicationUser user, string inviteLink, CancellationToken cancellationToken)
+    {
+        await _emailSender.SendAsync(new EmailMessage
+        {
+            To = user.Email!,
+            Subject = "FirmaTakip kullanıcı daveti",
+            HtmlBody = $"""
+                <p>Merhaba {HtmlEncoder.Default.Encode(user.FullName ?? user.Email!)},</p>
+                <p>FirmaTakip sistemine erişiminiz için kullanıcı daveti oluşturuldu.</p>
+                <p><a href="{HtmlEncoder.Default.Encode(inviteLink)}">Hesabımı doğrula ve şifremi belirle</a></p>
+                <p>Bu bağlantı geçersiz veya süresi dolmuşsa sistem yöneticinizden yeni davet isteyin.</p>
+                """,
+            TextBody = $"""
+                Merhaba {user.FullName ?? user.Email!},
+
+                FirmaTakip sistemine erişiminiz için kullanıcı daveti oluşturuldu.
+                Davet linki: {inviteLink}
+
+                Bu bağlantı geçersiz veya süresi dolmuşsa sistem yöneticinizden yeni davet isteyin.
+                """
+        }, cancellationToken);
+    }
+
+    private async Task SendPasswordResetEmailAsync(ApplicationUser user, string resetLink, CancellationToken cancellationToken)
+    {
+        await _emailSender.SendAsync(new EmailMessage
+        {
+            To = user.Email!,
+            Subject = "FirmaTakip şifre sıfırlama",
+            HtmlBody = $"""
+                <p>Merhaba {HtmlEncoder.Default.Encode(user.FullName ?? user.Email ?? "Kullanıcı")},</p>
+                <p>FirmaTakip hesabınız için şifre sıfırlama bağlantısı oluşturuldu.</p>
+                <p><a href="{HtmlEncoder.Default.Encode(resetLink)}">Yeni şifre belirle</a></p>
+                <p>Bu işlemi siz başlatmadıysanız sistem yöneticinizle görüşün.</p>
+                """,
+            TextBody = $"""
+                Merhaba {user.FullName ?? user.Email ?? "Kullanıcı"},
+
+                FirmaTakip hesabınız için şifre sıfırlama bağlantısı oluşturuldu.
+                Şifre sıfırlama linki: {resetLink}
+
+                Bu işlemi siz başlatmadıysanız sistem yöneticinizle görüşün.
+                """
+        }, cancellationToken);
     }
 
     private async Task SyncRolesAsync(ApplicationUser user, List<string> selectedRoles)

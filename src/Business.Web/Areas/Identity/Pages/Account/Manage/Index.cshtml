@@ -1,0 +1,39 @@
+@page
+@model Business.Web.Areas.Identity.Pages.Account.Manage.IndexModel
+@{
+    ViewData["Title"] = "Hesap Yönetimi";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Identity Hesap Yönetimi</p>
+            <h2>Hesap Yönetimi</h2>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <tbody>
+                <tr>
+                    <th>E-posta</th>
+                    <td>@Model.Email</td>
+                    <td><span class="status-pill @(Model.EmailConfirmed ? "status-success" : "status-danger")">@(Model.EmailConfirmed ? "Doğrulandı" : "Doğrulanmadı")</span></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./Email">E-posta Yönet</a></td>
+                </tr>
+                <tr>
+                    <th>Şifre</th>
+                    <td>Hesap şifrenizi değiştirebilirsiniz.</td>
+                    <td></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./ChangePassword">Şifre Değiştir</a></td>
+                </tr>
+                <tr>
+                    <th>2FA</th>
+                    <td>@(Model.IsAdmin ? "Admin iki aşamalı doğrulama ayarı" : "Çalışanlar için zorunlu değil")</td>
+                    <td><span class="status-pill @(Model.TwoFactorEnabled ? "status-success" : "status-danger")">@(Model.TwoFactorEnabled ? "Açık" : "Kapalı")</span></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./TwoFactorAuthentication">2FA Yönet</a></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>

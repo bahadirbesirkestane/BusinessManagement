@@ -75,6 +75,7 @@ app.Use(async (context, next) =>
 
     var path = context.Request.Path;
     if (path.StartsWithSegments("/Identity/Account/Manage/TwoFactorSetup") ||
+        path.StartsWithSegments("/Identity/Account/Manage/TwoFactorAuthentication") ||
         path.StartsWithSegments("/Identity/Account/Logout") ||
         path.StartsWithSegments("/Identity/Account/Login") ||
         path.StartsWithSegments("/css") ||

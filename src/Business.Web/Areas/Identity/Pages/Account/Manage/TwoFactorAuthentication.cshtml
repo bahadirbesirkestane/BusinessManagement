@@ -1,0 +1,43 @@
+@page
+@model Business.Web.Areas.Identity.Pages.Account.Manage.TwoFactorAuthenticationModel
+@{
+    ViewData["Title"] = "2FA Yönetimi";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Identity Hesap Yönetimi</p>
+            <h2>İki Aşamalı Doğrulama</h2>
+        </div>
+    </div>
+
+    @if (!Model.IsAdmin)
+    {
+        <div class="alert alert-info">Çalışan kullanıcılar için iki aşamalı doğrulama şu anda zorunlu değildir.</div>
+    }
+
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <tbody>
+                <tr>
+                    <th>Authenticator</th>
+                    <td><span class="status-pill @(Model.HasAuthenticator ? "status-success" : "status-danger")">@(Model.HasAuthenticator ? "Kurulu" : "Kurulu Değil")</span></td>
+                </tr>
+                <tr>
+                    <th>2FA Durumu</th>
+                    <td><span class="status-pill @(Model.IsTwoFactorEnabled ? "status-success" : "status-danger")">@(Model.IsTwoFactorEnabled ? "Açık" : "Kapalı")</span></td>
+                </tr>
+                <tr>
+                    <th>Kalan Identity Kurtarma Kodu</th>
+                    <td>@Model.RecoveryCodesLeft</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-actions">
+        <a class="btn btn-outline-secondary" asp-page="./Index">Hesap Yönetimine Dön</a>
+        <a class="btn btn-primary" asp-page="./TwoFactorSetup">Authenticator Ayarları</a>
+    </div>
+</section>

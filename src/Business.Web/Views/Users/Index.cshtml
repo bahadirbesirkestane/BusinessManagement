@@ -39,6 +39,18 @@
                         <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@user.Id">Düzenle</a>
                         @if (User.IsInRole(AppRoles.Admin))
                         {
+                            @if (!user.IsActive && !user.EmailConfirmed)
+                            {
+                                <form class="inline-form" asp-action="ResendInvitation" asp-route-id="@user.Id" method="post">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit">Davet Gönder</button>
+                                </form>
+                            }
+                            @if (user.IsActive && user.EmailConfirmed)
+                            {
+                                <form class="inline-form" asp-action="SendPasswordResetLink" asp-route-id="@user.Id" method="post">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit">Reset Linki Gönder</button>
+                                </form>
+                            }
                             @if (isAdmin)
                             {
                                 <a class="btn btn-sm btn-outline-secondary" asp-action="GenerateRecoveryCodes" asp-route-id="@user.Id">Kurtarma Kodu</a>
