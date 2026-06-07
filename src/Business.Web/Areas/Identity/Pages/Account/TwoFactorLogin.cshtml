@@ -1,0 +1,43 @@
+@page
+@model Business.Web.Areas.Identity.Pages.Account.TwoFactorLoginModel
+@{
+    ViewData["Title"] = "İki Aşamalı Doğrulama";
+}
+
+<section class="panel-block form-panel auth-recovery-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Hesap Güvenliği</p>
+            <h2>İki aşamalı doğrulama</h2>
+        </div>
+    </div>
+
+    <form method="post" class="app-form">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="alert alert-info">
+            Authenticator uygulamanızdaki güncel 6 haneli kodu girin. Uygulamaya erişemiyorsanız kurtarma kodu ile giriş yapabilirsiniz.
+        </div>
+        <div class="form-grid">
+            <div class="mb-3 wide">
+                <label asp-for="Input.TwoFactorCode" class="form-label"></label>
+                <input asp-for="Input.TwoFactorCode" class="form-control" autocomplete="one-time-code" />
+                <span asp-validation-for="Input.TwoFactorCode" class="text-danger"></span>
+            </div>
+            <div class="mb-3 wide">
+                <label class="check-card check-inline">
+                    <input asp-for="Input.RememberMachine" />
+                    <span>Bu cihazı hatırla</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn-outline-warning" asp-page="./RecoveryCodeLogin" asp-route-returnUrl="@Model.ReturnUrl">Kurtarma Kodu Kullan</a>
+            <button class="btn btn-primary" type="submit">Doğrula</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

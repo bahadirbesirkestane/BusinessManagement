@@ -19,6 +19,7 @@ builder.Services.AddDataProtection()
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.Configure<SmtpEmailOptions>(builder.Configuration.GetSection("Email:Smtp"));
+builder.Services.Configure<AdminTwoFactorOptions>(builder.Configuration.GetSection("Security:AdminTwoFactor"));
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
@@ -62,6 +63,41 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated != true ||
+        !context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<AdminTwoFactorOptions>>().Value.RequireForAdmins)
+    {
+        await next();
+        return;
+    }
+
+    var path = context.Request.Path;
+    if (path.StartsWithSegments("/Identity/Account/Manage/TwoFactorSetup") ||
+        path.StartsWithSegments("/Identity/Account/Logout") ||
+        path.StartsWithSegments("/Identity/Account/Login") ||
+        path.StartsWithSegments("/css") ||
+        path.StartsWithSegments("/js") ||
+        path.StartsWithSegments("/lib") ||
+        path.StartsWithSegments("/favicon.ico"))
+    {
+        await next();
+        return;
+    }
+
+    var userManager = context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Business.Infrastructure.Identity.ApplicationUser>>();
+    var user = await userManager.GetUserAsync(context.User);
+    if (user is not null &&
+        await userManager.IsInRoleAsync(user, Business.Infrastructure.Identity.AppRoles.Admin) &&
+        !await userManager.GetTwoFactorEnabledAsync(user))
+    {
+        context.Response.Redirect("/Identity/Account/Manage/TwoFactorSetup");
+        return;
+    }
+
+    await next();
+});
 
 app.MapStaticAssets();
 

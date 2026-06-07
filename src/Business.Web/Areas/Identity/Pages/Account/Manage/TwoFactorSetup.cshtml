@@ -1,0 +1,81 @@
+@page
+@model Business.Web.Areas.Identity.Pages.Account.Manage.TwoFactorSetupModel
+@{
+    ViewData["Title"] = "2FA Kurulumu";
+}
+
+<section class="panel-block form-panel auth-recovery-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Admin Güvenliği</p>
+            <h2>Authenticator App Kurulumu</h2>
+        </div>
+    </div>
+
+    @if (!Model.IsAdmin)
+    {
+        <div class="alert alert-warning">Bu ekran yalnızca admin kullanıcılar içindir.</div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            Google Authenticator, Microsoft Authenticator, 1Password veya benzeri bir uygulamaya aşağıdaki anahtarı ekleyin.
+            SMS kullanılmaz; doğrulama TOTP standardı ile yapılır.
+        </div>
+
+        <div class="form-grid">
+            <div class="mb-3 wide">
+                <label class="form-label">Manuel Anahtar</label>
+                <input class="form-control" value="@Model.SharedKey" readonly />
+            </div>
+            <div class="mb-3 wide">
+                <label class="form-label">Authenticator URI</label>
+                <textarea class="form-control" rows="3" readonly>@Model.AuthenticatorUri</textarea>
+            </div>
+        </div>
+
+        @if (Model.IsTwoFactorEnabled)
+        {
+            <div class="alert alert-success">
+                İki aşamalı doğrulama etkin. Kalan Identity kurtarma kodu sayısı: @Model.RecoveryCodesLeft
+            </div>
+        }
+
+        @if (Model.RecoveryCodes.Count > 0)
+        {
+            <div class="alert alert-warning">
+                Bu kurtarma kodları yalnızca bir kez gösterilir. Her kod tek kullanımlıktır; güvenli bir parola yöneticisinde veya çevrimdışı güvenli bir yerde saklayın.
+            </div>
+            <div class="check-grid">
+                @foreach (var code in Model.RecoveryCodes)
+                {
+                    <div class="check-card"><span>@code</span></div>
+                }
+            </div>
+        }
+
+        <form method="post" class="app-form mt-3">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-grid">
+                <div class="mb-3 wide">
+                    <label asp-for="Input.Code" class="form-label"></label>
+                    <input asp-for="Input.Code" class="form-control" autocomplete="one-time-code" />
+                    <span asp-validation-for="Input.Code" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit">2FA'yı Etkinleştir</button>
+            </div>
+        </form>
+
+        <form method="post" asp-page-handler="Reset" class="app-form mt-3">
+            <div class="form-actions">
+                <button class="btn btn-outline-danger" type="submit">Authenticator Ayarını Sıfırla</button>
+            </div>
+        </form>
+    }
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

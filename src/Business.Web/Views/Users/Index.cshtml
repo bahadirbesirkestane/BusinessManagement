@@ -20,6 +20,7 @@
                     <th>Roller</th>
                     <th>Durum</th>
                     <th>E-posta Durumu</th>
+                    <th>2FA</th>
                     <th></th>
                 </tr>
             </thead>
@@ -33,6 +34,7 @@
                     <td>@user.RolesText</td>
                     <td><span class="status-pill @(user.IsActive ? "status-success" : "status-danger")">@(user.IsActive ? "Aktif" : "Pasif")</span></td>
                     <td><span class="status-pill @(user.EmailConfirmed ? "status-success" : "status-danger")">@(user.EmailConfirmed ? "Doğrulandı" : "Doğrulanmadı")</span></td>
+                    <td><span class="status-pill @(user.TwoFactorEnabled ? "status-success" : "status-danger")">@(user.TwoFactorEnabled ? "Açık" : "Kapalı")</span></td>
                     <td class="text-end">
                         <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@user.Id">Düzenle</a>
                         @if (User.IsInRole(AppRoles.Admin))
@@ -40,6 +42,12 @@
                             @if (isAdmin)
                             {
                                 <a class="btn btn-sm btn-outline-secondary" asp-action="GenerateRecoveryCodes" asp-route-id="@user.Id">Kurtarma Kodu</a>
+                                @if (user.IsActive && user.TwoFactorEnabled)
+                                {
+                                    <form class="inline-form" asp-action="ResetTwoFactor" asp-route-id="@user.Id" method="post">
+                                        <button class="btn btn-sm btn-outline-warning" type="submit">2FA Sıfırla</button>
+                                    </form>
+                                }
                             }
                             <form class="inline-form" asp-action="Delete" asp-route-id="@user.Id" method="post">
                                 <button class="btn btn-sm btn-outline-danger" type="submit">Sil</button>

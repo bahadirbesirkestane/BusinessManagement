@@ -47,9 +47,20 @@ public class LoginModel : PageModel
             return LocalRedirect(ReturnUrl);
         }
 
+        if (result.RequiresTwoFactor)
+        {
+            return RedirectToPage("./TwoFactorLogin", new { ReturnUrl, Input.RememberMe });
+        }
+
         if (result.IsLockedOut)
         {
             ModelState.AddModelError(string.Empty, "Hesap geçici olarak kilitlendi.");
+            return Page();
+        }
+
+        if (result.IsNotAllowed)
+        {
+            ModelState.AddModelError(string.Empty, "Hesabınız aktif değil veya giriş için gerekli doğrulama tamamlanmamış.");
             return Page();
         }
 

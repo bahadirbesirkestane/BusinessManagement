@@ -7,5 +7,6 @@ public class UserListItemViewModel
     public string? Email { get; set; }
     public bool IsActive { get; set; }
     public bool EmailConfirmed { get; set; }
+    public bool TwoFactorEnabled { get; set; }
     public string RolesText { get; set; } = string.Empty;
 }

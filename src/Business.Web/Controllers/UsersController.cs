@@ -55,6 +55,7 @@ public class UsersController : Controller
                 Email = user.Email,
                 IsActive = user.IsActive,
                 EmailConfirmed = user.EmailConfirmed,
+                TwoFactorEnabled = user.TwoFactorEnabled,
                 RolesText = roles.Count == 0 ? "-" : string.Join(", ", roles)
             });
         }
@@ -208,6 +209,43 @@ public class UsersController : Controller
             TempData["Error"] = "Kullanıcı silinemedi. Kayıt ilişkileri kontrol edildi.";
         }
 
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> ResetTwoFactor(string id)
+    {
+        var currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser is null || !currentUser.IsActive || !await _userManager.IsInRoleAsync(currentUser, AppRoles.Admin))
+        {
+            return Forbid();
+        }
+
+        var user = await _userManager.FindByIdAsync(id);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        if (user.Id == currentUser.Id)
+        {
+            TempData["Error"] = "Kendi 2FA ayarınızı kullanıcı listesinden sıfırlayamazsınız. 2FA Ayarları ekranını kullanın.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!user.IsActive || !await _userManager.IsInRoleAsync(user, AppRoles.Admin))
+        {
+            TempData["Error"] = "2FA sıfırlama yalnızca aktif admin kullanıcılar için yapılabilir.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        await _userManager.SetTwoFactorEnabledAsync(user, false);
+        await _userManager.ResetAuthenticatorKeyAsync(user);
+        await _userManager.UpdateSecurityStampAsync(user);
+
+        TempData["Success"] = $"{user.Email} için 2FA sıfırlandı. Kullanıcı bir sonraki girişte yeniden kurulum yapmalıdır.";
         return RedirectToAction(nameof(Index));
     }
 
