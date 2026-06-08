@@ -86,7 +86,8 @@
     {
         <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
         </form>
     }
 
@@ -114,7 +115,8 @@
             <tbody>
                 @foreach (var order in Model)
                 {
-                    <tr class="status-row status-@order.Status.ToString().ToLowerInvariant()">
+                    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+                    <tr class="status-row status-@order.Status.ToString().ToLowerInvariant()" data-row-link="@Url.Action("Details", new { id = order.Id, returnUrl })">
                         <td><strong>@order.Content</strong><small class="d-block text-muted">@order.Notes</small></td>
                         @if (User.IsInRole(AppRoles.Admin))
                         {
@@ -148,7 +150,7 @@
                         <td>@(order.UnitPriceText ?? order.UnitPrice?.ToString("N2") ?? "-")</td>
                         <td>@((order.OrderTotal ?? ((order.UnitPrice ?? 0) * (order.Quantity ?? 0))).ToString("N2")) @order.Currency</td>
                         <td class="text-end">
-                            <a asp-action="Details" asp-route-id="@order.Id">Detay</a>
+                            <a asp-action="Details" asp-route-id="@order.Id" asp-route-returnUrl="@returnUrl">Detay</a>
                             @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
                             {
                                 <span> · </span><a asp-action="Edit" asp-route-id="@order.Id">Düzenle</a>

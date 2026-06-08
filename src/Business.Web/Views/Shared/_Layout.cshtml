@@ -50,6 +50,22 @@
             </div>
 
             <main role="main" class="content-wrap">
+                @if (ViewBag.Breadcrumbs is IEnumerable<KeyValuePair<string, string?>> breadcrumbs)
+                {
+                    <nav class="breadcrumb-nav" aria-label="Sayfa yolu">
+                        @foreach (var item in breadcrumbs)
+                        {
+                            if (!string.IsNullOrWhiteSpace(item.Value))
+                            {
+                                <a href="@item.Value">@item.Key</a>
+                            }
+                            else
+                            {
+                                <span aria-current="page">@item.Key</span>
+                            }
+                        }
+                    </nav>
+                }
                 @if (TempData["Success"] is string success)
                 {
                     <div class="alert alert-success">@success</div>
@@ -68,6 +84,12 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script>
         document.querySelector('[data-back-button]')?.addEventListener('click', function () {
+            const targetUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.ReturnUrl ?? ViewData["ReturnUrl"] ?? string.Empty));
+            if (targetUrl) {
+                window.location.href = targetUrl;
+                return;
+            }
+
             if (window.history.length > 1) {
                 window.history.back();
                 return;

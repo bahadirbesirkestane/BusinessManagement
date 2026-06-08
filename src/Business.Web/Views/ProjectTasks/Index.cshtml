@@ -86,7 +86,8 @@
     {
         <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
         </form>
     }
     <div class="table-responsive">
@@ -112,7 +113,8 @@
             <tbody>
             @foreach (var task in Model)
             {
-                <tr class="status-row status-@task.Status.ToString().ToLowerInvariant()">
+                var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+                <tr class="status-row status-@task.Status.ToString().ToLowerInvariant()" data-row-link="@Url.Action("Details", new { id = task.Id, returnUrl })">
                     <td><strong>@task.Title</strong></td>
                     <td>
                         @(task.Project?.Code
@@ -169,7 +171,7 @@
                     <td><span class="priority-pill priority-@task.Priority.ToString().ToLowerInvariant()">@task.Priority.ToDisplayName()</span></td>
                     <td>@task.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
                     <td class="text-end">
-                        <a asp-action="Details" asp-route-id="@task.Id">Detay</a>
+                        <a asp-action="Details" asp-route-id="@task.Id" asp-route-returnUrl="@returnUrl">Detay</a>
                         @if (task.Status != WorkTaskStatus.InReview && task.Status != WorkTaskStatus.Done)
                         {
                             <form asp-action="SubmitForReview" asp-route-id="@task.Id" method="post" class="inline-form">

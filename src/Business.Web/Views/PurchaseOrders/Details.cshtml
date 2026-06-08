@@ -10,7 +10,7 @@
             <h2>@Model.Content</h2>
         </div>
         <div class="project-header-actions">
-            <span class="status-pill">@Model.Status.ToDisplayName()</span>
+            <span class="status-pill status-@Model.Status.ToString().ToLowerInvariant()">@Model.Status.ToDisplayName()</span>
             @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
             {
                 <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
@@ -24,7 +24,14 @@
     <dl class="row">
         <dt class="col-sm-3">Proje</dt><dd class="col-sm-9">@(Model.Project?.Code ?? "Genel")</dd>
         <dt class="col-sm-3">Tedarikçi</dt><dd class="col-sm-9">@(Model.Supplier?.Name ?? "-")</dd>
+        <dt class="col-sm-3">Siparişi veren</dt><dd class="col-sm-9">@(ViewBag.RequesterName ?? "-")</dd>
+        <dt class="col-sm-3">Sipariş tarihi</dt><dd class="col-sm-9">@(Model.OrderDate?.ToString("dd.MM.yyyy") ?? "-")</dd>
+        <dt class="col-sm-3">Beklenen varış</dt><dd class="col-sm-9">@(Model.ExpectedArrivalDate?.ToString("dd.MM.yyyy") ?? "-")</dd>
+        <dt class="col-sm-3">Varış tarihi</dt><dd class="col-sm-9">@(Model.ArrivalDate?.ToString("dd.MM.yyyy") ?? "-")</dd>
+        <dt class="col-sm-3">Malzeme</dt><dd class="col-sm-9">@(Model.Material?.Name ?? "-")</dd>
         <dt class="col-sm-3">Miktar</dt><dd class="col-sm-9">@(Model.QuantityText ?? Model.Quantity?.ToString("0.###") ?? "-")</dd>
+        <dt class="col-sm-3">Kalite</dt><dd class="col-sm-9">@(Model.Quality ?? "-")</dd>
+        <dt class="col-sm-3">Vade</dt><dd class="col-sm-9">@(Model.PaymentTerm ?? "-")</dd>
         <dt class="col-sm-3">Birim fiyat</dt><dd class="col-sm-9">@(Model.UnitPriceText ?? Model.UnitPrice?.ToString("N2") ?? "-")</dd>
         <dt class="col-sm-3">Sipariş tutarı</dt><dd class="col-sm-9">@((Model.OrderTotal ?? ((Model.UnitPrice ?? 0) * (Model.Quantity ?? 0))).ToString("N2")) @Model.Currency</dd>
         <dt class="col-sm-3">Not</dt><dd class="col-sm-9">@(Model.Notes ?? "-")</dd>

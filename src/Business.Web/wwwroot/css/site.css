@@ -311,6 +311,35 @@ a:hover {
   padding: 28px;
 }
 
+.breadcrumb-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: .86rem;
+  font-weight: 700;
+}
+
+.breadcrumb-nav a {
+  color: var(--muted);
+}
+
+.breadcrumb-nav a:hover {
+  color: var(--accent);
+}
+
+.breadcrumb-nav a::after {
+  content: ">";
+  margin-left: 8px;
+  color: #98a2b3;
+}
+
+.breadcrumb-nav span {
+  color: var(--ink);
+}
+
 .mobile-nav {
   padding: 12px 20px;
   border-bottom: 1px solid var(--line);
@@ -664,6 +693,20 @@ a:hover {
   border-left: 4px solid #dc2626;
 }
 
+.status-row[data-row-link] {
+  cursor: pointer;
+}
+
+.status-row[data-row-link]:hover > td {
+  background: #f8fbff;
+}
+
+.status-row.status-completed[data-row-link]:hover > td,
+.status-row.status-done[data-row-link]:hover > td,
+.status-row.status-delivered[data-row-link]:hover > td {
+  background: #dcfce7;
+}
+
 .stock-material-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -897,9 +940,16 @@ a:hover {
 
 .bulk-action-bar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   margin: -4px 0 12px;
+}
+
+.bulk-selection-count {
+  color: var(--muted);
+  font-size: .86rem;
+  font-weight: 700;
 }
 
 .filter-field {

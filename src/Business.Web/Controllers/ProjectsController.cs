@@ -131,7 +131,7 @@ public class ProjectsController : Controller
         return RedirectToAction("Projects", "Costs");
     }
 
-    public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Details(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var project = await _projectService.GetDetailsAsync(id, cancellationToken);
         if (project is null)
@@ -139,6 +139,12 @@ public class ProjectsController : Controller
             return NotFound();
         }
 
+        ViewBag.ReturnUrl = !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null;
+        ViewBag.Breadcrumbs = new Dictionary<string, string?>
+        {
+            ["Projeler"] = Url.Action(nameof(Index)),
+            [project.Code] = null
+        };
         ViewBag.VisibleProjectTasks = GetVisibleProjectTasks(project);
         return View(new ProjectDetailsViewModel
         {

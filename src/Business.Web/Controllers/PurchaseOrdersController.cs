@@ -151,11 +151,24 @@ public class PurchaseOrdersController : Controller
         ViewBag.FilterDateTo = dateTo?.ToString("yyyy-MM-dd");
         ViewBag.Sort = sort;
         await FillLookupsAsync(cancellationToken);
+        if (projectId.HasValue)
+        {
+            var project = await _context.Projects.AsNoTracking().FirstOrDefaultAsync(x => x.Id == projectId.Value, cancellationToken);
+            if (project is not null)
+            {
+                ViewBag.Breadcrumbs = new Dictionary<string, string?>
+                {
+                    ["Projeler"] = Url.Action("Index", "Projects"),
+                    [project.Code] = Url.Action("Details", "Projects", new { id = project.Id }),
+                    ["Siparişler"] = null
+                };
+            }
+        }
 
         return View(await query.ToListAsync(cancellationToken));
     }
 
-    public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Details(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var order = await _purchaseOrderService.GetDetailsAsync(id, cancellationToken);
         if (order is null)
@@ -163,6 +176,28 @@ public class PurchaseOrdersController : Controller
             return NotFound();
         }
 
+        var requesterName = order.RequestedBy;
+        if (string.IsNullOrWhiteSpace(requesterName) && !string.IsNullOrWhiteSpace(order.RequestedByUserId))
+        {
+            var requester = await _userManager.FindByIdAsync(order.RequestedByUserId);
+            requesterName = requester?.FullName ?? requester?.Email ?? requester?.UserName;
+        }
+
+        ViewBag.ReturnUrl = !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null;
+        ViewBag.RequesterName = requesterName;
+        ViewBag.Breadcrumbs = order.Project is not null
+            ? new Dictionary<string, string?>
+            {
+                ["Projeler"] = Url.Action("Index", "Projects"),
+                [order.Project.Code] = Url.Action("Details", "Projects", new { id = order.Project.Id }),
+                ["Siparişler"] = Url.Action(nameof(Index), new { projectId = order.Project.Id }),
+                [order.OrderNumber] = null
+            }
+            : new Dictionary<string, string?>
+            {
+                ["Siparişler"] = Url.Action(nameof(Index)),
+                [order.OrderNumber] = null
+            };
         ViewBag.Activity = new RecordActivityViewModel
         {
             OwnerType = RecordOwnerType.PurchaseOrder,

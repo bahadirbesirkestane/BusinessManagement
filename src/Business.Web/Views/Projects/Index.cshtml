@@ -57,7 +57,8 @@
     @if (User.IsInRole(AppRoles.Admin))
     {
         <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
-            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
         </form>
     }
 
@@ -80,7 +81,8 @@
             <tbody>
                 @foreach (var project in Model)
                 {
-                    <tr class="status-row status-@project.Status.ToString().ToLowerInvariant()">
+                    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+                    <tr class="status-row status-@project.Status.ToString().ToLowerInvariant()" data-row-link="@Url.Action("Details", new { id = project.Id, returnUrl })">
                         @if (User.IsInRole(AppRoles.Admin))
                         {
                             <td><input type="checkbox" name="ids" value="@project.Id" form="bulkDeleteForm" /></td>
@@ -109,7 +111,7 @@
                         </td>
                         <td>@(project.TargetEndDate?.ToString("dd.MM.yyyy") ?? "-")</td>
                         <td class="text-end">
-                            <a asp-action="Details" asp-route-id="@project.Id">Detay</a>
+                            <a asp-action="Details" asp-route-id="@project.Id" asp-route-returnUrl="@returnUrl">Detay</a>
                             @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
                             {
                                 <span> · </span><a asp-action="Edit" asp-route-id="@project.Id">Düzenle</a>

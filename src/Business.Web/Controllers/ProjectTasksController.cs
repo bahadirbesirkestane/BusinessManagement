@@ -113,6 +113,19 @@ public class ProjectTasksController : Controller
         ViewBag.FilterAssignedUserId = assignedUserId;
         ViewBag.Sort = sort;
         await FillFilterLookupsAsync(cancellationToken);
+        if (projectId.HasValue)
+        {
+            var project = await _context.Projects.AsNoTracking().FirstOrDefaultAsync(x => x.Id == projectId.Value, cancellationToken);
+            if (project is not null)
+            {
+                ViewBag.Breadcrumbs = new Dictionary<string, string?>
+                {
+                    ["Projeler"] = Url.Action("Index", "Projects"),
+                    [project.Code] = Url.Action("Details", "Projects", new { id = project.Id }),
+                    ["Görevler"] = null
+                };
+            }
+        }
 
         var tasks = await query.ToListAsync(cancellationToken);
         ViewBag.UserNames = await GetTaskListUserNamesAsync(tasks, cancellationToken);
@@ -199,7 +212,7 @@ public class ProjectTasksController : Controller
         return View(nameof(Index), tasks);
     }
 
-    public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Details(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var task = await _context.ProjectTasks
             .Include(x => x.Project)
@@ -220,6 +233,20 @@ public class ProjectTasksController : Controller
             return NotFound();
         }
 
+        ViewBag.ReturnUrl = !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null;
+        ViewBag.Breadcrumbs = task.Project is not null
+            ? new Dictionary<string, string?>
+            {
+                ["Projeler"] = Url.Action("Index", "Projects"),
+                [task.Project.Code] = Url.Action("Details", "Projects", new { id = task.Project.Id }),
+                ["Görevler"] = Url.Action(nameof(Index), new { projectId = task.Project.Id }),
+                [task.Title] = null
+            }
+            : new Dictionary<string, string?>
+            {
+                ["Görevler"] = Url.Action(nameof(Index)),
+                [task.Title] = null
+            };
         ViewBag.ResponsibleName = await GetUserDisplayNameAsync(task.ResponsibleUserId);
         ViewBag.AssignedUsers = await GetAssignedUserNamesAsync(task.Assignments.Select(x => x.UserId), cancellationToken);
         ViewBag.Activity = new RecordActivityViewModel
