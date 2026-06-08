@@ -617,6 +617,12 @@ a:hover {
   border-left: 4px solid #16a34a;
 }
 
+.status-row.status-completed > td,
+.status-row.status-done > td,
+.status-row.status-delivered > td {
+  background: #ecfdf5;
+}
+
 .status-row.status-cancelled,
 .status-row.status-blocked {
   border-left: 4px solid #dc2626;
