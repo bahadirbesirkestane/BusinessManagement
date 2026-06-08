@@ -1,6 +1,7 @@
-using System.Net;
-using System.Net.Mail;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Options;
+using MimeKit;
 
 namespace Business.Web.Services;
 
@@ -28,25 +29,38 @@ public sealed class SmtpEmailSender : IEmailSender
             return;
         }
 
-        using var mailMessage = new MailMessage
+        var email = new MimeMessage();
+        email.From.Add(new MailboxAddress(_options.FromName ?? _options.FromEmail, _options.FromEmail));
+        email.To.Add(MailboxAddress.Parse(message.To));
+        email.Subject = message.Subject;
+        email.Body = new BodyBuilder
         {
-            From = new MailAddress(_options.FromEmail, _options.FromName),
-            Subject = message.Subject,
-            Body = message.HtmlBody,
-            IsBodyHtml = true
-        };
-        mailMessage.To.Add(message.To);
+            HtmlBody = message.HtmlBody,
+            TextBody = message.TextBody
+        }.ToMessageBody();
 
-        using var client = new SmtpClient(_options.Host, _options.Port)
-        {
-            EnableSsl = _options.EnableSsl
-        };
+        using var client = new SmtpClient();
+        var secureSocketOptions = GetSecureSocketOptions();
+        await client.ConnectAsync(_options.Host, _options.Port, secureSocketOptions, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(_options.UserName))
         {
-            client.Credentials = new NetworkCredential(_options.UserName, _options.Password);
+            await client.AuthenticateAsync(_options.UserName, _options.Password ?? string.Empty, cancellationToken);
         }
 
-        await client.SendMailAsync(mailMessage, cancellationToken);
+        await client.SendAsync(email, cancellationToken);
+        await client.DisconnectAsync(true, cancellationToken);
+    }
+
+    private SecureSocketOptions GetSecureSocketOptions()
+    {
+        if (!_options.EnableSsl)
+        {
+            return SecureSocketOptions.None;
+        }
+
+        return _options.Port == 465
+            ? SecureSocketOptions.SslOnConnect
+            : SecureSocketOptions.StartTls;
     }
 }

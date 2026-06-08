@@ -114,7 +114,9 @@ public class InvoicesController : Controller
     public async Task<IActionResult> Create(CancellationToken cancellationToken)
     {
         await FillLookupsAsync(cancellationToken);
-        return View(new Invoice { InvoiceNumber = $"INV-{DateTime.Now:yyyyMMddHHmm}", IssueDate = DateTime.Today, Type = InvoiceType.Sales });
+        var invoice = new Invoice { InvoiceNumber = $"INV-{DateTime.Now:yyyyMMddHHmm}", IssueDate = DateTime.Today, Type = InvoiceType.Sales };
+        EnsureInvoiceRows(invoice);
+        return View(invoice);
     }
 
     [HttpPost]
@@ -122,27 +124,41 @@ public class InvoicesController : Controller
     [Authorize(Policy = AppPolicies.CanManageInvoices)]
     public async Task<IActionResult> Create(Invoice invoice, CancellationToken cancellationToken)
     {
+        var lines = PrepareInvoiceLines(invoice);
+        ClearInvoiceLineModelState();
+        ValidateInvoiceLines(lines);
+        if (lines.Count == 0)
+        {
+            ModelState.AddModelError(string.Empty, "Kaydedilecek en az bir fatura satırı girin.");
+        }
+
         if (!ModelState.IsValid)
         {
+            EnsureInvoiceRows(invoice);
             await FillLookupsAsync(cancellationToken);
             return View(invoice);
         }
 
-        invoice.GrandTotal = invoice.SubTotal + invoice.VatTotal - invoice.DiscountTotal;
-        await _invoiceService.CreateAsync(invoice, cancellationToken);
+        invoice.Lines = lines;
+        RecalculateInvoiceTotals(invoice);
+        _context.Invoices.Add(invoice);
+        await _context.SaveChangesAsync(cancellationToken);
         return RedirectToAction(nameof(Index));
     }
 
     [Authorize(Policy = AppPolicies.CanManageInvoices)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
-        var invoice = await _invoiceService.GetByIdAsync(id, cancellationToken);
+        var invoice = await _context.Invoices
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (invoice is null)
         {
             return NotFound();
         }
 
         await FillLookupsAsync(cancellationToken);
+        EnsureInvoiceRows(invoice);
         return View(invoice);
     }
 
@@ -156,14 +172,53 @@ public class InvoicesController : Controller
             return BadRequest();
         }
 
+        var lines = PrepareInvoiceLines(invoice);
+        ClearInvoiceLineModelState();
+        ValidateInvoiceLines(lines);
+        if (lines.Count == 0)
+        {
+            ModelState.AddModelError(string.Empty, "Kaydedilecek en az bir fatura satırı girin.");
+        }
+
         if (!ModelState.IsValid)
         {
+            EnsureInvoiceRows(invoice);
             await FillLookupsAsync(cancellationToken);
             return View(invoice);
         }
 
-        invoice.GrandTotal = invoice.SubTotal + invoice.VatTotal - invoice.DiscountTotal;
-        await _invoiceService.UpdateAsync(invoice, cancellationToken);
+        var existingInvoice = await _context.Invoices
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (existingInvoice is null)
+        {
+            return NotFound();
+        }
+
+        existingInvoice.CustomerId = invoice.CustomerId;
+        existingInvoice.SupplierId = invoice.SupplierId;
+        existingInvoice.ProjectId = invoice.ProjectId;
+        existingInvoice.PurchaseOrderId = invoice.PurchaseOrderId;
+        existingInvoice.InvoiceNumber = invoice.InvoiceNumber;
+        existingInvoice.Type = invoice.Type;
+        existingInvoice.Status = invoice.Status;
+        existingInvoice.IssueDate = invoice.IssueDate;
+        existingInvoice.DueDate = invoice.DueDate;
+        existingInvoice.PaidAt = invoice.PaidAt;
+        existingInvoice.Currency = invoice.Currency;
+        existingInvoice.PaymentTerm = invoice.PaymentTerm;
+        existingInvoice.Notes = invoice.Notes;
+
+        var existingLines = existingInvoice.Lines.ToList();
+        _context.InvoiceLines.RemoveRange(existingLines);
+        existingInvoice.Lines.Clear();
+        foreach (var line in lines)
+        {
+            existingInvoice.Lines.Add(line);
+        }
+
+        RecalculateInvoiceTotals(existingInvoice);
+        await _context.SaveChangesAsync(cancellationToken);
         return RedirectToAction(nameof(Index));
     }
 
@@ -192,5 +247,102 @@ public class InvoicesController : Controller
         ViewBag.Suppliers = await _lookupService.GetSuppliersAsync(cancellationToken);
         ViewBag.Projects = await _lookupService.GetProjectsAsync(cancellationToken);
         ViewBag.PurchaseOrders = await _lookupService.GetPurchaseOrdersAsync(cancellationToken);
+        ViewBag.Materials = await _lookupService.GetMaterialsAsync(cancellationToken);
+    }
+
+    private static void EnsureInvoiceRows(Invoice invoice)
+    {
+        while (invoice.Lines.Count < 2)
+        {
+            invoice.Lines.Add(new InvoiceLine { Quantity = 1, VatRate = 20 });
+        }
+    }
+
+    private static List<InvoiceLine> PrepareInvoiceLines(Invoice invoice)
+    {
+        var lines = invoice.Lines
+            .Where(x => !string.IsNullOrWhiteSpace(x.Description))
+            .ToList();
+
+        foreach (var line in lines)
+        {
+            line.Description = line.Description.Trim();
+            line.Unit = line.Unit?.Trim();
+            line.Notes = line.Notes?.Trim();
+            line.LineTotal = CalculateLineTotal(line, out _);
+        }
+
+        invoice.Lines = lines;
+        return lines;
+    }
+
+    private void ClearInvoiceLineModelState()
+    {
+        foreach (var key in ModelState.Keys.Where(x => x.StartsWith("Lines[", StringComparison.OrdinalIgnoreCase)).ToList())
+        {
+            ModelState.Remove(key);
+        }
+    }
+
+    private void ValidateInvoiceLines(IEnumerable<InvoiceLine> lines)
+    {
+        foreach (var line in lines)
+        {
+            if (line.Quantity < 0)
+            {
+                ModelState.AddModelError(string.Empty, "Fatura satırı miktarı 0'dan küçük olamaz.");
+            }
+
+            if (line.UnitPrice < 0)
+            {
+                ModelState.AddModelError(string.Empty, "Fatura satırı birim fiyatı 0'dan küçük olamaz.");
+            }
+
+            if (line.VatRate < 0 || line.VatRate > 100)
+            {
+                ModelState.AddModelError(string.Empty, "Fatura satırı KDV oranı 0 ile 100 arasında olmalıdır.");
+            }
+
+            if (line.DiscountAmount < 0)
+            {
+                ModelState.AddModelError(string.Empty, "Fatura satırı iskontosu 0'dan küçük olamaz.");
+            }
+        }
+    }
+
+    private static void RecalculateInvoiceTotals(Invoice invoice)
+    {
+        invoice.Currency = string.IsNullOrWhiteSpace(invoice.Currency)
+            ? "TRY"
+            : invoice.Currency.Trim().ToUpperInvariant();
+        invoice.PaymentTerm = invoice.PaymentTerm?.Trim();
+        invoice.Notes = invoice.Notes?.Trim();
+
+        var subtotal = 0m;
+        var vatTotal = 0m;
+        var discountTotal = 0m;
+        var grandTotal = 0m;
+
+        foreach (var line in invoice.Lines)
+        {
+            var lineTotal = CalculateLineTotal(line, out var vatAmount);
+            line.LineTotal = lineTotal;
+            subtotal += line.Quantity * line.UnitPrice;
+            vatTotal += vatAmount;
+            discountTotal += line.DiscountAmount;
+            grandTotal += lineTotal;
+        }
+
+        invoice.SubTotal = subtotal;
+        invoice.VatTotal = vatTotal;
+        invoice.DiscountTotal = discountTotal;
+        invoice.GrandTotal = grandTotal;
+    }
+
+    private static decimal CalculateLineTotal(InvoiceLine line, out decimal vatAmount)
+    {
+        var subtotal = line.Quantity * line.UnitPrice;
+        vatAmount = subtotal * line.VatRate / 100m;
+        return subtotal + vatAmount - line.DiscountAmount;
     }
 }

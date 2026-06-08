@@ -53,6 +53,9 @@ public class ProjectTasksController : Controller
             query = query.Where(x =>
                 x.Title.Contains(term) ||
                 (x.Description != null && x.Description.Contains(term)) ||
+                (x.Project != null && (x.Project.Code.Contains(term) || x.Project.Name.Contains(term))) ||
+                (x.Customer != null && x.Customer.Name.Contains(term)) ||
+                (x.Project != null && x.Project.Customer != null && x.Project.Customer.Name.Contains(term)) ||
                 (x.ManualProjectName != null && x.ManualProjectName.Contains(term)) ||
                 (x.ManualCustomerName != null && x.ManualCustomerName.Contains(term)));
         }
@@ -142,6 +145,9 @@ public class ProjectTasksController : Controller
             query = query.Where(x =>
                 x.Title.Contains(term) ||
                 (x.Description != null && x.Description.Contains(term)) ||
+                (x.Project != null && (x.Project.Code.Contains(term) || x.Project.Name.Contains(term))) ||
+                (x.Customer != null && x.Customer.Name.Contains(term)) ||
+                (x.Project != null && x.Project.Customer != null && x.Project.Customer.Name.Contains(term)) ||
                 (x.ManualProjectName != null && x.ManualProjectName.Contains(term)) ||
                 (x.ManualCustomerName != null && x.ManualCustomerName.Contains(term)));
         }
