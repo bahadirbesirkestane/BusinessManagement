@@ -50,6 +50,7 @@ public class ProjectTask : BaseEntity, IValidatableObject
 
     public ICollection<ProjectTask> SubTasks { get; set; } = new List<ProjectTask>();
     public ICollection<ProjectTaskAssignment> Assignments { get; set; } = new List<ProjectTaskAssignment>();
+    public ICollection<ProjectTaskUpdate> Updates { get; set; } = new List<ProjectTaskUpdate>();
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

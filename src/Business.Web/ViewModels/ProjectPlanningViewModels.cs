@@ -43,6 +43,9 @@ public class ProjectPlanningTaskRowViewModel
     public int ProgressPercent { get; set; }
     public bool IsMilestone { get; set; }
     public bool HasChildren { get; set; }
+    public string LatestUpdateText { get; set; } = string.Empty;
+    public string? LatestUpdateDescription { get; set; }
+    public DateTime? LatestUpdateAt { get; set; }
 }
 
 public class ProjectPlanningUserOptionViewModel
@@ -99,4 +102,7 @@ public class ProjectPlanningGanttTaskViewModel
     public string PriorityText { get; set; } = string.Empty;
     public string AssignedText { get; set; } = string.Empty;
     public string DateRangeText { get; set; } = string.Empty;
+    public string LatestUpdateText { get; set; } = string.Empty;
+    public string? LatestUpdateDescription { get; set; }
+    public string LatestUpdateAtText { get; set; } = string.Empty;
 }

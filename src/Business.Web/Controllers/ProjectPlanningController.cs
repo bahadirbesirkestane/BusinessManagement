@@ -1,3 +1,4 @@
+using Business.Application.Services;
 using Business.Domain.Entities;
 using Business.Domain.Enums;
 using Business.Infrastructure.Data;
@@ -16,11 +17,16 @@ public class ProjectPlanningController : Controller
 {
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IProjectTimelineService _projectTimelineService;
 
-    public ProjectPlanningController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+    public ProjectPlanningController(
+        ApplicationDbContext context,
+        UserManager<ApplicationUser> userManager,
+        IProjectTimelineService projectTimelineService)
     {
         _context = context;
         _userManager = userManager;
+        _projectTimelineService = projectTimelineService;
     }
 
     public async Task<IActionResult> Index(Guid? projectId, CancellationToken cancellationToken)
@@ -90,6 +96,7 @@ public class ProjectPlanningController : Controller
         _context.ProjectTasks.Add(task);
         await _context.SaveChangesAsync(cancellationToken);
         await AddAssignmentsAsync(task.Id, taskForm.AssignedUserIds, cancellationToken);
+        await _projectTimelineService.AddForTaskAsync(task.Id, "Görev eklendi", task.Title, cancellationToken);
 
         return RedirectToAction(nameof(Index), new { projectId = taskForm.ProjectId });
     }
@@ -119,6 +126,7 @@ public class ProjectPlanningController : Controller
         {
             var projectTasks = await _context.ProjectTasks
                 .Include(x => x.Assignments)
+                .Include(x => x.Updates)
                 .AsNoTracking()
                 .Where(x => x.ProjectId == projectId.Value)
                 .OrderBy(x => x.SortOrder)
@@ -318,6 +326,9 @@ public class ProjectPlanningController : Controller
                 .Select(x => userNames.TryGetValue(x.UserId, out var assignedName) ? assignedName : null)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .ToList();
+            var latestUpdate = task.Updates
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefault();
 
             rows.Add(new ProjectPlanningTaskRowViewModel
             {
@@ -336,6 +347,11 @@ public class ProjectPlanningController : Controller
                 PriorityCss = task.Priority.ToString().ToLowerInvariant(),
                 ResponsibleText = responsibleText,
                 AssignedText = assignedNames.Count > 0 ? string.Join(", ", assignedNames) : "Atanan yok",
+                LatestUpdateText = latestUpdate is null
+                    ? "Güncelleme yok"
+                    : latestUpdate.Title,
+                LatestUpdateDescription = latestUpdate?.Description,
+                LatestUpdateAt = latestUpdate?.CreatedAt,
                 StartDate = task.StartDate,
                 DueDate = task.DueDate,
                 ProgressPercent = task.Status == WorkTaskStatus.Done ? 100 : task.ProgressPercent,
@@ -391,7 +407,12 @@ public class ProjectPlanningController : Controller
                     StatusText = task.StatusText,
                     PriorityText = task.PriorityText,
                     AssignedText = task.AssignedText,
-                    DateRangeText = $"{start:dd.MM.yyyy} - {end:dd.MM.yyyy}"
+                    DateRangeText = $"{start:dd.MM.yyyy} - {end:dd.MM.yyyy}",
+                    LatestUpdateText = task.LatestUpdateText,
+                    LatestUpdateDescription = task.LatestUpdateDescription,
+                    LatestUpdateAtText = task.LatestUpdateAt.HasValue
+                        ? task.LatestUpdateAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                        : string.Empty
                 };
             })
             .ToList();

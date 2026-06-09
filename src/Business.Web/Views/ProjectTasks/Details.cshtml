@@ -1,5 +1,10 @@
 @model ProjectTask
 @{
+    var taskUpdates = Model.Updates
+        .OrderByDescending(x => x.CreatedAt)
+        .ToList();
+}
+@{
     ViewData["Title"] = "Görev Detayı";
 }
 
@@ -59,6 +64,38 @@
         <dt class="col-sm-3">Oluşturma</dt><dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
         <dt class="col-sm-3">Açıklama</dt><dd class="col-sm-9">@(Model.Description ?? "-")</dd>
     </dl>
+</section>
+
+<section class="panel-block">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Görev geçmişi</p>
+                <h2>Görev Güncellemeleri</h2>
+            </div>
+        </div>
+
+        @if (!taskUpdates.Any())
+        {
+            <p class="empty-note">Bu görev için henüz güncelleme kaydı yok.</p>
+        }
+        else
+        {
+            <div class="timeline-list">
+                @foreach (var update in taskUpdates)
+                {
+                    <div class="timeline-item">
+                        <div>
+                            <strong>@update.Title</strong>
+                            <span>@update.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(update.Description))
+                        {
+                            <p>@update.Description</p>
+                        }
+                    </div>
+                }
+            </div>
+        }
 </section>
 
 @if (ViewBag.Activity is Business.Web.ViewModels.RecordActivityViewModel activity)

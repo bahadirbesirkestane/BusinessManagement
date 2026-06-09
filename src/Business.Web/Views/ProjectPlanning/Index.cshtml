@@ -18,7 +18,10 @@
         statusText = x.StatusText,
         priorityText = x.PriorityText,
         assignedText = x.AssignedText,
-        dateRangeText = x.DateRangeText
+        dateRangeText = x.DateRangeText,
+        latestUpdateText = x.LatestUpdateText,
+        latestUpdateDescription = x.LatestUpdateDescription,
+        latestUpdateAtText = x.LatestUpdateAtText
     });
 }
 
@@ -88,6 +91,18 @@
             <span>Seçili proje</span>
             <strong>@Model.SelectedProjectText</strong>
         </div>
+
+        @if (Model.GanttTasks.Any())
+        {
+            <div class="planning-gantt-legend planning-gantt-legend-strip" aria-label="Gantt renk açıklaması">
+                <span><i class="todo"></i>Yapılacak</span>
+                <span><i class="inprogress"></i>Devam Ediyor</span>
+                <span><i class="waiting"></i>Beklemede</span>
+                <span><i class="inreview"></i>Kontrolde</span>
+                <span><i class="done"></i>Bitti</span>
+                <span><i class="cancelled"></i>İptal Edildi</span>
+            </div>
+        }
 
         <div class="planning-shell">
             <section class="planning-tree">
@@ -171,10 +186,12 @@
                     </div>
                     @if (Model.GanttTasks.Any())
                     {
-                        <div class="planning-gantt-modes" aria-label="Gantt görünüm seçenekleri">
-                            <button type="button" data-gantt-view="Day">Gün</button>
-                            <button class="active" type="button" data-gantt-view="Week">Hafta</button>
-                            <button type="button" data-gantt-view="Month">Ay</button>
+                        <div class="planning-gantt-tools">
+                            <div class="planning-gantt-modes" aria-label="Gantt görünüm seçenekleri">
+                                <button type="button" data-gantt-view="Day">Gün</button>
+                                <button class="active" type="button" data-gantt-view="Week">Hafta</button>
+                                <button type="button" data-gantt-view="Month">Ay</button>
+                            </div>
                         </div>
                     }
                 </header>
@@ -189,14 +206,6 @@
                 }
                 else
                 {
-                    <div class="planning-gantt-legend" aria-label="Gantt renk açıklaması">
-                        <span><i class="todo"></i>Yapılacak</span>
-                        <span><i class="inprogress"></i>Devam Ediyor</span>
-                        <span><i class="waiting"></i>Beklemede</span>
-                        <span><i class="inreview"></i>Kontrolde</span>
-                        <span><i class="done"></i>Bitti</span>
-                        <span><i class="cancelled"></i>İptal Edildi</span>
-                    </div>
                     <div class="planning-gantt-shell">
                         <svg id="project_planning_gantt"></svg>
                         <p id="project_planning_gantt_error" class="planning-empty d-none">Gantt çizelgesi yüklenemedi. Local Frappe Gantt dosyalarının yayınlandığını kontrol edin.</p>
@@ -340,6 +349,37 @@
                 setActiveMode(mode);
             }
 
+            function adjustGanttPopup() {
+                const popup = document.querySelector('.planning-gantt-shell .popup-wrapper:not(.hide)');
+                if (!popup) {
+                    return;
+                }
+
+                const margin = 14;
+                const rect = popup.getBoundingClientRect();
+                let top = Number.parseFloat(popup.style.top || '0');
+                let left = Number.parseFloat(popup.style.left || '0');
+
+                if (rect.bottom > window.innerHeight - margin) {
+                    top -= rect.bottom - window.innerHeight + margin;
+                }
+
+                if (rect.top < margin) {
+                    top += margin - rect.top;
+                }
+
+                if (rect.right > window.innerWidth - margin) {
+                    left -= rect.right - window.innerWidth + margin;
+                }
+
+                if (rect.left < margin) {
+                    left += margin - rect.left;
+                }
+
+                popup.style.top = Math.max(0, top) + 'px';
+                popup.style.left = Math.max(0, left) + 'px';
+            }
+
             window.addEventListener('load', function () {
                 if (chartElement) {
                     if (typeof Gantt === 'undefined') {
@@ -364,7 +404,10 @@
                                             <div><dt>Tarih</dt><dd>${escapePlanningHtml(task.dateRangeText || '-')}</dd></div>
                                             <div><dt>Atanan</dt><dd>${escapePlanningHtml(task.assignedText || 'Atanan yok')}</dd></div>
                                             <div><dt>İlerleme</dt><dd>${task.progress || 0}%</dd></div>
+                                            <div><dt>Son güncelleme</dt><dd>${escapePlanningHtml(task.latestUpdateText || 'Güncelleme yok')}</dd></div>
+                                            <div><dt>Güncelleme tarihi</dt><dd>${escapePlanningHtml(task.latestUpdateAtText || '-')}</dd></div>
                                         </dl>
+                                        ${task.latestUpdateDescription ? `<p>${escapePlanningHtml(task.latestUpdateDescription)}</p>` : ''}
                                     </div>`;
                             },
                                 on_click: function (task) {
@@ -380,6 +423,15 @@
                                     changeViewMode(button.dataset.ganttView);
                                 });
                             });
+
+                            document.querySelectorAll('.planning-gantt-shell .bar-wrapper').forEach(function (bar) {
+                                bar.addEventListener('mouseenter', function () {
+                                    window.setTimeout(adjustGanttPopup, 260);
+                                });
+                            });
+
+                            window.addEventListener('resize', adjustGanttPopup);
+                            window.addEventListener('scroll', adjustGanttPopup, true);
                         } catch {
                             showError();
                         }

@@ -27,6 +27,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectTask> ProjectTasks => Set<ProjectTask>();
     public DbSet<ProjectUpdate> ProjectUpdates => Set<ProjectUpdate>();
+    public DbSet<ProjectTaskUpdate> ProjectTaskUpdates => Set<ProjectTaskUpdate>();
     public DbSet<ProjectCostItem> ProjectCostItems => Set<ProjectCostItem>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<MaterialRequest> MaterialRequests => Set<MaterialRequest>();
@@ -186,6 +187,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.ResponsibleUserId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(x => x.TaskCategory).WithMany(x => x.Tasks).HasForeignKey(x => x.TaskCategoryId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasMany(x => x.Updates).WithOne(x => x.ProjectTask).HasForeignKey(x => x.ProjectTaskId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<ProjectTemplate>(entity =>
@@ -230,6 +232,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<ProjectUpdate>(entity =>
         {
             entity.Property(x => x.Title).HasMaxLength(220).IsRequired();
+        });
+
+        builder.Entity<ProjectTaskUpdate>(entity =>
+        {
+            entity.Property(x => x.Title).HasMaxLength(220).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.ProjectTaskId, x.CreatedAt });
         });
 
         builder.Entity<ProjectCostItem>(entity =>

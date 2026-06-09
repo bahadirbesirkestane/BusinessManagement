@@ -2063,6 +2063,14 @@ a:hover {
   font-weight: 850;
 }
 
+.planning-gantt-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .planning-gantt-modes {
   display: inline-flex;
   align-items: center;
@@ -2092,10 +2100,18 @@ a:hover {
 .planning-gantt-legend {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 7px;
   flex-wrap: wrap;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
+}
+
+.planning-gantt-legend-strip {
+  justify-content: flex-start;
+  gap: 10px;
+  margin: -4px 0 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   background: #fbfcfe;
 }
 
@@ -2269,6 +2285,7 @@ a:hover {
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: 0 14px 30px rgba(16, 24, 40, .14);
+  z-index: 30;
 }
 
 .planning-gantt-popup {
@@ -2307,6 +2324,15 @@ a:hover {
   color: var(--ink);
   font-size: .78rem;
   font-weight: 700;
+}
+
+.planning-gantt-popup p {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .78rem;
+  line-height: 1.35;
 }
 
 .planning-empty {

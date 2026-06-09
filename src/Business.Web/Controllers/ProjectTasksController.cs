@@ -146,6 +146,7 @@ public class ProjectTasksController : Controller
             .Include(x => x.Customer)
             .Include(x => x.TaskCategory)
             .Include(x => x.Assignments)
+            .Include(x => x.Updates)
             .AsNoTracking()
             .Where(x =>
                 x.AssignedToUserId == userId ||
@@ -250,6 +251,9 @@ public class ProjectTasksController : Controller
         ViewBag.Breadcrumbs = await CreateTaskBreadcrumbsAsync(task, cancellationToken);
         ViewBag.ResponsibleName = await GetUserDisplayNameAsync(task.ResponsibleUserId);
         ViewBag.AssignedUsers = await GetAssignedUserNamesAsync(task.Assignments.Select(x => x.UserId), cancellationToken);
+        ViewBag.TaskUpdates = task.Updates
+            .OrderByDescending(x => x.CreatedAt)
+            .ToList();
         ViewBag.Activity = new RecordActivityViewModel
         {
             OwnerType = RecordOwnerType.ProjectTask,
