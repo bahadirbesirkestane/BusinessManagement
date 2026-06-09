@@ -25,6 +25,81 @@ public class ProjectPlanningController : Controller
 
     public async Task<IActionResult> Index(Guid? projectId, CancellationToken cancellationToken)
     {
+        var model = await BuildIndexViewModelAsync(projectId, new ProjectPlanningTaskFormViewModel(), false, cancellationToken);
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddTask([Bind(Prefix = "TaskForm")] ProjectPlanningTaskFormViewModel taskForm, CancellationToken cancellationToken)
+    {
+        if (!CanCreatePlanningTask())
+        {
+            return Forbid();
+        }
+
+        var project = await _context.Projects
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == taskForm.ProjectId && x.Status != ProjectStatus.Cancelled, cancellationToken);
+
+        if (project is null)
+        {
+            ModelState.AddModelError(string.Empty, "Seçilen proje bulunamadı veya iptal edilmiş.");
+        }
+
+        ProjectTask? parentTask = null;
+        if (taskForm.ParentTaskId.HasValue)
+        {
+            parentTask = await _context.ProjectTasks
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == taskForm.ParentTaskId.Value && x.ProjectId == taskForm.ProjectId, cancellationToken);
+
+            if (parentTask is null)
+            {
+                ModelState.AddModelError(nameof(taskForm.ParentTaskId), "Üst görev bulunamadı.");
+            }
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var invalidModel = await BuildIndexViewModelAsync(taskForm.ProjectId, taskForm, true, cancellationToken);
+            return View(nameof(Index), invalidModel);
+        }
+
+        var sortOrder = await GetNextSortOrderAsync(taskForm.ProjectId, taskForm.ParentTaskId, cancellationToken);
+        var outlineLevel = parentTask is null ? 0 : parentTask.OutlineLevel + 1;
+        var wbsCode = await CreateWbsCodeAsync(taskForm.ProjectId, parentTask, sortOrder, cancellationToken);
+
+        var task = new ProjectTask
+        {
+            ProjectId = taskForm.ProjectId,
+            ParentTaskId = taskForm.ParentTaskId,
+            Title = taskForm.Title.Trim(),
+            Description = string.IsNullOrWhiteSpace(taskForm.Description) ? null : taskForm.Description.Trim(),
+            StartDate = taskForm.StartDate,
+            DueDate = taskForm.DueDate,
+            Status = taskForm.Status,
+            Priority = taskForm.Priority,
+            ProgressPercent = taskForm.Status == WorkTaskStatus.Done ? 100 : taskForm.ProgressPercent,
+            SortOrder = sortOrder,
+            OutlineLevel = outlineLevel,
+            WbsCode = wbsCode,
+            IsMilestone = taskForm.IsMilestone
+        };
+
+        _context.ProjectTasks.Add(task);
+        await _context.SaveChangesAsync(cancellationToken);
+        await AddAssignmentsAsync(task.Id, taskForm.AssignedUserIds, cancellationToken);
+
+        return RedirectToAction(nameof(Index), new { projectId = taskForm.ProjectId });
+    }
+
+    private async Task<ProjectPlanningIndexViewModel> BuildIndexViewModelAsync(
+        Guid? projectId,
+        ProjectPlanningTaskFormViewModel taskForm,
+        bool openTaskForm,
+        CancellationToken cancellationToken)
+    {
         var projects = await _context.Projects
             .AsNoTracking()
             .Where(x => x.Status != ProjectStatus.Cancelled)
@@ -43,6 +118,7 @@ public class ProjectPlanningController : Controller
         if (projectId.HasValue && selectedProjectText is not null)
         {
             var projectTasks = await _context.ProjectTasks
+                .Include(x => x.Assignments)
                 .AsNoTracking()
                 .Where(x => x.ProjectId == projectId.Value)
                 .OrderBy(x => x.SortOrder)
@@ -62,20 +138,127 @@ public class ProjectPlanningController : Controller
             ["Proje Planlama Gantt"] = null
         };
 
-        return View(new ProjectPlanningIndexViewModel
+        if (taskForm.ProjectId == Guid.Empty && projectId.HasValue)
+        {
+            taskForm.ProjectId = projectId.Value;
+        }
+
+        return new ProjectPlanningIndexViewModel
         {
             ProjectId = projectId,
             SelectedProjectText = selectedProjectText,
             Projects = projects,
             Tasks = tasks,
-            GanttTasks = ganttTasks
-        });
+            GanttTasks = ganttTasks,
+            Users = await GetUserOptionsAsync(cancellationToken),
+            TaskForm = taskForm,
+            OpenTaskForm = openTaskForm
+        };
+    }
+
+    private async Task<int> GetNextSortOrderAsync(Guid projectId, Guid? parentTaskId, CancellationToken cancellationToken)
+    {
+        var siblingQuery = _context.ProjectTasks
+            .AsNoTracking()
+            .Where(x => x.ProjectId == projectId && x.ParentTaskId == parentTaskId);
+
+        return await siblingQuery.AnyAsync(cancellationToken)
+            ? await siblingQuery.MaxAsync(x => x.SortOrder, cancellationToken) + 1
+            : 1;
+    }
+
+    private async Task<string> CreateWbsCodeAsync(Guid projectId, ProjectTask? parentTask, int sortOrder, CancellationToken cancellationToken)
+    {
+        if (parentTask is null)
+        {
+            return sortOrder.ToString();
+        }
+
+        var parentWbsCode = !string.IsNullOrWhiteSpace(parentTask.WbsCode)
+            ? parentTask.WbsCode
+            : await CreateExistingTaskWbsCodeAsync(projectId, parentTask.Id, cancellationToken);
+
+        return string.IsNullOrWhiteSpace(parentWbsCode)
+            ? sortOrder.ToString()
+            : $"{parentWbsCode}.{sortOrder}";
+    }
+
+    private async Task<string> CreateExistingTaskWbsCodeAsync(Guid projectId, Guid taskId, CancellationToken cancellationToken)
+    {
+        var tasks = await _context.ProjectTasks
+            .AsNoTracking()
+            .Where(x => x.ProjectId == projectId)
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Title)
+            .ToListAsync(cancellationToken);
+
+        var path = new List<int>();
+        var current = tasks.FirstOrDefault(x => x.Id == taskId);
+        while (current is not null)
+        {
+            var siblings = tasks
+                .Where(x => x.ParentTaskId == current.ParentTaskId)
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Title)
+                .ToList();
+
+            path.Insert(0, siblings.FindIndex(x => x.Id == current.Id) + 1);
+            current = current.ParentTaskId.HasValue
+                ? tasks.FirstOrDefault(x => x.Id == current.ParentTaskId.Value)
+                : null;
+        }
+
+        return string.Join(".", path);
+    }
+
+    private async Task<IReadOnlyList<ProjectPlanningUserOptionViewModel>> GetUserOptionsAsync(CancellationToken cancellationToken)
+    {
+        return await _userManager.Users
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.FullName)
+            .Select(x => new ProjectPlanningUserOptionViewModel
+            {
+                Id = x.Id,
+                Text = x.FullName ?? x.Email ?? x.UserName ?? x.Id
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    private bool CanCreatePlanningTask()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    }
+
+    private async Task AddAssignmentsAsync(Guid taskId, IEnumerable<string> selectedUserIds, CancellationToken cancellationToken)
+    {
+        var userIds = selectedUserIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToList();
+
+        foreach (var userId in userIds)
+        {
+            _context.ProjectTaskAssignments.Add(new ProjectTaskAssignment
+            {
+                ProjectTaskId = taskId,
+                UserId = userId
+            });
+        }
+
+        if (userIds.Count > 0)
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private async Task<IReadOnlyDictionary<string, string>> GetUserNamesAsync(IEnumerable<ProjectTask> tasks, CancellationToken cancellationToken)
     {
         var userIds = tasks
-            .SelectMany(task => new[] { task.ResponsibleUserId, task.AssignedToUserId })
+            .SelectMany(task => task.Assignments.Select(x => x.UserId)
+                .Append(task.ResponsibleUserId)
+                .Append(task.AssignedToUserId))
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!)
             .Distinct()
@@ -131,6 +314,10 @@ public class ProjectPlanningController : Controller
             var responsibleText = !string.IsNullOrWhiteSpace(task.ResponsibleUserId) && userNames.TryGetValue(task.ResponsibleUserId, out var responsibleName)
                 ? responsibleName
                 : "Sorumlu yok";
+            var assignedNames = task.Assignments
+                .Select(x => userNames.TryGetValue(x.UserId, out var assignedName) ? assignedName : null)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
 
             rows.Add(new ProjectPlanningTaskRowViewModel
             {
@@ -148,6 +335,7 @@ public class ProjectPlanningController : Controller
                 PriorityText = task.Priority.ToDisplayName(),
                 PriorityCss = task.Priority.ToString().ToLowerInvariant(),
                 ResponsibleText = responsibleText,
+                AssignedText = assignedNames.Count > 0 ? string.Join(", ", assignedNames) : "Atanan yok",
                 StartDate = task.StartDate,
                 DueDate = task.DueDate,
                 ProgressPercent = task.Status == WorkTaskStatus.Done ? 100 : task.ProgressPercent,
@@ -199,7 +387,11 @@ public class ProjectPlanningController : Controller
                         ? CreateGanttTaskId(task.ParentTaskId.Value)
                         : string.Empty,
                     CustomClass = task.Status.ToString().ToLowerInvariant(),
-                    Url = $"/ProjectTasks/Details/{task.Id}"
+                    Url = $"/ProjectTasks/Details/{task.Id}",
+                    StatusText = task.StatusText,
+                    PriorityText = task.PriorityText,
+                    AssignedText = task.AssignedText,
+                    DateRangeText = $"{start:dd.MM.yyyy} - {end:dd.MM.yyyy}"
                 };
             })
             .ToList();

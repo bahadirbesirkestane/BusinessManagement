@@ -2,6 +2,9 @@
 @using System.Text.Json
 @{
     ViewData["Title"] = "Proje Planlama Gantt";
+    var canCreateTask = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var frappeTasks = Model.GanttTasks.Select(x => new
     {
         id = x.Id,
@@ -11,7 +14,11 @@
         progress = x.Progress,
         dependencies = x.Dependencies,
         custom_class = x.CustomClass,
-        url = x.Url
+        url = x.Url,
+        statusText = x.StatusText,
+        priorityText = x.PriorityText,
+        assignedText = x.AssignedText,
+        dateRangeText = x.DateRangeText
     });
 }
 
@@ -46,6 +53,10 @@
             <h2>Gantt 2 görev ağacı</h2>
         </div>
         <div class="toolbar-actions">
+            @if (canCreateTask && Model.ProjectId.HasValue && Model.SelectedProjectText is not null)
+            {
+                <button class="btn btn-primary btn-sm" type="button" data-planning-task-trigger data-parent-id="" data-parent-title="">Ana görev ekle</button>
+            }
             <a class="btn btn-outline-primary btn-sm" asp-controller="Reports" asp-action="Gantt">Mevcut Gantt</a>
             <a class="btn btn-outline-secondary btn-sm" asp-controller="Reports" asp-action="Kanban">Kanban</a>
         </div>
@@ -99,23 +110,27 @@
                     <div class="planning-tree-list">
                         @foreach (var task in scheduledTasks)
                         {
-                            <a class="planning-tree-row" style="--task-level:@task.OutlineLevel" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
-                                <span class="planning-tree-title">
-                                    @if (task.HasChildren)
-                                    {
-                                        <span class="planning-tree-marker">&rsaquo;</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="planning-tree-marker"></span>
-                                    }
+                            <div class="planning-tree-row" style="--task-level:@task.OutlineLevel" data-task-id="@task.Id" data-parent-id="@task.ParentTaskId" data-outline-level="@task.OutlineLevel">
+                                @if (task.HasChildren)
+                                {
+                                    <button class="planning-tree-toggle" type="button" data-tree-toggle="@task.Id" aria-label="Alt görevleri kapat/aç">&rsaquo;</button>
+                                }
+                                else
+                                {
+                                    <span class="planning-tree-toggle-placeholder"></span>
+                                }
+                                <a class="planning-tree-title" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
                                     <strong>@task.Title</strong>
                                     @if (task.IsMilestone)
                                     {
                                         <em>Kilometre taşı</em>
                                     }
-                                </span>
-                            </a>
+                                </a>
+                                @if (canCreateTask)
+                                {
+                                    <button class="planning-add-child" type="button" data-planning-task-trigger data-parent-id="@task.Id" data-parent-title="@task.Title">+</button>
+                                }
+                            </div>
                         }
                     </div>
 
@@ -125,19 +140,23 @@
                             <span>Tarihsiz görevler</span>
                             @foreach (var task in unscheduledTasks)
                             {
-                                <a class="planning-unscheduled-row" style="--task-level:@task.OutlineLevel" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
-                                    <span class="planning-tree-title">
-                                        @if (task.HasChildren)
-                                        {
-                                            <span class="planning-tree-marker">&rsaquo;</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="planning-tree-marker"></span>
-                                        }
+                                <div class="planning-unscheduled-row" style="--task-level:@task.OutlineLevel" data-task-id="@task.Id" data-parent-id="@task.ParentTaskId" data-outline-level="@task.OutlineLevel">
+                                    @if (task.HasChildren)
+                                    {
+                                        <button class="planning-tree-toggle" type="button" data-tree-toggle="@task.Id" aria-label="Alt görevleri kapat/aç">&rsaquo;</button>
+                                    }
+                                    else
+                                    {
+                                        <span class="planning-tree-toggle-placeholder"></span>
+                                    }
+                                    <a class="planning-tree-title" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
                                         <strong>@task.Title</strong>
-                                    </span>
-                                </a>
+                                    </a>
+                                    @if (canCreateTask)
+                                    {
+                                        <button class="planning-add-child" type="button" data-planning-task-trigger data-parent-id="@task.Id" data-parent-title="@task.Title">+</button>
+                                    }
+                                </div>
                             }
                         </div>
                     }
@@ -153,8 +172,8 @@
                     @if (Model.GanttTasks.Any())
                     {
                         <div class="planning-gantt-modes" aria-label="Gantt görünüm seçenekleri">
-                            <button class="active" type="button" data-gantt-view="Day">Gün</button>
-                            <button type="button" data-gantt-view="Week">Hafta</button>
+                            <button type="button" data-gantt-view="Day">Gün</button>
+                            <button class="active" type="button" data-gantt-view="Week">Hafta</button>
                             <button type="button" data-gantt-view="Month">Ay</button>
                         </div>
                     }
@@ -170,6 +189,14 @@
                 }
                 else
                 {
+                    <div class="planning-gantt-legend" aria-label="Gantt renk açıklaması">
+                        <span><i class="todo"></i>Yapılacak</span>
+                        <span><i class="inprogress"></i>Devam Ediyor</span>
+                        <span><i class="waiting"></i>Beklemede</span>
+                        <span><i class="inreview"></i>Kontrolde</span>
+                        <span><i class="done"></i>Bitti</span>
+                        <span><i class="cancelled"></i>İptal Edildi</span>
+                    </div>
                     <div class="planning-gantt-shell">
                         <svg id="project_planning_gantt"></svg>
                         <p id="project_planning_gantt_error" class="planning-empty d-none">Gantt çizelgesi yüklenemedi. Local Frappe Gantt dosyalarının yayınlandığını kontrol edin.</p>
@@ -180,87 +207,254 @@
     }
 </section>
 
+@if (canCreateTask && Model.ProjectId.HasValue && Model.SelectedProjectText is not null)
+{
+    <div class="modal fade planning-task-modal" id="planningTaskModal" tabindex="-1" aria-labelledby="planningTaskModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <form asp-action="AddTask" method="post">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="TaskForm.ProjectId" type="hidden" value="@Model.ProjectId" />
+                    <input asp-for="TaskForm.ParentTaskId" type="hidden" />
+                    <div class="modal-header">
+                        <div>
+                            <p class="section-kicker mb-1">Proje Planlama Gantt</p>
+                            <h2 class="modal-title fs-5" id="planningTaskModalTitle">Görev ekle</h2>
+                            <small class="text-muted" id="planningTaskParentText">Ana görev olarak eklenecek.</small>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="form-grid">
+                            <div class="mb-3 wide">
+                                <label asp-for="TaskForm.Title" class="form-label">Başlık</label>
+                                <input asp-for="TaskForm.Title" class="form-control" />
+                                <span asp-validation-for="TaskForm.Title" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3 wide">
+                                <label asp-for="TaskForm.Description" class="form-label">Açıklama</label>
+                                <textarea asp-for="TaskForm.Description" class="form-control" rows="3"></textarea>
+                                <span asp-validation-for="TaskForm.Description" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.StartDate" class="form-label">Başlangıç tarihi</label>
+                                <input asp-for="TaskForm.StartDate" type="date" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.DueDate" class="form-label">Termin tarihi</label>
+                                <input asp-for="TaskForm.DueDate" type="date" class="form-control" />
+                                <span asp-validation-for="TaskForm.DueDate" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.Status" class="form-label">Durum</label>
+                                <select asp-for="TaskForm.Status" asp-items="Html.GetEnumSelectList<WorkTaskStatus>()" class="form-select"></select>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.Priority" class="form-label">Öncelik</label>
+                                <select asp-for="TaskForm.Priority" asp-items="Html.GetEnumSelectList<ProjectPriority>()" class="form-select"></select>
+                            </div>
+                            <div class="mb-3 wide">
+                                <label class="form-label">Atanan kişiler</label>
+                                <div class="planning-user-checks">
+                                    @foreach (var user in Model.Users)
+                                    {
+                                        <label class="check-card">
+                                            <input type="checkbox" name="TaskForm.AssignedUserIds" value="@user.Id" checked="@Model.TaskForm.AssignedUserIds.Contains(user.Id)" />
+                                            <span>@user.Text</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.ProgressPercent" class="form-label">İlerleme yüzdesi</label>
+                                <input asp-for="TaskForm.ProgressPercent" type="number" min="0" max="100" class="form-control" />
+                                <span asp-validation-for="TaskForm.ProgressPercent" class="text-danger"></span>
+                            </div>
+                            <label class="check-card check-inline wide">
+                                <input asp-for="TaskForm.IsMilestone" />
+                                <span>Kilometre taşı mı?</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                        <button type="submit" class="btn btn-primary">Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
 @section Scripts {
     @if (Model.GanttTasks.Any())
     {
         <script src="~/lib/frappe-gantt/frappe-gantt.umd.js" asp-append-version="true"></script>
-        <script>
-            const projectPlanningTasks = @Html.Raw(JsonSerializer.Serialize(frappeTasks));
-            const projectPlanningTaskUrls = Object.fromEntries(projectPlanningTasks.map(function (task) {
-                return [task.id, task.url];
-            }));
+    }
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const projectPlanningTasks = @Html.Raw(JsonSerializer.Serialize(frappeTasks));
+        const projectPlanningTaskUrls = Object.fromEntries(projectPlanningTasks.map(function (task) {
+            return [task.id, task.url];
+        }));
 
-            (function () {
-                const chartElement = document.getElementById('project_planning_gantt');
-                const errorElement = document.getElementById('project_planning_gantt_error');
-                const modeButtons = Array.from(document.querySelectorAll('[data-gantt-view]'));
-                let gantt = null;
+        (function () {
+            const chartElement = document.getElementById('project_planning_gantt');
+            const errorElement = document.getElementById('project_planning_gantt_error');
+            const modeButtons = Array.from(document.querySelectorAll('[data-gantt-view]'));
+            let gantt = null;
 
-                function showError() {
-                    if (errorElement) {
-                        errorElement.classList.remove('d-none');
+            function escapePlanningHtml(value) {
+                return String(value)
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
+
+            function showError() {
+                if (errorElement) {
+                    errorElement.classList.remove('d-none');
+                }
+            }
+
+            function setActiveMode(mode) {
+                modeButtons.forEach(function (button) {
+                    button.classList.toggle('active', button.dataset.ganttView === mode);
+                });
+            }
+
+            function changeViewMode(mode) {
+                if (!gantt) {
+                    return;
+                }
+
+                if (typeof gantt.change_view_mode === 'function') {
+                    gantt.change_view_mode(mode);
+                } else if (typeof gantt.update_options === 'function') {
+                    gantt.update_options({ view_mode: mode });
+                }
+
+                setActiveMode(mode);
+            }
+
+            window.addEventListener('load', function () {
+                if (chartElement) {
+                    if (typeof Gantt === 'undefined') {
+                        showError();
+                    } else {
+                        try {
+                            gantt = new Gantt('#project_planning_gantt', projectPlanningTasks, {
+                            view_mode: 'Week',
+                            view_modes: ['Week', 'Day', 'Month'],
+                                language: 'tr',
+                                date_format: 'YYYY-MM-DD',
+                                bar_height: 24,
+                            padding: 18,
+                            popup_on: 'hover',
+                            popup: function ({ task }) {
+                                return `
+                                    <div class="planning-gantt-popup">
+                                        <strong>${escapePlanningHtml(task.name)}</strong>
+                                        <dl>
+                                            <div><dt>Durum</dt><dd>${escapePlanningHtml(task.statusText || '-')}</dd></div>
+                                            <div><dt>Öncelik</dt><dd>${escapePlanningHtml(task.priorityText || '-')}</dd></div>
+                                            <div><dt>Tarih</dt><dd>${escapePlanningHtml(task.dateRangeText || '-')}</dd></div>
+                                            <div><dt>Atanan</dt><dd>${escapePlanningHtml(task.assignedText || 'Atanan yok')}</dd></div>
+                                            <div><dt>İlerleme</dt><dd>${task.progress || 0}%</dd></div>
+                                        </dl>
+                                    </div>`;
+                            },
+                                on_click: function (task) {
+                                    const url = task ? (task.url || projectPlanningTaskUrls[task.id]) : null;
+                                    if (url) {
+                                        window.location.href = url;
+                                    }
+                                }
+                            });
+
+                            modeButtons.forEach(function (button) {
+                                button.addEventListener('click', function () {
+                                    changeViewMode(button.dataset.ganttView);
+                                });
+                            });
+                        } catch {
+                            showError();
+                        }
                     }
                 }
 
-                function setActiveMode(mode) {
-                    modeButtons.forEach(function (button) {
-                        button.classList.toggle('active', button.dataset.ganttView === mode);
+                const rows = Array.from(document.querySelectorAll('[data-task-id]'));
+                const collapsedIds = new Set();
+
+                function isHiddenByCollapsedParent(row) {
+                    let parentId = row.dataset.parentId;
+                    while (parentId) {
+                        if (collapsedIds.has(parentId)) {
+                            return true;
+                        }
+
+                        const parentRow = rows.find(function (candidate) {
+                            return candidate.dataset.taskId === parentId;
+                        });
+                        parentId = parentRow ? parentRow.dataset.parentId : '';
+                    }
+
+                    return false;
+                }
+
+                function syncTreeVisibility() {
+                    rows.forEach(function (row) {
+                        row.classList.toggle('is-hidden', isHiddenByCollapsedParent(row));
                     });
                 }
 
-                function changeViewMode(mode) {
-                    if (!gantt) {
-                        return;
-                    }
+                document.querySelectorAll('[data-tree-toggle]').forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        const taskId = button.dataset.treeToggle;
+                        if (collapsedIds.has(taskId)) {
+                            collapsedIds.delete(taskId);
+                            button.classList.remove('is-collapsed');
+                        } else {
+                            collapsedIds.add(taskId);
+                            button.classList.add('is-collapsed');
+                        }
 
-                    if (typeof gantt.change_view_mode === 'function') {
-                        gantt.change_view_mode(mode);
-                    } else if (typeof gantt.update_options === 'function') {
-                        gantt.update_options({ view_mode: mode });
-                    }
-
-                    setActiveMode(mode);
-                }
-
-                window.addEventListener('load', function () {
-                    if (!chartElement || typeof Gantt === 'undefined') {
-                        showError();
-                        return;
-                    }
-
-                    try {
-                        gantt = new Gantt('#project_planning_gantt', projectPlanningTasks, {
-                            view_mode: 'Day',
-                            view_modes: ['Day', 'Week', 'Month'],
-                            language: 'tr',
-                            date_format: 'YYYY-MM-DD',
-                            bar_height: 24,
-                            padding: 18,
-                            popup_trigger: 'mouseover',
-                            on_click: function (task) {
-                                const url = task ? (task.url || projectPlanningTaskUrls[task.id]) : null;
-                                if (url) {
-                                    window.location.href = url;
-                                }
-                            }
-                        });
-
-                        modeButtons.forEach(function (button) {
-                            button.addEventListener('click', function () {
-                                changeViewMode(button.dataset.ganttView);
-                            });
-                        });
-                    } catch {
-                        showError();
-                    }
+                        syncTreeVisibility();
+                    });
                 });
 
-                window.setTimeout(function () {
-                    if (chartElement && chartElement.children.length === 0) {
-                        showError();
+                const modalElement = document.getElementById('planningTaskModal');
+                if (modalElement && typeof bootstrap !== 'undefined') {
+                    const parentInput = modalElement.querySelector('[name="TaskForm.ParentTaskId"]');
+                    const modalTitle = document.getElementById('planningTaskModalTitle');
+                    const parentText = document.getElementById('planningTaskParentText');
+                    const modal = new bootstrap.Modal(modalElement);
+
+                    document.querySelectorAll('[data-planning-task-trigger]').forEach(function (button) {
+                        button.addEventListener('click', function () {
+                            const parentId = button.dataset.parentId || '';
+                            const parentTitle = button.dataset.parentTitle || '';
+                            parentInput.value = parentId;
+                            modalTitle.textContent = parentId ? 'Alt görev ekle' : 'Ana görev ekle';
+                            parentText.textContent = parentId ? parentTitle + ' altına eklenecek.' : 'Ana görev olarak eklenecek.';
+                            modal.show();
+                        });
+                    });
+
+                    if (@JsonSerializer.Serialize(Model.OpenTaskForm)) {
+                        modal.show();
                     }
-                }, 5000);
-            })();
-        </script>
-    }
+                }
+            });
+
+            window.setTimeout(function () {
+                if (chartElement && chartElement.children.length === 0) {
+                    showError();
+                }
+            }, 5000);
+        })();
+    </script>
 }

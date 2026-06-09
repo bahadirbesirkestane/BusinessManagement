@@ -247,6 +247,7 @@ public class ProjectTasksController : Controller
                 ["Görevler"] = Url.Action(nameof(Index)),
                 [task.Title] = null
             };
+        ViewBag.Breadcrumbs = await CreateTaskBreadcrumbsAsync(task, cancellationToken);
         ViewBag.ResponsibleName = await GetUserDisplayNameAsync(task.ResponsibleUserId);
         ViewBag.AssignedUsers = await GetAssignedUserNamesAsync(task.Assignments.Select(x => x.UserId), cancellationToken);
         ViewBag.Activity = new RecordActivityViewModel
@@ -488,6 +489,54 @@ public class ProjectTasksController : Controller
     {
         return User.IsInRole(AppRoles.Admin) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    }
+
+    private async Task<IReadOnlyList<KeyValuePair<string, string?>>> CreateTaskBreadcrumbsAsync(ProjectTask task, CancellationToken cancellationToken)
+    {
+        var breadcrumbs = new List<KeyValuePair<string, string?>>();
+        if (task.Project is not null)
+        {
+            breadcrumbs.Add(new("Projeler", Url.Action("Index", "Projects")));
+            breadcrumbs.Add(new(task.Project.Code, Url.Action("Details", "Projects", new { id = task.Project.Id })));
+            breadcrumbs.Add(new("Görevler", Url.Action(nameof(Index), new { projectId = task.Project.Id })));
+        }
+        else
+        {
+            breadcrumbs.Add(new("Görevler", Url.Action(nameof(Index))));
+        }
+
+        var parentChain = await GetParentTaskChainAsync(task, cancellationToken);
+        foreach (var parent in parentChain)
+        {
+            breadcrumbs.Add(new(parent.Title, Url.Action(nameof(Details), new { id = parent.Id })));
+        }
+
+        breadcrumbs.Add(new(task.Title, null));
+        return breadcrumbs;
+    }
+
+    private async Task<IReadOnlyList<ProjectTask>> GetParentTaskChainAsync(ProjectTask task, CancellationToken cancellationToken)
+    {
+        var chain = new List<ProjectTask>();
+        var visitedIds = new HashSet<Guid> { task.Id };
+        var parentId = task.ParentTaskId;
+
+        while (parentId.HasValue && visitedIds.Add(parentId.Value))
+        {
+            var parent = await _context.ProjectTasks
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == parentId.Value, cancellationToken);
+
+            if (parent is null)
+            {
+                break;
+            }
+
+            chain.Insert(0, parent);
+            parentId = parent.ParentTaskId;
+        }
+
+        return chain;
     }
 
     private async Task SyncAssignmentsAsync(Guid taskId, IEnumerable<string> selectedUserIds, CancellationToken cancellationToken)

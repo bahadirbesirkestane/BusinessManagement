@@ -91,13 +91,15 @@
             </div>
             <div class="mb-3 wide">
                 <label class="form-label">Atanan Kişiler</label>
-                <select name="AssignedUserIds" class="form-select" multiple size="5">
-                    <option value="">Atanmamış</option>
+                <div class="planning-user-checks">
                     @foreach (var user in ViewBag.Users)
                     {
-                        <option value="@user.Id" selected="@Model.Assignments.Any(x => x.UserId == user.Id)">@user.FullName</option>
+                        <label class="check-card">
+                            <input type="checkbox" name="AssignedUserIds" value="@user.Id" checked="@Model.Assignments.Any(x => x.UserId == user.Id)" />
+                            <span>@user.FullName</span>
+                        </label>
                     }
-                </select>
+                </div>
                 <small class="text-muted">Birden fazla kişi seçebilirsin.</small>
             </div>
             <div class="mb-3"><label asp-for="Status" class="form-label">Durum</label><select asp-for="Status" asp-items="Html.GetEnumSelectList<WorkTaskStatus>()" class="form-select"></select></div>
