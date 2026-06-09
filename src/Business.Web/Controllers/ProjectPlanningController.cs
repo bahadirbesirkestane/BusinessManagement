@@ -38,6 +38,7 @@ public class ProjectPlanningController : Controller
 
         var selectedProjectText = projects.FirstOrDefault(x => x.Id == projectId)?.Text;
         var tasks = new List<ProjectPlanningTaskRowViewModel>();
+        var ganttTasks = new List<ProjectPlanningGanttTaskViewModel>();
 
         if (projectId.HasValue && selectedProjectText is not null)
         {
@@ -52,6 +53,7 @@ public class ProjectPlanningController : Controller
 
             var userNames = await GetUserNamesAsync(projectTasks, cancellationToken);
             tasks = CreateHierarchicalRows(projectTasks, userNames);
+            ganttTasks = CreateGanttTasks(tasks);
         }
 
         ViewBag.Breadcrumbs = new Dictionary<string, string?>
@@ -65,7 +67,8 @@ public class ProjectPlanningController : Controller
             ProjectId = projectId,
             SelectedProjectText = selectedProjectText,
             Projects = projects,
-            Tasks = tasks
+            Tasks = tasks,
+            GanttTasks = ganttTasks
         });
     }
 
@@ -164,6 +167,47 @@ public class ProjectPlanningController : Controller
                 childIndex++;
             }
         }
+    }
+
+    private static List<ProjectPlanningGanttTaskViewModel> CreateGanttTasks(IReadOnlyCollection<ProjectPlanningTaskRowViewModel> tasks)
+    {
+        var datedTasks = tasks
+            .Where(x => x.StartDate.HasValue && x.DueDate.HasValue)
+            .ToList();
+        var datedTaskIds = datedTasks.Select(x => x.Id).ToHashSet();
+
+        return datedTasks
+            .Select(task =>
+            {
+                var start = task.StartDate!.Value.Date;
+                var end = task.DueDate!.Value.Date;
+                if (end < start)
+                {
+                    end = start;
+                }
+
+                return new ProjectPlanningGanttTaskViewModel
+                {
+                    Id = CreateGanttTaskId(task.Id),
+                    Name = string.IsNullOrWhiteSpace(task.DisplayWbsCode)
+                        ? task.Title
+                        : $"{task.DisplayWbsCode} {task.Title}",
+                    Start = start.ToString("yyyy-MM-dd"),
+                    End = end.ToString("yyyy-MM-dd"),
+                    Progress = Math.Clamp(task.ProgressPercent, 0, 100),
+                    Dependencies = task.ParentTaskId.HasValue && datedTaskIds.Contains(task.ParentTaskId.Value)
+                        ? CreateGanttTaskId(task.ParentTaskId.Value)
+                        : string.Empty,
+                    CustomClass = task.Status.ToString().ToLowerInvariant(),
+                    Url = $"/ProjectTasks/Details/{task.Id}"
+                };
+            })
+            .ToList();
+    }
+
+    private static string CreateGanttTaskId(Guid id)
+    {
+        return $"task-{id:N}";
     }
 
     private static IOrderedEnumerable<ProjectTask> SortTasks(IEnumerable<ProjectTask> tasks)

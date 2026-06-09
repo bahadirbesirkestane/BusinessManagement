@@ -1762,18 +1762,22 @@ a:hover {
 .planning-shell {
   display: grid;
   grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
-  gap: 14px;
   align-items: start;
-  overflow: visible;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
 }
 
 .planning-tree,
 .planning-timeline {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
   background: #fff;
+}
+
+.planning-tree {
+  border-right: 1px solid var(--line);
 }
 
 .planning-tree header,
@@ -1785,6 +1789,11 @@ a:hover {
   padding: 12px 14px;
   border-bottom: 1px solid var(--line);
   background: #f8fafc;
+}
+
+.planning-tree header,
+.planning-timeline header {
+  min-height: 64px;
 }
 
 .planning-tree header span,
@@ -1809,13 +1818,30 @@ a:hover {
 }
 
 .planning-tree-list {
+  --planning-gantt-header-height: 72px;
+  --planning-gantt-row-height: 42px;
   overflow-x: hidden;
 }
 
+.planning-tree-list::before {
+  content: "Plan görevleri";
+  display: flex;
+  align-items: end;
+  height: var(--planning-gantt-header-height);
+  padding: 0 12px 10px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfcfe;
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
 .planning-tree-row {
-  display: block;
-  min-height: 48px;
-  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  height: var(--planning-gantt-row-height);
+  padding: 0 12px;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
 }
@@ -1834,6 +1860,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 7px;
+  width: 100%;
   min-width: 0;
   padding-left: calc(var(--task-level, 0) * 18px);
 }
@@ -1877,6 +1904,37 @@ a:hover {
   border-bottom: 1px solid var(--line);
 }
 
+.planning-unscheduled {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border-top: 1px solid var(--line);
+  background: #fbfcfe;
+}
+
+.planning-unscheduled > span {
+  display: block;
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.planning-unscheduled-row {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--ink);
+}
+
+.planning-unscheduled-row:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
 .planning-timeline-row strong,
 .planning-timeline-row span {
   display: block;
@@ -1912,6 +1970,158 @@ a:hover {
   font-size: .72rem;
   font-style: normal;
   font-weight: 850;
+}
+
+.planning-gantt-modes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.planning-gantt-modes button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  padding: 6px 9px;
+}
+
+.planning-gantt-modes button:hover,
+.planning-gantt-modes button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.planning-gantt-shell {
+  min-height: 420px;
+  overflow: auto;
+  background: #fff;
+}
+
+.planning-gantt-shell .gantt-container {
+  border-radius: 0;
+  border: 0;
+  line-height: 14px;
+}
+
+.planning-gantt-shell .grid-header {
+  border-top: 0;
+}
+
+.planning-gantt-shell .gantt .row-line {
+  stroke: var(--line);
+}
+
+.planning-gantt-shell .gantt .bar-wrapper {
+  transform-box: fill-box;
+}
+
+.planning-gantt-shell svg {
+  min-width: 760px;
+}
+
+.planning-gantt-shell .grid-header {
+  fill: #f8fafc;
+}
+
+.planning-gantt-shell .grid-row {
+  fill: #fff;
+}
+
+.planning-gantt-shell .grid-row:nth-child(even) {
+  fill: #fbfcfe;
+}
+
+.planning-gantt-shell .lower-text,
+.planning-gantt-shell .upper-text {
+  fill: #667085;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.planning-gantt-shell .bar-label {
+  fill: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.planning-gantt-shell .bar {
+  fill: #94a3b8;
+}
+
+.planning-gantt-shell .bar-progress {
+  fill: #64748b;
+}
+
+.planning-gantt-shell .bar-wrapper.todo .bar,
+.planning-gantt-shell .bar.todo {
+  fill: #94a3b8;
+}
+
+.planning-gantt-shell .bar-wrapper.todo .bar-progress,
+.planning-gantt-shell .bar-progress.todo {
+  fill: #64748b;
+}
+
+.planning-gantt-shell .bar-wrapper.inprogress .bar,
+.planning-gantt-shell .bar.inprogress {
+  fill: #38bdf8;
+}
+
+.planning-gantt-shell .bar-wrapper.inprogress .bar-progress,
+.planning-gantt-shell .bar-progress.inprogress {
+  fill: #0284c7;
+}
+
+.planning-gantt-shell .bar-wrapper.waiting .bar,
+.planning-gantt-shell .bar.waiting {
+  fill: #fbbf24;
+}
+
+.planning-gantt-shell .bar-wrapper.waiting .bar-progress,
+.planning-gantt-shell .bar-progress.waiting {
+  fill: #d97706;
+}
+
+.planning-gantt-shell .bar-wrapper.inreview .bar,
+.planning-gantt-shell .bar.inreview {
+  fill: #a78bfa;
+}
+
+.planning-gantt-shell .bar-wrapper.inreview .bar-progress,
+.planning-gantt-shell .bar-progress.inreview {
+  fill: #7c3aed;
+}
+
+.planning-gantt-shell .bar-wrapper.done .bar,
+.planning-gantt-shell .bar.done {
+  fill: #86efac;
+}
+
+.planning-gantt-shell .bar-wrapper.done .bar-progress,
+.planning-gantt-shell .bar-progress.done {
+  fill: #16a34a;
+}
+
+.planning-gantt-shell .bar-wrapper.cancelled .bar,
+.planning-gantt-shell .bar.cancelled {
+  fill: #fca5a5;
+}
+
+.planning-gantt-shell .bar-wrapper.cancelled .bar-progress,
+.planning-gantt-shell .bar-progress.cancelled {
+  fill: #dc2626;
+}
+
+.planning-gantt-shell .bar-wrapper {
+  cursor: pointer;
 }
 
 .planning-empty {

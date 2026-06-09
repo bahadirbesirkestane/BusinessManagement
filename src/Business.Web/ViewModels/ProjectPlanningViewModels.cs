@@ -8,6 +8,7 @@ public class ProjectPlanningIndexViewModel
     public string? SelectedProjectText { get; set; }
     public IReadOnlyList<ProjectPlanningProjectOptionViewModel> Projects { get; set; } = [];
     public IReadOnlyList<ProjectPlanningTaskRowViewModel> Tasks { get; set; } = [];
+    public IReadOnlyList<ProjectPlanningGanttTaskViewModel> GanttTasks { get; set; } = [];
 }
 
 public class ProjectPlanningProjectOptionViewModel
@@ -37,4 +38,16 @@ public class ProjectPlanningTaskRowViewModel
     public int ProgressPercent { get; set; }
     public bool IsMilestone { get; set; }
     public bool HasChildren { get; set; }
+}
+
+public class ProjectPlanningGanttTaskViewModel
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Start { get; set; } = string.Empty;
+    public string End { get; set; } = string.Empty;
+    public int Progress { get; set; }
+    public string Dependencies { get; set; } = string.Empty;
+    public string CustomClass { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
 }

@@ -1,13 +1,27 @@
 @model ProjectPlanningIndexViewModel
+@using System.Text.Json
 @{
     ViewData["Title"] = "Proje Planlama Gantt";
+    var frappeTasks = Model.GanttTasks.Select(x => new
+    {
+        id = x.Id,
+        name = x.Name,
+        start = x.Start,
+        end = x.End,
+        progress = x.Progress,
+        dependencies = x.Dependencies,
+        custom_class = x.CustomClass,
+        url = x.Url
+    });
 }
+
+<link rel="stylesheet" href="~/lib/frappe-gantt/frappe-gantt.css" asp-append-version="true" />
 
 <section class="diagram-hero">
     <div>
         <p class="section-kicker">Raporlar ve diyagramlar</p>
         <h2>Proje planlama görünümü</h2>
-        <p>Seçilen projenin görevleri hiyerarşik ağaç yapısında listelenir; zaman çizelgesi alanı sonraki aşamada Gantt görünümü için hazırlanır.</p>
+        <p>Seçilen projenin görevleri hiyerarşik ağaç yapısında listelenir; tarihli görevler sağdaki Gantt çizelgesinde izlenir.</p>
     </div>
     <div class="diagram-summary-grid">
         <div>
@@ -19,8 +33,8 @@
             <strong>@Model.Tasks.Count</strong>
         </div>
         <div>
-            <span>Kilometre taşı</span>
-            <strong>@Model.Tasks.Count(x => x.IsMilestone)</strong>
+            <span>Gantt görevi</span>
+            <strong>@Model.GanttTasks.Count</strong>
         </div>
     </div>
 </section>
@@ -79,8 +93,11 @@
                 }
                 else
                 {
+                    var scheduledTasks = Model.Tasks.Where(x => x.StartDate.HasValue && x.DueDate.HasValue).ToList();
+                    var unscheduledTasks = Model.Tasks.Where(x => !x.StartDate.HasValue || !x.DueDate.HasValue).ToList();
+
                     <div class="planning-tree-list">
-                        @foreach (var task in Model.Tasks)
+                        @foreach (var task in scheduledTasks)
                         {
                             <a class="planning-tree-row" style="--task-level:@task.OutlineLevel" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
                                 <span class="planning-tree-title">
@@ -101,6 +118,29 @@
                             </a>
                         }
                     </div>
+
+                    @if (unscheduledTasks.Any())
+                    {
+                        <div class="planning-unscheduled">
+                            <span>Tarihsiz görevler</span>
+                            @foreach (var task in unscheduledTasks)
+                            {
+                                <a class="planning-unscheduled-row" style="--task-level:@task.OutlineLevel" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
+                                    <span class="planning-tree-title">
+                                        @if (task.HasChildren)
+                                        {
+                                            <span class="planning-tree-marker">&rsaquo;</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="planning-tree-marker"></span>
+                                        }
+                                        <strong>@task.Title</strong>
+                                    </span>
+                                </a>
+                            }
+                        </div>
+                    }
                 }
             </section>
 
@@ -108,33 +148,119 @@
                 <header>
                     <div>
                         <span>Zaman Çizelgesi</span>
-                        <strong>Gantt alanı</strong>
+                        <strong>Frappe Gantt</strong>
                     </div>
+                    @if (Model.GanttTasks.Any())
+                    {
+                        <div class="planning-gantt-modes" aria-label="Gantt görünüm seçenekleri">
+                            <button class="active" type="button" data-gantt-view="Day">Gün</button>
+                            <button type="button" data-gantt-view="Week">Hafta</button>
+                            <button type="button" data-gantt-view="Month">Ay</button>
+                        </div>
+                    }
                 </header>
 
                 @if (!Model.Tasks.Any())
                 {
                     <p class="planning-empty">Zaman çizelgesi oluşturmak için bu projeye başlangıç ve termin tarihleri olan görevler eklenmeli.</p>
                 }
+                else if (!Model.GanttTasks.Any())
+                {
+                    <p class="planning-empty">Bu projedeki görevler ağaçta görünüyor; Gantt çizelgesinde göstermek için görevlerde başlangıç ve termin tarihi olmalı.</p>
+                }
                 else
                 {
-                    <div class="planning-timeline-grid">
-                        @foreach (var task in Model.Tasks)
-                        {
-                            <div class="planning-timeline-row">
-                                <div>
-                                    <strong>@task.Title</strong>
-                                    <span>@(task.StartDate?.ToString("dd.MM.yyyy") ?? "Başlangıç yok") - @(task.DueDate?.ToString("dd.MM.yyyy") ?? "Termin yok")</span>
-                                </div>
-                                <div class="planning-progress">
-                                    <span style="width:@task.ProgressPercent%"></span>
-                                    <em>@task.ProgressPercent%</em>
-                                </div>
-                            </div>
-                        }
+                    <div class="planning-gantt-shell">
+                        <svg id="project_planning_gantt"></svg>
+                        <p id="project_planning_gantt_error" class="planning-empty d-none">Gantt çizelgesi yüklenemedi. Local Frappe Gantt dosyalarının yayınlandığını kontrol edin.</p>
                     </div>
                 }
             </section>
         </div>
     }
 </section>
+
+@section Scripts {
+    @if (Model.GanttTasks.Any())
+    {
+        <script src="~/lib/frappe-gantt/frappe-gantt.umd.js" asp-append-version="true"></script>
+        <script>
+            const projectPlanningTasks = @Html.Raw(JsonSerializer.Serialize(frappeTasks));
+            const projectPlanningTaskUrls = Object.fromEntries(projectPlanningTasks.map(function (task) {
+                return [task.id, task.url];
+            }));
+
+            (function () {
+                const chartElement = document.getElementById('project_planning_gantt');
+                const errorElement = document.getElementById('project_planning_gantt_error');
+                const modeButtons = Array.from(document.querySelectorAll('[data-gantt-view]'));
+                let gantt = null;
+
+                function showError() {
+                    if (errorElement) {
+                        errorElement.classList.remove('d-none');
+                    }
+                }
+
+                function setActiveMode(mode) {
+                    modeButtons.forEach(function (button) {
+                        button.classList.toggle('active', button.dataset.ganttView === mode);
+                    });
+                }
+
+                function changeViewMode(mode) {
+                    if (!gantt) {
+                        return;
+                    }
+
+                    if (typeof gantt.change_view_mode === 'function') {
+                        gantt.change_view_mode(mode);
+                    } else if (typeof gantt.update_options === 'function') {
+                        gantt.update_options({ view_mode: mode });
+                    }
+
+                    setActiveMode(mode);
+                }
+
+                window.addEventListener('load', function () {
+                    if (!chartElement || typeof Gantt === 'undefined') {
+                        showError();
+                        return;
+                    }
+
+                    try {
+                        gantt = new Gantt('#project_planning_gantt', projectPlanningTasks, {
+                            view_mode: 'Day',
+                            view_modes: ['Day', 'Week', 'Month'],
+                            language: 'tr',
+                            date_format: 'YYYY-MM-DD',
+                            bar_height: 24,
+                            padding: 18,
+                            popup_trigger: 'mouseover',
+                            on_click: function (task) {
+                                const url = task ? (task.url || projectPlanningTaskUrls[task.id]) : null;
+                                if (url) {
+                                    window.location.href = url;
+                                }
+                            }
+                        });
+
+                        modeButtons.forEach(function (button) {
+                            button.addEventListener('click', function () {
+                                changeViewMode(button.dataset.ganttView);
+                            });
+                        });
+                    } catch {
+                        showError();
+                    }
+                });
+
+                window.setTimeout(function () {
+                    if (chartElement && chartElement.children.length === 0) {
+                        showError();
+                    }
+                }, 5000);
+            })();
+        </script>
+    }
+}
