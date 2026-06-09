@@ -221,6 +221,7 @@ public class ProjectTasksController : Controller
             .Include(x => x.Customer)
             .Include(x => x.TaskCategory)
             .Include(x => x.Assignments)
+            .Include(x => x.Updates)
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
