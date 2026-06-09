@@ -1,0 +1,142 @@
+@model ProjectPlanningIndexViewModel
+@{
+    ViewData["Title"] = "Proje Planlama Gantt";
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">Raporlar ve diyagramlar</p>
+        <h2>Proje planlama görünümü</h2>
+        <p>Seçilen projenin görevleri hiyerarşik ağaç yapısında listelenir; zaman çizelgesi alanı sonraki aşamada Gantt görünümü için hazırlanır.</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Proje seçeneği</span>
+            <strong>@Model.Projects.Count</strong>
+        </div>
+        <div>
+            <span>Görev satırı</span>
+            <strong>@Model.Tasks.Count</strong>
+        </div>
+        <div>
+            <span>Kilometre taşı</span>
+            <strong>@Model.Tasks.Count(x => x.IsMilestone)</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Proje bazlı planlama</p>
+            <h2>Gantt 2 iskeleti</h2>
+        </div>
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-primary btn-sm" asp-controller="Reports" asp-action="Gantt">Mevcut Gantt</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="Reports" asp-action="Kanban">Kanban</a>
+        </div>
+    </div>
+
+    <form asp-action="Index" method="get" class="diagram-filter-bar">
+        <select name="projectId" class="form-select form-select-sm">
+            <option value="">Proje seçin</option>
+            @foreach (var project in Model.Projects)
+            {
+                <option value="@project.Id" selected="@(Model.ProjectId == project.Id)">@project.Text</option>
+            }
+        </select>
+        <button class="btn btn-primary btn-sm" type="submit">Uygula</button>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Temizle</a>
+    </form>
+
+    @if (!Model.ProjectId.HasValue)
+    {
+        <p class="empty-note">Planlama görünümünü açmak için üst alandan bir proje seçin.</p>
+    }
+    else if (Model.SelectedProjectText is null)
+    {
+        <p class="empty-note">Seçilen proje bulunamadı veya iptal edilmiş olabilir.</p>
+    }
+    else
+    {
+        <div class="planning-context">
+            <span>Seçili proje</span>
+            <strong>@Model.SelectedProjectText</strong>
+        </div>
+
+        <div class="planning-shell">
+            <section class="planning-tree">
+                <header>
+                    <div>
+                        <span>Görev Ağacı</span>
+                        <strong>@Model.Tasks.Count görev</strong>
+                    </div>
+                </header>
+
+                @if (!Model.Tasks.Any())
+                {
+                    <p class="planning-empty">Bu projede henüz görev yok. Görevler eklendikçe ağaç yapısı burada görünecek.</p>
+                }
+                else
+                {
+                    <div class="planning-tree-list">
+                        @foreach (var task in Model.Tasks)
+                        {
+                            <a class="planning-tree-row" style="--task-level:@task.OutlineLevel" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
+                                <span class="planning-tree-code">@(string.IsNullOrWhiteSpace(task.WbsCode) ? "-" : task.WbsCode)</span>
+                                <span class="planning-tree-title">
+                                    @if (task.HasChildren)
+                                    {
+                                        <span class="planning-tree-marker">▸</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="planning-tree-marker"></span>
+                                    }
+                                    <strong>@task.Title</strong>
+                                    @if (task.IsMilestone)
+                                    {
+                                        <em>Kilometre taşı</em>
+                                    }
+                                </span>
+                                <span class="status-pill status-@task.StatusCss">@task.StatusText</span>
+                            </a>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="planning-timeline">
+                <header>
+                    <div>
+                        <span>Zaman Çizelgesi</span>
+                        <strong>Gantt alanı</strong>
+                    </div>
+                </header>
+
+                @if (!Model.Tasks.Any())
+                {
+                    <p class="planning-empty">Zaman çizelgesi oluşturmak için bu projeye başlangıç ve termin tarihleri olan görevler eklenmeli.</p>
+                }
+                else
+                {
+                    <div class="planning-timeline-grid">
+                        @foreach (var task in Model.Tasks)
+                        {
+                            <div class="planning-timeline-row">
+                                <div>
+                                    <strong>@task.Title</strong>
+                                    <span>@(task.StartDate?.ToString("dd.MM.yyyy") ?? "Başlangıç yok") - @(task.DueDate?.ToString("dd.MM.yyyy") ?? "Termin yok")</span>
+                                </div>
+                                <div class="planning-progress">
+                                    <span style="width:@task.ProgressPercent%"></span>
+                                    <em>@task.ProgressPercent%</em>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    }
+</section>

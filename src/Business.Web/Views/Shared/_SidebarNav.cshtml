@@ -39,7 +39,8 @@
             Items = new[]
             {
                 (Label: "Gantt Diyagramı", Url: "/Reports/Gantt"),
-                (Label: "Kanban Diyagramı", Url: "/Reports/Kanban")
+                (Label: "Kanban Diyagramı", Url: "/Reports/Kanban"),
+                (Label: "Proje Planlama Gantt", Url: "/ProjectPlanning")
             }
         },
         new
@@ -184,6 +185,11 @@
         if (url.StartsWith("/Reports/Kanban", StringComparison.OrdinalIgnoreCase))
         {
             return HasPermission(AppPermissions.TasksView, AppPermissions.ProjectsManage);
+        }
+
+        if (url.StartsWith("/ProjectPlanning", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.ProjectsView, AppPermissions.ProjectsManage);
         }
 
         if (url.StartsWith("/PurchaseOrders", StringComparison.OrdinalIgnoreCase))
