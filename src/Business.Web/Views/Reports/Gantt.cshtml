@@ -1,0 +1,229 @@
+@model GanttReportViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Gantt Diyagramı";
+    var chartHeight = Math.Max(360, Model.Rows.Count * 42 + 90);
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">Raporlar ve diyagramlar</p>
+        <h2>Proje zaman çizelgesi</h2>
+        <p>Seçilen projenin işleri başlangıç ve termin tarihlerine göre profesyonel Gantt diyagramında izlenir.</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Aktif proje</span>
+            <strong>@Model.ActiveProjectCount</strong>
+        </div>
+        <div>
+            <span>Görev</span>
+            <strong>@Model.TaskCount</strong>
+        </div>
+        <div>
+            <span>Geciken görev</span>
+            <strong>@Model.LateTaskCount</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">@Model.TimelineScaleText · @Model.TimelineStart.ToString("dd.MM.yyyy") - @Model.TimelineEnd.ToString("dd.MM.yyyy")</p>
+            <h2>Gantt görünümü</h2>
+        </div>
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-primary btn-sm" asp-action="Kanban">Kanban</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="Projects" asp-action="Index">Proje listesi</a>
+        </div>
+    </div>
+
+    <form asp-action="Gantt" method="get" class="diagram-filter-bar">
+        <select name="projectId" class="form-select form-select-sm">
+            <option value="">Tüm projeler</option>
+            @foreach (var project in Model.Projects)
+            {
+                <option value="@project.Id" selected="@(Model.ProjectId == project.Id)">@project.Text</option>
+            }
+        </select>
+        <button class="btn btn-primary btn-sm" type="submit">Uygula</button>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Gantt">Temizle</a>
+    </form>
+
+    @if (!Model.Rows.Any())
+    {
+        <p class="empty-note">Tarih bilgisi olan proje veya görev bulunamadı.</p>
+    }
+    else
+    {
+        <div class="gantt-legend" aria-label="Gantt renk açıklaması">
+            <span><i style="background:#2563eb"></i>Proje</span>
+            <span><i style="background:#94a3b8"></i>Yapılacak</span>
+            <span><i style="background:#0ea5e9"></i>Devam Ediyor</span>
+            <span><i style="background:#f59e0b"></i>Beklemede</span>
+            <span><i style="background:#8b5cf6"></i>Kontrolde</span>
+            <span><i style="background:#16a34a"></i>Bitti</span>
+            <span><i style="background:#dc2626"></i>İptal Edildi</span>
+        </div>
+
+        <div class="google-gantt-shell">
+            <div id="gantt_chart" class="google-gantt-chart" style="min-height:@(chartHeight)px"></div>
+            <div id="gantt_error" class="empty-note d-none">Gantt kütüphanesi yüklenemedi. Sunucunun Google Charts CDN erişimini kontrol edin.</div>
+        </div>
+
+        <details class="collapsible-section gantt-data-fallback">
+            <summary>Gantt veri listesi</summary>
+            <div class="table-responsive">
+                <table class="table app-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Kayıt</th>
+                            <th>Tür</th>
+                            <th>Durum</th>
+                            <th>Başlangıç</th>
+                            <th>Bitiş</th>
+                            <th>İlerleme</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr>
+                                <td><a href="@row.Url">@row.Title</a><small class="d-block text-muted">@row.Subtitle</small></td>
+                                <td>@(row.IsProject ? "Proje" : "Görev")</td>
+                                <td><span class="status-pill status-@row.StatusCss">@row.StatusText</span></td>
+                                <td>@row.StartDate.ToString("dd.MM.yyyy")</td>
+                                <td>@row.EndDate.ToString("dd.MM.yyyy")</td>
+                                <td><strong>@row.ProgressPercent%</strong></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    }
+</section>
+
+@section Scripts {
+    @if (Model.Rows.Any())
+    {
+        <script src="https://www.gstatic.com/charts/loader.js"></script>
+        <script>
+            const ganttRows = [
+                @for (var i = 0; i < Model.Rows.Count; i++)
+                {
+                    var row = Model.Rows[i];
+                    var chartEnd = row.EndDate.Date <= row.StartDate.Date
+                        ? row.StartDate.Date.AddDays(1)
+                        : row.EndDate.Date.AddDays(1);
+                    var taskId = $"row-{i}";
+                    var taskName = row.IsProject ? $"{row.Title} · {row.Subtitle}" : row.Title;
+                    var resource = row.IsProject ? "Proje" : row.StatusText;
+                    <text>[
+                        @Html.Raw(JsonSerializer.Serialize(taskId)),
+                        @Html.Raw(JsonSerializer.Serialize(taskName)),
+                        @Html.Raw(JsonSerializer.Serialize(resource)),
+                        new Date(@row.StartDate.Year, @(row.StartDate.Month - 1), @row.StartDate.Day),
+                        new Date(@chartEnd.Year, @(chartEnd.Month - 1), @chartEnd.Day),
+                        null,
+                        @row.ProgressPercent,
+                        null
+                    ],</text>
+                }
+            ];
+
+            const ganttUrls = [
+                @foreach (var row in Model.Rows)
+                {
+                    <text>@Html.Raw(JsonSerializer.Serialize(row.Url ?? string.Empty)),</text>
+                }
+            ];
+
+            const ganttResourceColors = {
+                'Proje': { color: '#2563eb', dark: '#1d4ed8', light: '#dbeafe' },
+                'Yapılacak': { color: '#94a3b8', dark: '#64748b', light: '#f1f5f9' },
+                'Devam Ediyor': { color: '#0ea5e9', dark: '#0284c7', light: '#e0f2fe' },
+                'Beklemede': { color: '#f59e0b', dark: '#d97706', light: '#fef3c7' },
+                'Kontrolde': { color: '#8b5cf6', dark: '#7c3aed', light: '#ede9fe' },
+                'Bitti': { color: '#16a34a', dark: '#15803d', light: '#dcfce7' },
+                'İptal Edildi': { color: '#dc2626', dark: '#b91c1c', light: '#fee2e2' }
+            };
+
+            function buildGanttPalette(rows) {
+                const seenResources = [];
+                rows.forEach(function (row) {
+                    const resource = row[2];
+                    if (!seenResources.includes(resource)) {
+                        seenResources.push(resource);
+                    }
+                });
+
+                return seenResources.map(function (resource) {
+                    return ganttResourceColors[resource] || { color: '#2563eb', dark: '#1d4ed8', light: '#dbeafe' };
+                });
+            }
+
+            function drawGanttChart() {
+                const data = new google.visualization.DataTable();
+                data.addColumn('string', 'Task ID');
+                data.addColumn('string', 'Task Name');
+                data.addColumn('string', 'Resource');
+                data.addColumn('date', 'Start Date');
+                data.addColumn('date', 'End Date');
+                data.addColumn('number', 'Duration');
+                data.addColumn('number', 'Percent Complete');
+                data.addColumn('string', 'Dependencies');
+                data.addRows(ganttRows);
+
+                const options = {
+                    height: @chartHeight,
+                    backgroundColor: '#ffffff',
+                    gantt: {
+                        trackHeight: 36,
+                        barHeight: 22,
+                        percentEnabled: true,
+                        criticalPathEnabled: false,
+                        labelStyle: {
+                            fontName: 'Segoe UI',
+                            fontSize: 13,
+                            color: '#18202f'
+                        },
+                        innerGridHorizLine: {
+                            stroke: '#e6eaf0'
+                        },
+                        innerGridTrack: {
+                            fill: '#fbfcfe'
+                        },
+                        innerGridDarkTrack: {
+                            fill: '#f3f6fb'
+                        },
+                        palette: buildGanttPalette(ganttRows)
+                    }
+                };
+
+                const chart = new google.visualization.Gantt(document.getElementById('gantt_chart'));
+                google.visualization.events.addListener(chart, 'select', function () {
+                    const selected = chart.getSelection()[0];
+                    if (selected && ganttUrls[selected.row]) {
+                        window.location.href = ganttUrls[selected.row];
+                    }
+                });
+                chart.draw(data, options);
+            }
+
+            if (window.google?.charts) {
+                google.charts.load('current', { packages: ['gantt'], language: 'tr' });
+                google.charts.setOnLoadCallback(drawGanttChart);
+            }
+
+            window.setTimeout(function () {
+                const chart = document.getElementById('gantt_chart');
+                const error = document.getElementById('gantt_error');
+                if (chart && error && chart.children.length === 0) {
+                    error.classList.remove('d-none');
+                }
+            }, 5000);
+        </script>
+    }
+}

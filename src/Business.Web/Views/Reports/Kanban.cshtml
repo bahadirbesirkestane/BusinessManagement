@@ -1,0 +1,93 @@
+@model KanbanReportViewModel
+@{
+    ViewData["Title"] = "Kanban Diyagramı";
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">Raporlar ve diyagramlar</p>
+        <h2>Görev akış panosu</h2>
+        <p>Görevler durumlarına göre kolonlara ayrılır; sorumlu, atananlar, termin ve ilerleme bilgileri kart üzerinde okunur.</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Toplam görev</span>
+            <strong>@Model.TotalTaskCount</strong>
+        </div>
+        <div>
+            <span>Kontrolde</span>
+            <strong>@Model.ReviewTaskCount</strong>
+        </div>
+        <div>
+            <span>Geciken</span>
+            <strong>@Model.LateTaskCount</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Durum bazlı iş akışı</p>
+            <h2>Kanban görünümü</h2>
+        </div>
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-primary btn-sm" asp-action="Gantt">Gantt</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="ProjectTasks" asp-action="Index">Görev listesi</a>
+        </div>
+    </div>
+
+    <form asp-action="Kanban" method="get" class="diagram-filter-bar">
+        <select name="projectId" class="form-select form-select-sm">
+            <option value="">Tüm projeler</option>
+            @foreach (var project in Model.Projects)
+            {
+                <option value="@project.Id" selected="@(Model.ProjectId == project.Id)">@project.Text</option>
+            }
+        </select>
+        <button class="btn btn-primary btn-sm" type="submit">Uygula</button>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Kanban">Temizle</a>
+    </form>
+
+    <div class="kanban-board">
+        @foreach (var column in Model.Columns)
+        {
+            <section class="kanban-column">
+                <header>
+                    <span class="status-pill status-@column.StatusCss">@column.Title</span>
+                    <strong>@column.Tasks.Count</strong>
+                </header>
+
+                <div class="kanban-card-stack">
+                    @if (!column.Tasks.Any())
+                    {
+                        <p class="kanban-empty">Bu durumda görev yok.</p>
+                    }
+                    @foreach (var task in column.Tasks)
+                    {
+                        <a class="kanban-card @(task.IsLate ? "is-late" : "")" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
+                            <div class="kanban-card-top">
+                                <strong>@task.Title</strong>
+                                <span class="priority-pill priority-@task.PriorityCss">@task.PriorityText</span>
+                            </div>
+                            <div class="kanban-card-meta">
+                                <span>@task.ProjectText</span>
+                                <span>@task.CategoryText</span>
+                            </div>
+                            <div class="kanban-card-people">
+                                <span>Sorumlu: @task.ResponsibleText</span>
+                                <span>Atanan: @task.AssignedText</span>
+                            </div>
+                            <div class="kanban-card-bottom">
+                                <span>@(task.DueDate?.ToString("dd.MM.yyyy") ?? "Termin yok")</span>
+                                <div class="progress slim-progress">
+                                    <div class="progress-bar" style="width:@task.ProgressPercent%"></div>
+                                </div>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+</section>

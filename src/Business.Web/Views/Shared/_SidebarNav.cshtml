@@ -35,6 +35,15 @@
         },
         new
         {
+            Title = "Raporlar ve Diyagramlar",
+            Items = new[]
+            {
+                (Label: "Gantt Diyagramı", Url: "/Reports/Gantt"),
+                (Label: "Kanban Diyagramı", Url: "/Reports/Kanban")
+            }
+        },
+        new
+        {
             Title = "Görevler",
             Items = new[]
             {
@@ -165,6 +174,16 @@
         if (url.StartsWith("/Projects", StringComparison.OrdinalIgnoreCase))
         {
             return HasPermission(AppPermissions.ProjectsView, AppPermissions.ProjectsCreate, AppPermissions.ProjectsUpdate, AppPermissions.ProjectsChangeStatus, AppPermissions.ProjectsManage);
+        }
+
+        if (url.StartsWith("/Reports/Gantt", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.ProjectsView, AppPermissions.ProjectsManage);
+        }
+
+        if (url.StartsWith("/Reports/Kanban", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.TasksView, AppPermissions.ProjectsManage);
         }
 
         if (url.StartsWith("/PurchaseOrders", StringComparison.OrdinalIgnoreCase))
