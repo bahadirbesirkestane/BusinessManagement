@@ -1761,14 +1761,16 @@ a:hover {
 
 .planning-shell {
   display: grid;
-  grid-template-columns: minmax(360px, .95fr) minmax(520px, 1.45fr);
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
   gap: 14px;
-  overflow-x: auto;
+  align-items: start;
+  overflow: visible;
 }
 
 .planning-tree,
 .planning-timeline {
   min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -1806,13 +1808,14 @@ a:hover {
   display: grid;
 }
 
+.planning-tree-list {
+  overflow-x: hidden;
+}
+
 .planning-tree-row {
-  display: grid;
-  grid-template-columns: 72px minmax(180px, 1fr) auto;
-  gap: 10px;
-  align-items: center;
+  display: block;
   min-height: 48px;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
 }
@@ -1827,12 +1830,6 @@ a:hover {
   color: var(--ink);
 }
 
-.planning-tree-code {
-  color: var(--muted);
-  font-size: .8rem;
-  font-weight: 800;
-}
-
 .planning-tree-title {
   display: flex;
   align-items: center;
@@ -1843,6 +1840,7 @@ a:hover {
 
 .planning-tree-title strong {
   overflow: hidden;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1865,7 +1863,8 @@ a:hover {
   width: 12px;
   flex: 0 0 12px;
   color: var(--accent);
-  font-size: .72rem;
+  font-size: 1rem;
+  font-weight: 900;
 }
 
 .planning-timeline-row {
@@ -2047,7 +2046,7 @@ a:hover {
   }
 
   .planning-shell {
-    grid-template-columns: minmax(360px, 1fr) minmax(520px, 1.2fr);
+    grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
   }
 
   .backup-grid {
@@ -2148,7 +2147,7 @@ a:hover {
   }
 
   .planning-shell {
-    grid-template-columns: minmax(620px, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .topbar h1 {

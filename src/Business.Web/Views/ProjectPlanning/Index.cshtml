@@ -29,7 +29,7 @@
     <div class="panel-heading">
         <div>
             <p class="section-kicker">Proje bazlı planlama</p>
-            <h2>Gantt 2 iskeleti</h2>
+            <h2>Gantt 2 görev ağacı</h2>
         </div>
         <div class="toolbar-actions">
             <a class="btn btn-outline-primary btn-sm" asp-controller="Reports" asp-action="Gantt">Mevcut Gantt</a>
@@ -75,7 +75,7 @@
 
                 @if (!Model.Tasks.Any())
                 {
-                    <p class="planning-empty">Bu projede henüz görev yok. Görevler eklendikçe ağaç yapısı burada görünecek.</p>
+                    <p class="planning-empty">Bu proje için plan görevi bulunamadı.</p>
                 }
                 else
                 {
@@ -83,11 +83,10 @@
                         @foreach (var task in Model.Tasks)
                         {
                             <a class="planning-tree-row" style="--task-level:@task.OutlineLevel" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
-                                <span class="planning-tree-code">@(string.IsNullOrWhiteSpace(task.WbsCode) ? "-" : task.WbsCode)</span>
                                 <span class="planning-tree-title">
                                     @if (task.HasChildren)
                                     {
-                                        <span class="planning-tree-marker">▸</span>
+                                        <span class="planning-tree-marker">&rsaquo;</span>
                                     }
                                     else
                                     {
@@ -99,7 +98,6 @@
                                         <em>Kilometre taşı</em>
                                     }
                                 </span>
-                                <span class="status-pill status-@task.StatusCss">@task.StatusText</span>
                             </a>
                         }
                     </div>
