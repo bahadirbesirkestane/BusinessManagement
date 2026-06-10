@@ -7,6 +7,9 @@ public class ProjectPlanningIndexViewModel
 {
     public Guid? ProjectId { get; set; }
     public string? SelectedProjectText { get; set; }
+    public ProjectStatus? SelectedProjectStatus { get; set; }
+    public string SelectedProjectStatusText { get; set; } = string.Empty;
+    public string SelectedProjectStatusCss { get; set; } = string.Empty;
     public IReadOnlyList<ProjectPlanningProjectOptionViewModel> Projects { get; set; } = [];
     public IReadOnlyList<ProjectPlanningTaskRowViewModel> Tasks { get; set; } = [];
     public IReadOnlyList<ProjectPlanningGanttTaskViewModel> GanttTasks { get; set; } = [];

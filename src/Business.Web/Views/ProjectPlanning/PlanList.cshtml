@@ -1,0 +1,460 @@
+@model ProjectPlanningIndexViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Proje Planlama Liste";
+    var canCreateTask = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canUpdateTask = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canChangeTaskStatus = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canChangeProjectStatus = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsChangeStatus) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+    var today = DateTime.Today;
+    var planningTasks = Model.Tasks.Select(x => new
+    {
+        id = x.Id.ToString(),
+        parentId = x.ParentTaskId?.ToString(),
+        title = x.Title,
+        description = x.Description,
+        start = x.StartDate?.ToString("yyyy-MM-dd"),
+        end = x.DueDate?.ToString("yyyy-MM-dd"),
+        progress = x.Status == WorkTaskStatus.Done ? 100 : x.ProgressPercent,
+        statusValue = (int)x.Status,
+        priorityValue = (int)x.Priority,
+        assignedUserIds = x.AssignedUserIds,
+        isMilestone = x.IsMilestone
+    });
+
+    string GetDateRangeText(ProjectPlanningTaskRowViewModel task)
+    {
+        if (!task.StartDate.HasValue && !task.DueDate.HasValue)
+        {
+            return "Tarih yok";
+        }
+
+        return $"{task.StartDate?.ToString("dd.MM.yyyy") ?? "-"} - {task.DueDate?.ToString("dd.MM.yyyy") ?? "-"}";
+    }
+
+    string GetDayInfo(ProjectPlanningTaskRowViewModel task)
+    {
+        if (!task.DueDate.HasValue)
+        {
+            return "Termin yok";
+        }
+
+        if (task.Status is WorkTaskStatus.Done)
+        {
+            return "Tamamlandı";
+        }
+
+        if (task.Status is WorkTaskStatus.Cancelled)
+        {
+            return "İptal edildi";
+        }
+
+        var dayDiff = (task.DueDate.Value.Date - today).Days;
+        return dayDiff >= 0 ? $"{dayDiff} gün kaldı" : $"{Math.Abs(dayDiff)} gün geçti";
+    }
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">Raporlar ve diyagramlar</p>
+        <h2>Proje planlama listesi</h2>
+        <p>Seçilen projenin görevleri ağaç düzeninde izlenir; sağ tarafta tarih aralığı, gün bilgisi ve durum yönetimi gösterilir.</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Proje seçeneği</span>
+            <strong>@Model.Projects.Count</strong>
+        </div>
+        <div>
+            <span>Görev satırı</span>
+            <strong>@Model.Tasks.Count</strong>
+        </div>
+        <div>
+            <span>Durum</span>
+            <strong>@(Model.SelectedProjectStatusText.Length > 0 ? Model.SelectedProjectStatusText : "-")</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Proje bazlı planlama</p>
+            <h2>Plan liste görünümü</h2>
+        </div>
+        <div class="toolbar-actions">
+            @if (canCreateTask && Model.ProjectId.HasValue && Model.SelectedProjectText is not null)
+            {
+                <button class="btn btn-primary btn-sm" type="button" data-plan-list-task-trigger data-parent-id="" data-parent-title="">Ana görev ekle</button>
+            }
+            <a class="btn btn-outline-primary btn-sm" asp-action="Index" asp-route-projectId="@Model.ProjectId">Gantt 2</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="Reports" asp-action="Kanban">Kanban</a>
+        </div>
+    </div>
+
+    <form asp-action="PlanList" method="get" class="diagram-filter-bar">
+        <select name="projectId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Proje ara veya seç">
+            <option value="">Proje seçin</option>
+            @foreach (var project in Model.Projects)
+            {
+                <option value="@project.Id" selected="@(Model.ProjectId == project.Id)">@project.Text</option>
+            }
+        </select>
+        <button class="btn btn-primary btn-sm" type="submit">Uygula</button>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="PlanList">Temizle</a>
+    </form>
+
+    @if (!Model.ProjectId.HasValue)
+    {
+        <p class="empty-note">Plan liste görünümünü açmak için üst alandan bir proje seçin.</p>
+    }
+    else if (Model.SelectedProjectText is null)
+    {
+        <p class="empty-note">Seçilen proje bulunamadı veya iptal edilmiş olabilir.</p>
+    }
+    else
+    {
+        <div class="plan-list-project status-@Model.SelectedProjectStatusCss">
+            <div>
+                <span>Seçili proje</span>
+                <strong>@Model.SelectedProjectText</strong>
+            </div>
+            <div>
+                @if (canChangeProjectStatus && Model.SelectedProjectStatus.HasValue)
+                {
+                    <form asp-controller="Projects" asp-action="UpdateStatus" method="post" class="inline-status-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.ProjectId" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <select name="status" class="status-select status-@Model.SelectedProjectStatusCss" onchange="this.form.submit()" aria-label="Proje durumu">
+                            @foreach (ProjectStatus status in Enum.GetValues<ProjectStatus>())
+                            {
+                                <option value="@status" selected="@(Model.SelectedProjectStatus == status)">@status.ToDisplayName()</option>
+                            }
+                        </select>
+                    </form>
+                }
+                else
+                {
+                    <span class="status-pill status-@Model.SelectedProjectStatusCss">@Model.SelectedProjectStatusText</span>
+                }
+            </div>
+        </div>
+
+        @if (!Model.Tasks.Any())
+        {
+            <p class="planning-empty">Bu proje için plan görevi bulunamadı.</p>
+        }
+        else
+        {
+            <div class="plan-list-board">
+                <div class="plan-list-head">
+                    <span>Görev ağacı</span>
+                    <span>Tarih ve durum</span>
+                </div>
+                @foreach (var task in Model.Tasks)
+                {
+                    <div class="plan-list-row status-@task.StatusCss" data-plan-list-row data-task-id="@task.Id" data-parent-id="@task.ParentTaskId">
+                        <div class="plan-list-task">
+                            @if (task.HasChildren)
+                            {
+                                <button class="planning-tree-toggle" type="button" data-plan-list-toggle="@task.Id" aria-label="Alt görevleri kapat/aç">&rsaquo;</button>
+                            }
+                            else
+                            {
+                                <span class="planning-tree-toggle-placeholder"></span>
+                            }
+                            <a class="planning-tree-title" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id" style="--task-level:@task.OutlineLevel">
+                                <strong>@task.DisplayWbsCode @task.Title</strong>
+                                @if (task.IsMilestone)
+                                {
+                                    <em>Kilometre taşı</em>
+                                }
+                            </a>
+                            <div class="planning-task-actions">
+                                @if (canCreateTask)
+                                {
+                                    <button class="planning-add-child" type="button" data-plan-list-task-trigger data-parent-id="@task.Id" data-parent-title="@task.Title" title="Alt görev ekle">+</button>
+                                }
+                                <button class="planning-add-child is-disabled" type="button" title="Silme bu aşamada pasif" aria-disabled="true">−</button>
+                                @if (canUpdateTask)
+                                {
+                                    <button class="planning-add-child" type="button" data-plan-list-edit-task="@task.Id" title="Görevi düzenle">✎</button>
+                                }
+                            </div>
+                        </div>
+                        <div class="plan-list-meta status-@task.StatusCss">
+                            <div>
+                                <span>Tarih aralığı</span>
+                                <strong>@GetDateRangeText(task)</strong>
+                            </div>
+                            <div>
+                                <span>Gün bilgisi</span>
+                                <strong>@GetDayInfo(task)</strong>
+                            </div>
+                            <div>
+                                @if (canChangeTaskStatus)
+                                {
+                                    <form asp-controller="ProjectTasks" asp-action="UpdateStatus" method="post" class="inline-status-form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@task.Id" />
+                                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                        <select name="status" class="status-select status-@task.StatusCss" onchange="this.form.submit()" aria-label="Görev durumu">
+                                            @foreach (WorkTaskStatus status in Enum.GetValues<WorkTaskStatus>())
+                                            {
+                                                <option value="@status" selected="@(task.Status == status)">@status.ToDisplayName()</option>
+                                            }
+                                        </select>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="status-pill status-@task.StatusCss">@task.StatusText</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</section>
+
+@if ((canCreateTask || canUpdateTask) && Model.ProjectId.HasValue && Model.SelectedProjectText is not null)
+{
+    <div class="modal fade planning-task-modal" id="planListTaskModal" tabindex="-1" aria-labelledby="planListTaskModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <form asp-action="AddTask" method="post" id="planListTaskForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnAction" value="PlanList" />
+                    <input asp-for="TaskForm.TaskId" type="hidden" />
+                    <input asp-for="TaskForm.ProjectId" type="hidden" value="@Model.ProjectId" />
+                    <input asp-for="TaskForm.ParentTaskId" type="hidden" />
+                    <div class="modal-header">
+                        <div>
+                            <p class="section-kicker mb-1">Proje Planlama Liste</p>
+                            <h2 class="modal-title fs-5" id="planListTaskModalTitle">Görev ekle</h2>
+                            <small class="text-muted" id="planListTaskParentText">Ana görev olarak eklenecek.</small>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="form-grid">
+                            <div class="mb-3 wide">
+                                <label asp-for="TaskForm.Title" class="form-label">Başlık</label>
+                                <input asp-for="TaskForm.Title" class="form-control" />
+                                <span asp-validation-for="TaskForm.Title" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3 wide">
+                                <label asp-for="TaskForm.Description" class="form-label">Açıklama</label>
+                                <textarea asp-for="TaskForm.Description" class="form-control" rows="3"></textarea>
+                                <span asp-validation-for="TaskForm.Description" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.StartDate" class="form-label">Başlangıç tarihi</label>
+                                <input asp-for="TaskForm.StartDate" type="date" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.DueDate" class="form-label">Termin tarihi</label>
+                                <input asp-for="TaskForm.DueDate" type="date" class="form-control" />
+                                <span asp-validation-for="TaskForm.DueDate" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.Status" class="form-label">Durum</label>
+                                <select asp-for="TaskForm.Status" asp-items="Html.GetEnumSelectList<WorkTaskStatus>()" class="form-select"></select>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.Priority" class="form-label">Öncelik</label>
+                                <select asp-for="TaskForm.Priority" asp-items="Html.GetEnumSelectList<ProjectPriority>()" class="form-select"></select>
+                            </div>
+                            <div class="mb-3 wide">
+                                <label class="form-label">Atanan kişiler</label>
+                                <div class="planning-user-checks">
+                                    @foreach (var user in Model.Users)
+                                    {
+                                        <label class="check-card">
+                                            <input type="checkbox" name="TaskForm.AssignedUserIds" value="@user.Id" checked="@Model.TaskForm.AssignedUserIds.Contains(user.Id)" />
+                                            <span>@user.Text</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.ProgressPercent" class="form-label">İlerleme yüzdesi</label>
+                                <input asp-for="TaskForm.ProgressPercent" type="number" min="0" max="100" class="form-control" />
+                                <span asp-validation-for="TaskForm.ProgressPercent" class="text-danger"></span>
+                            </div>
+                            <label class="check-card check-inline wide">
+                                <input asp-for="TaskForm.IsMilestone" />
+                                <span>Kilometre taşı mı?</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                        <button type="submit" class="btn btn-primary">Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const planListTasks = @Html.Raw(JsonSerializer.Serialize(planningTasks));
+
+        (function () {
+            const rows = Array.from(document.querySelectorAll('[data-plan-list-row]'));
+            const collapsedIds = new Set();
+
+            function isHiddenByCollapsedParent(row) {
+                let parentId = row.dataset.parentId;
+                while (parentId) {
+                    if (collapsedIds.has(parentId)) {
+                        return true;
+                    }
+
+                    const parentRow = rows.find(function (candidate) {
+                        return candidate.dataset.taskId === parentId;
+                    });
+                    parentId = parentRow ? parentRow.dataset.parentId : '';
+                }
+
+                return false;
+            }
+
+            function syncTreeVisibility() {
+                rows.forEach(function (row) {
+                    row.classList.toggle('is-hidden', isHiddenByCollapsedParent(row));
+                });
+            }
+
+            document.querySelectorAll('[data-plan-list-toggle]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const taskId = button.dataset.planListToggle;
+                    if (collapsedIds.has(taskId)) {
+                        collapsedIds.delete(taskId);
+                        button.classList.remove('is-collapsed');
+                    } else {
+                        collapsedIds.add(taskId);
+                        button.classList.add('is-collapsed');
+                    }
+
+                    syncTreeVisibility();
+                });
+            });
+
+            const modalElement = document.getElementById('planListTaskModal');
+            if (!modalElement || typeof bootstrap === 'undefined') {
+                return;
+            }
+
+            const modal = new bootstrap.Modal(modalElement);
+            const form = document.getElementById('planListTaskForm');
+            const title = document.getElementById('planListTaskModalTitle');
+            const parentText = document.getElementById('planListTaskParentText');
+            const addTaskUrl = '@Url.Action("AddTask", "ProjectPlanning")';
+            const updateTaskUrl = '@Url.Action("UpdateTask", "ProjectPlanning")';
+
+            function setField(name, value) {
+                const field = modalElement.querySelector(`[name="${name}"]`);
+                if (field) {
+                    field.value = value ?? '';
+                }
+            }
+
+            function setCheckbox(name, checked) {
+                const field = modalElement.querySelector(`[name="${name}"]`);
+                if (field) {
+                    field.checked = Boolean(checked);
+                }
+            }
+
+            function setAssignedUsers(userIds) {
+                const selectedIds = new Set(userIds || []);
+                modalElement.querySelectorAll('[name="TaskForm.AssignedUserIds"]').forEach(function (checkbox) {
+                    checkbox.checked = selectedIds.has(checkbox.value);
+                });
+            }
+
+            function openCreate(parentId, parentTitle) {
+                form.action = addTaskUrl;
+                setField('TaskForm.TaskId', '');
+                setField('TaskForm.ParentTaskId', parentId || '');
+                setField('TaskForm.Title', '');
+                setField('TaskForm.Description', '');
+                setField('TaskForm.StartDate', '');
+                setField('TaskForm.DueDate', '');
+                setField('TaskForm.Status', '0');
+                setField('TaskForm.Priority', '1');
+                setField('TaskForm.ProgressPercent', '0');
+                setCheckbox('TaskForm.IsMilestone', false);
+                setAssignedUsers([]);
+                title.textContent = parentId ? 'Alt görev ekle' : 'Ana görev ekle';
+                parentText.textContent = parentId ? parentTitle + ' altına eklenecek.' : 'Ana görev olarak eklenecek.';
+                modal.show();
+            }
+
+            function openEdit(task) {
+                form.action = updateTaskUrl;
+                setField('TaskForm.TaskId', task.id);
+                setField('TaskForm.ParentTaskId', task.parentId || '');
+                setField('TaskForm.Title', task.title || '');
+                setField('TaskForm.Description', task.description || '');
+                setField('TaskForm.StartDate', task.start || '');
+                setField('TaskForm.DueDate', task.end || '');
+                setField('TaskForm.Status', String(task.statusValue ?? 0));
+                setField('TaskForm.Priority', String(task.priorityValue ?? 1));
+                setField('TaskForm.ProgressPercent', String(task.progress ?? 0));
+                setCheckbox('TaskForm.IsMilestone', task.isMilestone);
+                setAssignedUsers(task.assignedUserIds || []);
+                title.textContent = 'Görev düzenle';
+                parentText.textContent = 'Üst görev bu aşamada değiştirilmeyecek.';
+                modal.show();
+            }
+
+            document.addEventListener('click', function (event) {
+                const createButton = event.target.closest('[data-plan-list-task-trigger]');
+                if (createButton) {
+                    openCreate(createButton.dataset.parentId || '', createButton.dataset.parentTitle || '');
+                    return;
+                }
+
+                const editButton = event.target.closest('[data-plan-list-edit-task]');
+                if (!editButton) {
+                    return;
+                }
+
+                const task = planListTasks.find(function (candidate) {
+                    return candidate.id === editButton.dataset.planListEditTask;
+                });
+
+                if (task) {
+                    openEdit(task);
+                }
+            });
+
+            if (@Html.Raw(JsonSerializer.Serialize(Model.OpenTaskForm))) {
+                if (@Html.Raw(JsonSerializer.Serialize(Model.TaskFormMode)) === 'edit') {
+                    form.action = updateTaskUrl;
+                    title.textContent = 'Görev düzenle';
+                    parentText.textContent = 'Üst görev bu aşamada değiştirilmeyecek.';
+                }
+                modal.show();
+            }
+        })();
+    </script>
+}

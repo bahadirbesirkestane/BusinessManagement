@@ -35,9 +35,21 @@ public class ProjectPlanningController : Controller
         return View(model);
     }
 
+    public async Task<IActionResult> PlanList(Guid? projectId, CancellationToken cancellationToken)
+    {
+        var model = await BuildIndexViewModelAsync(projectId, new ProjectPlanningTaskFormViewModel(), false, "create", cancellationToken);
+        ViewBag.Breadcrumbs = new Dictionary<string, string?>
+        {
+            ["Raporlar ve Diyagramlar"] = null,
+            ["Proje Planlama Liste"] = null
+        };
+
+        return View(model);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddTask([Bind(Prefix = "TaskForm")] ProjectPlanningTaskFormViewModel taskForm, CancellationToken cancellationToken)
+    public async Task<IActionResult> AddTask([Bind(Prefix = "TaskForm")] ProjectPlanningTaskFormViewModel taskForm, string? returnAction, CancellationToken cancellationToken)
     {
         if (!CanCreatePlanningTask())
         {
@@ -69,7 +81,7 @@ public class ProjectPlanningController : Controller
         if (!ModelState.IsValid)
         {
             var invalidModel = await BuildIndexViewModelAsync(taskForm.ProjectId, taskForm, true, "create", cancellationToken);
-            return View(nameof(Index), invalidModel);
+            return View(GetPlanningViewName(returnAction), invalidModel);
         }
 
         var sortOrder = await GetNextSortOrderAsync(taskForm.ProjectId, taskForm.ParentTaskId, cancellationToken);
@@ -98,12 +110,12 @@ public class ProjectPlanningController : Controller
         await AddAssignmentsAsync(task.Id, taskForm.AssignedUserIds, cancellationToken);
         await _projectTimelineService.AddForTaskAsync(task.Id, "Görev eklendi", task.Title, cancellationToken);
 
-        return RedirectToAction(nameof(Index), new { projectId = taskForm.ProjectId });
+        return RedirectToAction(GetPlanningActionName(returnAction), new { projectId = taskForm.ProjectId });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateTask([Bind(Prefix = "TaskForm")] ProjectPlanningTaskFormViewModel taskForm, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateTask([Bind(Prefix = "TaskForm")] ProjectPlanningTaskFormViewModel taskForm, string? returnAction, CancellationToken cancellationToken)
     {
         if (!CanUpdatePlanningTask())
         {
@@ -136,7 +148,7 @@ public class ProjectPlanningController : Controller
         if (!ModelState.IsValid || task is null)
         {
             var invalidModel = await BuildIndexViewModelAsync(taskForm.ProjectId, taskForm, true, "edit", cancellationToken);
-            return View(nameof(Index), invalidModel);
+            return View(GetPlanningViewName(returnAction), invalidModel);
         }
 
         task.Title = taskForm.Title.Trim();
@@ -152,7 +164,7 @@ public class ProjectPlanningController : Controller
         await UpdateAssignmentsAsync(task.Id, taskForm.AssignedUserIds, cancellationToken);
         await _projectTimelineService.AddForTaskAsync(task.Id, "Görev güncellendi", task.Title, cancellationToken);
 
-        return RedirectToAction(nameof(Index), new { projectId = taskForm.ProjectId });
+        return RedirectToAction(GetPlanningActionName(returnAction), new { projectId = taskForm.ProjectId });
     }
 
     private async Task<ProjectPlanningIndexViewModel> BuildIndexViewModelAsync(
@@ -174,11 +186,18 @@ public class ProjectPlanningController : Controller
             .ToListAsync(cancellationToken);
 
         var selectedProjectText = projects.FirstOrDefault(x => x.Id == projectId)?.Text;
+        ProjectStatus? selectedProjectStatus = null;
         var tasks = new List<ProjectPlanningTaskRowViewModel>();
         var ganttTasks = new List<ProjectPlanningGanttTaskViewModel>();
 
         if (projectId.HasValue && selectedProjectText is not null)
         {
+            selectedProjectStatus = await _context.Projects
+                .AsNoTracking()
+                .Where(x => x.Id == projectId.Value)
+                .Select(x => (ProjectStatus?)x.Status)
+                .FirstOrDefaultAsync(cancellationToken);
+
             var projectTasks = await _context.ProjectTasks
                 .Include(x => x.Assignments)
                 .Include(x => x.Updates)
@@ -210,6 +229,9 @@ public class ProjectPlanningController : Controller
         {
             ProjectId = projectId,
             SelectedProjectText = selectedProjectText,
+            SelectedProjectStatus = selectedProjectStatus,
+            SelectedProjectStatusText = selectedProjectStatus?.ToDisplayName() ?? string.Empty,
+            SelectedProjectStatusCss = selectedProjectStatus?.ToString().ToLowerInvariant() ?? string.Empty,
             Projects = projects,
             Tasks = tasks,
             GanttTasks = ganttTasks,
@@ -218,6 +240,20 @@ public class ProjectPlanningController : Controller
             OpenTaskForm = openTaskForm,
             TaskFormMode = taskFormMode
         };
+    }
+
+    private static string GetPlanningActionName(string? returnAction)
+    {
+        return string.Equals(returnAction, nameof(PlanList), StringComparison.OrdinalIgnoreCase)
+            ? nameof(PlanList)
+            : nameof(Index);
+    }
+
+    private static string GetPlanningViewName(string? returnAction)
+    {
+        return string.Equals(returnAction, nameof(PlanList), StringComparison.OrdinalIgnoreCase)
+            ? nameof(PlanList)
+            : nameof(Index);
     }
 
     private async Task<int> GetNextSortOrderAsync(Guid projectId, Guid? parentTaskId, CancellationToken cancellationToken)
