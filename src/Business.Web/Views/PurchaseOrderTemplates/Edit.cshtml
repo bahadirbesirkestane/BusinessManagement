@@ -1,0 +1,29 @@
+@model PurchaseOrderTemplateFormViewModel
+@{
+    ViewData["Title"] = "Sipariş Şablonu Düzenle";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Sipariş şablonları</p>
+            <h2>Şablonu düzenle</h2>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Details" asp-route-id="@Model.Id">Detaya dön</a>
+    </div>
+
+    <form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        <partial name="_TemplateForm" model="Model" />
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Vazgeç</a>
+            <button type="submit" class="btn btn-primary">Güncelle</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

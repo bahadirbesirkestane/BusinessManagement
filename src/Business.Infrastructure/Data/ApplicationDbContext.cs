@@ -30,6 +30,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ProjectTaskUpdate> ProjectTaskUpdates => Set<ProjectTaskUpdate>();
     public DbSet<ProjectCostItem> ProjectCostItems => Set<ProjectCostItem>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderTemplate> PurchaseOrderTemplates => Set<PurchaseOrderTemplate>();
+    public DbSet<PurchaseOrderTemplateLine> PurchaseOrderTemplateLines => Set<PurchaseOrderTemplateLine>();
     public DbSet<MaterialRequest> MaterialRequests => Set<MaterialRequest>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
@@ -275,6 +277,33 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.RequestedByUserId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(x => x.Supplier).WithMany(x => x.PurchaseOrders).HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(x => x.Material).WithMany(x => x.PurchaseOrders).HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<PurchaseOrderTemplate>(entity =>
+        {
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.Code).HasMaxLength(40);
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.Property(x => x.DefaultPaymentTerm).HasMaxLength(80);
+            entity.Property(x => x.DefaultCurrency).HasMaxLength(3);
+            entity.Property(x => x.DefaultVatRate).HasColumnType("decimal(5,2)");
+            entity.HasOne(x => x.DefaultSupplier).WithMany().HasForeignKey(x => x.DefaultSupplierId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasMany(x => x.Lines).WithOne(x => x.PurchaseOrderTemplate).HasForeignKey(x => x.PurchaseOrderTemplateId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PurchaseOrderTemplateLine>(entity =>
+        {
+            entity.Property(x => x.Content).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Quantity).HasColumnType("decimal(18,3)");
+            entity.Property(x => x.QuantityText).HasMaxLength(80);
+            entity.Property(x => x.Unit).HasMaxLength(40);
+            entity.Property(x => x.Quality).HasMaxLength(120);
+            entity.Property(x => x.UnitPrice).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.OrderTotal).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.PurchaseOrderTemplateId, x.SortOrder });
+            entity.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<MaterialRequest>(entity =>

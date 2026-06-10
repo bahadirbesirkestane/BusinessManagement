@@ -1,0 +1,298 @@
+@model PurchaseOrderTemplateDetailsViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Sipariş Şablonu Detayı";
+    var canManageTemplates = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
+    var lineItems = Model.Lines.Select(x => new
+    {
+        id = x.Id.ToString(),
+        content = x.Content,
+        materialId = x.MaterialId?.ToString(),
+        quantity = x.Quantity,
+        quantityText = x.QuantityText,
+        unit = x.Unit,
+        quality = x.Quality,
+        unitPrice = x.UnitPrice,
+        orderTotal = x.OrderTotal,
+        notes = x.Notes
+    });
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">Sipariş şablonları</p>
+        <h2>@Model.Name</h2>
+        <p>@(string.IsNullOrWhiteSpace(Model.Description) ? "Tekrar eden satın alma kayıtları için kullanılacak ön tanımlı satırları burada yönetin." : Model.Description)</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Şablon kodu</span>
+            <strong>@(string.IsNullOrWhiteSpace(Model.Code) ? "-" : Model.Code)</strong>
+        </div>
+        <div>
+            <span>Varsayılan tedarikçi</span>
+            <strong>@(Model.SupplierName ?? "-")</strong>
+        </div>
+        <div>
+            <span>Şablon satırı</span>
+            <strong>@Model.Lines.Count</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Şablon özeti</p>
+            <h2>Varsayılan bilgiler</h2>
+        </div>
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Listeye dön</a>
+            @if (canManageTemplates)
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Şablonu düzenle</a>
+                <button class="btn btn-primary btn-sm" type="button" data-template-line-trigger>Satır ekle</button>
+            }
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="panel-block h-100">
+                <dl class="mb-0">
+                    <div class="mb-2"><dt>Kapsam</dt><dd>@Model.ScopeText</dd></div>
+                    <div class="mb-2"><dt>Varsayılan durum</dt><dd>@Model.StatusText</dd></div>
+                    <div class="mb-2"><dt>Vade</dt><dd>@(Model.DefaultPaymentTerm ?? "-")</dd></div>
+                    <div class="mb-2"><dt>Para birimi</dt><dd>@Model.DefaultCurrency</dd></div>
+                    <div><dt>KDV oranı</dt><dd>@(Model.DefaultVatRate?.ToString("0.##") ?? "-")</dd></div>
+                </dl>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="panel-block h-100">
+                <div class="panel-heading">
+                    <div>
+                        <p class="section-kicker">Şablon satırları</p>
+                        <h2>Satın alma kalemleri</h2>
+                    </div>
+                </div>
+
+                @if (!Model.Lines.Any())
+                {
+                    <p class="empty-note">Bu şablona henüz satır eklenmemiş.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>İçerik</th>
+                                    <th>Malzeme</th>
+                                    <th>Miktar</th>
+                                    <th>Birim fiyat</th>
+                                    <th>Tutar</th>
+                                    <th class="text-end">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var line in Model.Lines)
+                                {
+                                    <tr>
+                                        <td>@line.SortOrder</td>
+                                        <td>
+                                            <strong>@line.Content</strong>
+                                            @if (!string.IsNullOrWhiteSpace(line.Quality) || !string.IsNullOrWhiteSpace(line.Notes))
+                                            {
+                                                <div class="text-muted small">
+                                                    @(string.IsNullOrWhiteSpace(line.Quality) ? "" : $"Kalite: {line.Quality}")
+                                                    @(string.IsNullOrWhiteSpace(line.Notes) ? "" : $" | Not: {line.Notes}")
+                                                </div>
+                                            }
+                                        </td>
+                                        <td>@(line.MaterialName ?? "-")</td>
+                                        <td>@(line.QuantityText ?? line.Quantity?.ToString("0.###") ?? "-") @(line.Unit ?? "")</td>
+                                        <td>@(line.UnitPrice?.ToString("N2") ?? "-")</td>
+                                        <td>@(line.OrderTotal?.ToString("N2") ?? "-")</td>
+                                        <td class="text-end">
+                                            @if (canManageTemplates)
+                                            {
+                                                <button class="btn btn-outline-secondary btn-sm" type="button" data-template-edit-line="@line.Id">Düzenle</button>
+                                                <form asp-action="DeleteLine" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="templateId" value="@Model.Id" />
+                                                    <input type="hidden" name="lineId" value="@line.Id" />
+                                                    <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu şablon satırı silinsin mi?');">Sil</button>
+                                                </form>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+@if (canManageTemplates)
+{
+    <div class="modal fade planning-task-modal" id="templateLineModal" tabindex="-1" aria-labelledby="templateLineModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <form asp-action="AddLine" method="post" id="templateLineForm">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="LineForm.Id" type="hidden" />
+                    <input asp-for="LineForm.PurchaseOrderTemplateId" type="hidden" value="@Model.Id" />
+                    <div class="modal-header">
+                        <div>
+                            <p class="section-kicker mb-1">Sipariş şablonları</p>
+                            <h2 class="modal-title fs-5" id="templateLineModalTitle">Şablon satırı ekle</h2>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="form-grid">
+                            <div class="mb-3 wide">
+                                <label asp-for="LineForm.Content" class="form-label">Sipariş içeriği</label>
+                                <input asp-for="LineForm.Content" class="form-control" />
+                                <span asp-validation-for="LineForm.Content" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.MaterialId" class="form-label">Malzeme</label>
+                                <select asp-for="LineForm.MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
+                                    <option value="">Seçilmedi</option>
+                                    @foreach (var material in Model.Materials)
+                                    {
+                                        <option value="@material.Value">@material.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.Quantity" class="form-label">Miktar</label>
+                                <input asp-for="LineForm.Quantity" type="number" step="0.001" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.QuantityText" class="form-label">Miktar metni</label>
+                                <input asp-for="LineForm.QuantityText" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.Unit" class="form-label">Birim</label>
+                                <input asp-for="LineForm.Unit" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.Quality" class="form-label">Kalite</label>
+                                <input asp-for="LineForm.Quality" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.UnitPrice" class="form-label">Birim fiyat</label>
+                                <input asp-for="LineForm.UnitPrice" type="number" step="0.01" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.OrderTotal" class="form-label">Tutar</label>
+                                <input asp-for="LineForm.OrderTotal" type="number" step="0.01" class="form-control" />
+                            </div>
+                            <div class="mb-3 wide">
+                                <label asp-for="LineForm.Notes" class="form-label">Not</label>
+                                <textarea asp-for="LineForm.Notes" class="form-control" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                        <button type="submit" class="btn btn-primary">Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const templateLineItems = @Html.Raw(JsonSerializer.Serialize(lineItems));
+
+        (() => {
+            const modalElement = document.getElementById('templateLineModal');
+            if (!modalElement || typeof bootstrap === 'undefined') {
+                return;
+            }
+
+            const modal = new bootstrap.Modal(modalElement);
+            const form = document.getElementById('templateLineForm');
+            const title = document.getElementById('templateLineModalTitle');
+            const addUrl = '@Url.Action("AddLine", "PurchaseOrderTemplates")';
+            const updateUrl = '@Url.Action("UpdateLine", "PurchaseOrderTemplates")';
+
+            function setField(name, value) {
+                const field = modalElement.querySelector(`[name="${name}"]`);
+                if (field) {
+                    field.value = value ?? '';
+                }
+            }
+
+            function openCreate() {
+                form.action = addUrl;
+                setField('LineForm.Id', '');
+                setField('LineForm.Content', '');
+                setField('LineForm.MaterialId', '');
+                setField('LineForm.Quantity', '');
+                setField('LineForm.QuantityText', '');
+                setField('LineForm.Unit', '');
+                setField('LineForm.Quality', '');
+                setField('LineForm.UnitPrice', '');
+                setField('LineForm.OrderTotal', '');
+                setField('LineForm.Notes', '');
+                title.textContent = 'Şablon satırı ekle';
+                modal.show();
+            }
+
+            function openEdit(lineId) {
+                const line = templateLineItems.find(x => x.id === lineId);
+                if (!line) {
+                    return;
+                }
+
+                form.action = updateUrl;
+                setField('LineForm.Id', line.id);
+                setField('LineForm.Content', line.content || '');
+                setField('LineForm.MaterialId', line.materialId || '');
+                setField('LineForm.Quantity', line.quantity ?? '');
+                setField('LineForm.QuantityText', line.quantityText || '');
+                setField('LineForm.Unit', line.unit || '');
+                setField('LineForm.Quality', line.quality || '');
+                setField('LineForm.UnitPrice', line.unitPrice ?? '');
+                setField('LineForm.OrderTotal', line.orderTotal ?? '');
+                setField('LineForm.Notes', line.notes || '');
+                title.textContent = 'Şablon satırını düzenle';
+                modal.show();
+            }
+
+            document.addEventListener('click', function (event) {
+                if (event.target.closest('[data-template-line-trigger]')) {
+                    openCreate();
+                    return;
+                }
+
+                const editButton = event.target.closest('[data-template-edit-line]');
+                if (editButton) {
+                    openEdit(editButton.dataset.templateEditLine);
+                }
+            });
+
+            if (@Html.Raw(JsonSerializer.Serialize(Model.OpenLineForm))) {
+                if (@Html.Raw(JsonSerializer.Serialize(Model.LineFormMode)) === 'edit') {
+                    form.action = updateUrl;
+                    title.textContent = 'Şablon satırını düzenle';
+                }
+                modal.show();
+            }
+        })();
+    </script>
+}

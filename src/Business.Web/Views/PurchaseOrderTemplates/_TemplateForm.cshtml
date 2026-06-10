@@ -1,0 +1,56 @@
+@model PurchaseOrderTemplateFormViewModel
+
+<div class="form-grid">
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label">Şablon adı</label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Code" class="form-label">Şablon kodu</label>
+        <input asp-for="Code" class="form-control" />
+        <span asp-validation-for="Code" class="text-danger"></span>
+    </div>
+    <div class="mb-3 wide">
+        <label asp-for="Description" class="form-label">Açıklama</label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DefaultScope" class="form-label">Varsayılan kapsam</label>
+        <select asp-for="DefaultScope" asp-items="Html.GetEnumSelectList<PurchaseOrderScope>()" class="form-select"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DefaultStatus" class="form-label">Varsayılan durum</label>
+        <select asp-for="DefaultStatus" asp-items="Html.GetEnumSelectList<PurchaseOrderStatus>()" class="form-select"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DefaultSupplierId" class="form-label">Varsayılan tedarikçi</label>
+        <select asp-for="DefaultSupplierId" class="form-select" data-searchable-select data-search-placeholder="Tedarikçi ara veya seç">
+            <option value="">Seçilmedi</option>
+            @foreach (var supplier in ViewBag.Suppliers)
+            {
+                <option value="@supplier.Id">@supplier.Name</option>
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DefaultPaymentTerm" class="form-label">Varsayılan vade</label>
+        <input asp-for="DefaultPaymentTerm" class="form-control" />
+        <span asp-validation-for="DefaultPaymentTerm" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DefaultCurrency" class="form-label">Varsayılan para birimi</label>
+        <input asp-for="DefaultCurrency" class="form-control" />
+        <span asp-validation-for="DefaultCurrency" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DefaultVatRate" class="form-label">Varsayılan KDV oranı</label>
+        <input asp-for="DefaultVatRate" type="number" step="0.01" min="0" max="100" class="form-control" />
+        <span asp-validation-for="DefaultVatRate" class="text-danger"></span>
+    </div>
+    <label class="check-card check-inline wide">
+        <input asp-for="IsActive" />
+        <span>Şablon aktif olarak kullanılsın</span>
+    </label>
+</div>

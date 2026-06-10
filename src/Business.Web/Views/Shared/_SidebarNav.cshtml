@@ -61,7 +61,8 @@
             Items = new[]
             {
                 (Label: "Tüm Siparişler", Url: "/PurchaseOrders"),
-                (Label: "Hızlı Sipariş", Url: "/PurchaseOrders/QuickCreate")
+                (Label: "Hızlı Sipariş", Url: "/PurchaseOrders/QuickCreate"),
+                (Label: "Sipariş Şablonları", Url: "/PurchaseOrderTemplates")
             }
         },
         new
@@ -202,6 +203,11 @@
         if (url.StartsWith("/PurchaseOrders", StringComparison.OrdinalIgnoreCase))
         {
             return HasPermission(AppPermissions.PurchasingView, AppPermissions.PurchasingCreate, AppPermissions.PurchasingUpdate, AppPermissions.PurchasingChangeStatus, AppPermissions.PurchasingManage);
+        }
+
+        if (url.StartsWith("/PurchaseOrderTemplates", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.PurchasingView, AppPermissions.PurchasingManage);
         }
 
         if (url.StartsWith("/MaterialRequests", StringComparison.OrdinalIgnoreCase))

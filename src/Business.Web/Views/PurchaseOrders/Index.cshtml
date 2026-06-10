@@ -13,6 +13,7 @@
         @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
         {
             <div class="toolbar-actions">
+                <a class="btn btn-outline-secondary btn-sm" asp-controller="PurchaseOrderTemplates" asp-action="Index">Şablonlar</a>
                 <a class="btn btn-outline-primary btn-sm" asp-action="QuickCreate" asp-route-projectId="@ViewBag.ProjectId">Hızlı sipariş</a>
                 <a class="btn btn-primary btn-sm" asp-action="Create">Yeni sipariş</a>
             </div>
