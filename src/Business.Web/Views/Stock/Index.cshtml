@@ -21,7 +21,7 @@
             <span class="filter-icon" aria-hidden="true">⌕</span>
             <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Malzeme, tür, ölçü, konum ara" />
         </div>
-        <select name="category" class="form-select form-select-sm">
+        <select name="category" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Kategori ara veya seç">
             <option value="">Kategori</option>
             @foreach (var category in ViewBag.MaterialCategories)
             {

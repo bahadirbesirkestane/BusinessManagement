@@ -28,15 +28,34 @@ public class ProjectTimelineService : IProjectTimelineService
 
     public async Task AddForTaskAsync(Guid taskId, string title, string? description = null, CancellationToken cancellationToken = default)
     {
-        var projectId = await _context.ProjectTasks
+        var task = await _context.ProjectTasks
             .Where(x => x.Id == taskId)
-            .Select(x => x.ProjectId)
+            .Select(x => new { x.Id, x.ProjectId })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (projectId.HasValue)
+        if (task is null)
         {
-            await AddAsync(projectId.Value, title, description, cancellationToken);
+            return;
         }
+
+        _context.ProjectTaskUpdates.Add(new ProjectTaskUpdate
+        {
+            ProjectTaskId = task.Id,
+            Title = title,
+            Description = description
+        });
+
+        if (task.ProjectId.HasValue)
+        {
+            _context.ProjectUpdates.Add(new ProjectUpdate
+            {
+                ProjectId = task.ProjectId.Value,
+                Title = title,
+                Description = description
+            });
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task AddForOrderAsync(Guid orderId, string title, string? description = null, CancellationToken cancellationToken = default)

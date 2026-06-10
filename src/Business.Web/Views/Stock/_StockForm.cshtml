@@ -3,7 +3,7 @@
 <div class="form-grid">
     <div class="mb-3 wide">
         <label asp-for="MaterialId" class="form-label">Malzeme</label>
-        <select asp-for="MaterialId" class="form-select">
+        <select asp-for="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
             <option value="">Seçilmedi</option>
             @foreach (var material in ViewBag.Materials)
             {

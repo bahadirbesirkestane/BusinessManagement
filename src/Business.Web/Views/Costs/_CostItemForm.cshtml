@@ -13,7 +13,7 @@
         <div class="form-grid">
             <div class="mb-3">
                 <label asp-for="ProjectId" class="form-label">Proje</label>
-                <select asp-for="ProjectId" class="form-select">
+                <select asp-for="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya seç">
                     <option value="">Genel gider</option>
                     @foreach (var project in ViewBag.Projects)
                     {

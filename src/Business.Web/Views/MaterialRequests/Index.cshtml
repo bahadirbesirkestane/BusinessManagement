@@ -27,7 +27,7 @@
         </div>
         @if (ViewBag.ProjectId is null)
         {
-            <select name="projectId" class="form-select form-select-sm">
+            <select name="projectId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Proje ara veya seç">
                 <option value="">Proje</option>
                 @foreach (var project in ViewBag.Projects)
                 {
@@ -42,7 +42,7 @@
                 <option value="@item" selected="@(ViewBag.FilterStatus == item)">@item.ToDisplayName()</option>
             }
         </select>
-        <select name="materialId" class="form-select form-select-sm">
+        <select name="materialId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
             <option value="">Malzeme</option>
             @foreach (var material in ViewBag.Materials)
             {

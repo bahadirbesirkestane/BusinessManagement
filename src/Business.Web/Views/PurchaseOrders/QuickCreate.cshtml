@@ -18,7 +18,7 @@
         <div class="quick-order-context">
             <div class="mb-3">
                 <label asp-for="ProjectId" class="form-label">Proje bağı</label>
-                <select asp-for="ProjectId" class="form-select" data-project-select>
+                <select asp-for="ProjectId" class="form-select" data-project-select data-searchable-select data-search-placeholder="Proje ara veya seç">
                     <option value="">Genel sipariş</option>
                     @foreach (var project in ViewBag.Projects)
                     {
@@ -28,7 +28,7 @@
             </div>
             <div class="mb-3">
                 <label asp-for="SupplierId" class="form-label">Tedarikçi</label>
-                <select asp-for="SupplierId" class="form-select">
+                <select asp-for="SupplierId" class="form-select" data-searchable-select data-search-placeholder="Tedarikçi ara veya seç">
                     <option value="">Seçilmedi</option>
                     @foreach (var supplier in ViewBag.Suppliers)
                     {

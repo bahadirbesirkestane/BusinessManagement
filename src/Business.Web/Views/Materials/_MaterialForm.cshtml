@@ -10,7 +10,7 @@
             <input type="hidden" asp-for="Category" value="@MaterialCategory.Other" />
             <div class="mb-3">
                 <label asp-for="CategoryName" class="form-label">Kategori</label>
-                <select asp-for="CategoryName" class="form-select">
+                <select asp-for="CategoryName" class="form-select" data-searchable-select data-search-placeholder="Kategori ara veya seç">
                     <option value="">Seçilmedi</option>
                     @foreach (var category in ViewBag.MaterialCategories)
                     {

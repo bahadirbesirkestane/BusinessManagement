@@ -35,14 +35,14 @@
                 <option value="@item" selected="@(ViewBag.FilterStatus == item)">@item.ToDisplayName()</option>
             }
         </select>
-        <select name="customerId" class="form-select form-select-sm">
+        <select name="customerId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Müşteri ara veya seç">
             <option value="">Müşteri</option>
             @foreach (var customer in ViewBag.Customers)
             {
                 <option value="@customer.Id" selected="@(ViewBag.FilterCustomerId == customer.Id)">@customer.Name</option>
             }
         </select>
-        <select name="supplierId" class="form-select form-select-sm">
+        <select name="supplierId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Tedarikçi ara veya seç">
             <option value="">Tedarikçi</option>
             @foreach (var supplier in ViewBag.Suppliers)
             {

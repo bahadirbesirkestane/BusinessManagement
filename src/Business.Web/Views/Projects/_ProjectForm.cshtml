@@ -12,7 +12,7 @@
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
         <div class="form-grid">
             <div class="mb-3"><label asp-for="Code" class="form-label">Proje kodu</label><input asp-for="Code" class="form-control" /><span asp-validation-for="Code" class="text-danger"></span></div>
-            <div class="mb-3"><label asp-for="CustomerId" class="form-label">Müşteri</label><select asp-for="CustomerId" class="form-select"><option value="">Seçilmedi</option>@foreach (var customer in ViewBag.Customers){<option value="@customer.Id">@customer.Name</option>}</select></div>
+            <div class="mb-3"><label asp-for="CustomerId" class="form-label">Müşteri</label><select asp-for="CustomerId" class="form-select" data-searchable-select data-search-placeholder="Müşteri ara veya seç"><option value="">Seçilmedi</option>@foreach (var customer in ViewBag.Customers){<option value="@customer.Id">@customer.Name</option>}</select></div>
             <div class="mb-3 wide"><label asp-for="Name" class="form-label">Proje adı</label><input asp-for="Name" class="form-control" /><span asp-validation-for="Name" class="text-danger"></span></div>
             <div class="mb-3"><label asp-for="CustomerName" class="form-label">Excel müşteri/metin</label><input asp-for="CustomerName" class="form-control" /></div>
             <div class="mb-3"><label asp-for="Status" class="form-label">Durum</label><select asp-for="Status" asp-items="Html.GetEnumSelectList<ProjectStatus>()" class="form-select"></select></div>

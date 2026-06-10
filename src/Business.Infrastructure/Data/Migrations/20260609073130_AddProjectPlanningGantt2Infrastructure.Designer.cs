@@ -4,6 +4,7 @@ using Business.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Business.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260609073130_AddProjectPlanningGantt2Infrastructure")]
+    partial class AddProjectPlanningGantt2Infrastructure
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -921,45 +924,6 @@ namespace Business.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("ProjectTaskAssignments");
-                });
-
-            modelBuilder.Entity("Business.Domain.Entities.ProjectTaskUpdate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedByUserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<Guid>("ProjectTaskId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(220)
-                        .HasColumnType("nvarchar(220)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedByUserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectTaskId", "CreatedAt");
-
-                    b.ToTable("ProjectTaskUpdates");
                 });
 
             modelBuilder.Entity("Business.Domain.Entities.ProjectTemplate", b =>
@@ -1986,17 +1950,6 @@ namespace Business.Infrastructure.Data.Migrations
                     b.Navigation("ProjectTask");
                 });
 
-            modelBuilder.Entity("Business.Domain.Entities.ProjectTaskUpdate", b =>
-                {
-                    b.HasOne("Business.Domain.Entities.ProjectTask", "ProjectTask")
-                        .WithMany("Updates")
-                        .HasForeignKey("ProjectTaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ProjectTask");
-                });
-
             modelBuilder.Entity("Business.Domain.Entities.ProjectTemplateTask", b =>
                 {
                     b.HasOne("Business.Domain.Entities.ProjectTemplateTask", "ParentTemplateTask")
@@ -2178,8 +2131,6 @@ namespace Business.Infrastructure.Data.Migrations
                     b.Navigation("Assignments");
 
                     b.Navigation("SubTasks");
-
-                    b.Navigation("Updates");
                 });
 
             modelBuilder.Entity("Business.Domain.Entities.ProjectTemplate", b =>

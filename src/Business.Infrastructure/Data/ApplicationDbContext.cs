@@ -27,6 +27,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectTask> ProjectTasks => Set<ProjectTask>();
     public DbSet<ProjectUpdate> ProjectUpdates => Set<ProjectUpdate>();
+    public DbSet<ProjectTaskUpdate> ProjectTaskUpdates => Set<ProjectTaskUpdate>();
     public DbSet<ProjectCostItem> ProjectCostItems => Set<ProjectCostItem>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<MaterialRequest> MaterialRequests => Set<MaterialRequest>();
@@ -41,6 +42,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<RecordFile> RecordFiles => Set<RecordFile>();
     public DbSet<TaskCategory> TaskCategories => Set<TaskCategory>();
     public DbSet<ProjectTaskAssignment> ProjectTaskAssignments => Set<ProjectTaskAssignment>();
+    public DbSet<ProjectTemplate> ProjectTemplates => Set<ProjectTemplate>();
+    public DbSet<ProjectTemplateTask> ProjectTemplateTasks => Set<ProjectTemplateTask>();
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<AdminRecoveryCode> AdminRecoveryCodes => Set<AdminRecoveryCode>();
 
@@ -177,10 +180,31 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.ManualCustomerName).HasMaxLength(220);
             entity.Property(x => x.AssignedToUserId).HasMaxLength(450);
             entity.Property(x => x.ResponsibleUserId).HasMaxLength(450);
+            entity.Property(x => x.WbsCode).HasMaxLength(40);
+            entity.HasIndex(x => new { x.ProjectId, x.ParentTaskId, x.SortOrder });
+            entity.HasOne(x => x.ParentTask).WithMany(x => x.SubTasks).HasForeignKey(x => x.ParentTaskId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.AssignedToUserId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.ResponsibleUserId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(x => x.TaskCategory).WithMany(x => x.Tasks).HasForeignKey(x => x.TaskCategoryId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasMany(x => x.Updates).WithOne(x => x.ProjectTask).HasForeignKey(x => x.ProjectTaskId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ProjectTemplate>(entity =>
+        {
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.HasMany(x => x.Tasks).WithOne(x => x.ProjectTemplate).HasForeignKey(x => x.ProjectTemplateId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ProjectTemplateTask>(entity =>
+        {
+            entity.Property(x => x.Title).HasMaxLength(220).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.Property(x => x.WbsCode).HasMaxLength(40);
+            entity.HasIndex(x => new { x.ProjectTemplateId, x.ParentTemplateTaskId, x.SortOrder });
+            entity.HasOne(x => x.ParentTemplateTask).WithMany(x => x.SubTasks).HasForeignKey(x => x.ParentTemplateTaskId).OnDelete(DeleteBehavior.NoAction);
         });
 
         builder.Entity<ProjectTaskAssignment>(entity =>
@@ -208,6 +232,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<ProjectUpdate>(entity =>
         {
             entity.Property(x => x.Title).HasMaxLength(220).IsRequired();
+        });
+
+        builder.Entity<ProjectTaskUpdate>(entity =>
+        {
+            entity.Property(x => x.Title).HasMaxLength(220).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.ProjectTaskId, x.CreatedAt });
         });
 
         builder.Entity<ProjectCostItem>(entity =>

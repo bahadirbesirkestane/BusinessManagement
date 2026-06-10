@@ -9,6 +9,9 @@ public class ProjectTask : BaseEntity, IValidatableObject
     public Guid? ProjectId { get; set; }
     public Project? Project { get; set; }
 
+    public Guid? ParentTaskId { get; set; }
+    public ProjectTask? ParentTask { get; set; }
+
     public Guid? CustomerId { get; set; }
     public Customer? Customer { get; set; }
 
@@ -37,10 +40,17 @@ public class ProjectTask : BaseEntity, IValidatableObject
     public int ProgressPercent { get; set; }
     public string? ResponsibleUserId { get; set; }
     public string? AssignedToUserId { get; set; }
+    public int SortOrder { get; set; }
+    [StringLength(40, ErrorMessage = "WBS kodu en fazla 40 karakter olabilir.")]
+    public string? WbsCode { get; set; }
+    public int OutlineLevel { get; set; }
+    public bool IsMilestone { get; set; }
     [StringLength(2000, ErrorMessage = "Not en fazla 2000 karakter olabilir.")]
     public string? Notes { get; set; }
 
+    public ICollection<ProjectTask> SubTasks { get; set; } = new List<ProjectTask>();
     public ICollection<ProjectTaskAssignment> Assignments { get; set; } = new List<ProjectTaskAssignment>();
+    public ICollection<ProjectTaskUpdate> Updates { get; set; } = new List<ProjectTaskUpdate>();
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

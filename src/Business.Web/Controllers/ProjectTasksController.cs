@@ -146,6 +146,7 @@ public class ProjectTasksController : Controller
             .Include(x => x.Customer)
             .Include(x => x.TaskCategory)
             .Include(x => x.Assignments)
+            .Include(x => x.Updates)
             .AsNoTracking()
             .Where(x =>
                 x.AssignedToUserId == userId ||
@@ -220,6 +221,7 @@ public class ProjectTasksController : Controller
             .Include(x => x.Customer)
             .Include(x => x.TaskCategory)
             .Include(x => x.Assignments)
+            .Include(x => x.Updates)
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
@@ -247,8 +249,12 @@ public class ProjectTasksController : Controller
                 ["Görevler"] = Url.Action(nameof(Index)),
                 [task.Title] = null
             };
+        ViewBag.Breadcrumbs = await CreateTaskBreadcrumbsAsync(task, cancellationToken);
         ViewBag.ResponsibleName = await GetUserDisplayNameAsync(task.ResponsibleUserId);
         ViewBag.AssignedUsers = await GetAssignedUserNamesAsync(task.Assignments.Select(x => x.UserId), cancellationToken);
+        ViewBag.TaskUpdates = task.Updates
+            .OrderByDescending(x => x.CreatedAt)
+            .ToList();
         ViewBag.Activity = new RecordActivityViewModel
         {
             OwnerType = RecordOwnerType.ProjectTask,
@@ -265,7 +271,17 @@ public class ProjectTasksController : Controller
     public async Task<IActionResult> Create(Guid? projectId, CancellationToken cancellationToken)
     {
         await FillLookupsAsync(cancellationToken);
-        return View(new ProjectTask { ProjectId = projectId });
+        var task = new ProjectTask { ProjectId = projectId };
+        if (projectId.HasValue)
+        {
+            task.CustomerId = await _context.Projects
+                .AsNoTracking()
+                .Where(x => x.Id == projectId.Value)
+                .Select(x => x.CustomerId)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        return View(task);
     }
 
     [HttpPost]
@@ -490,6 +506,54 @@ public class ProjectTasksController : Controller
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     }
 
+    private async Task<IReadOnlyList<KeyValuePair<string, string?>>> CreateTaskBreadcrumbsAsync(ProjectTask task, CancellationToken cancellationToken)
+    {
+        var breadcrumbs = new List<KeyValuePair<string, string?>>();
+        if (task.Project is not null)
+        {
+            breadcrumbs.Add(new("Projeler", Url.Action("Index", "Projects")));
+            breadcrumbs.Add(new(task.Project.Code, Url.Action("Details", "Projects", new { id = task.Project.Id })));
+            breadcrumbs.Add(new("Görevler", Url.Action(nameof(Index), new { projectId = task.Project.Id })));
+        }
+        else
+        {
+            breadcrumbs.Add(new("Görevler", Url.Action(nameof(Index))));
+        }
+
+        var parentChain = await GetParentTaskChainAsync(task, cancellationToken);
+        foreach (var parent in parentChain)
+        {
+            breadcrumbs.Add(new(parent.Title, Url.Action(nameof(Details), new { id = parent.Id })));
+        }
+
+        breadcrumbs.Add(new(task.Title, null));
+        return breadcrumbs;
+    }
+
+    private async Task<IReadOnlyList<ProjectTask>> GetParentTaskChainAsync(ProjectTask task, CancellationToken cancellationToken)
+    {
+        var chain = new List<ProjectTask>();
+        var visitedIds = new HashSet<Guid> { task.Id };
+        var parentId = task.ParentTaskId;
+
+        while (parentId.HasValue && visitedIds.Add(parentId.Value))
+        {
+            var parent = await _context.ProjectTasks
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == parentId.Value, cancellationToken);
+
+            if (parent is null)
+            {
+                break;
+            }
+
+            chain.Insert(0, parent);
+            parentId = parent.ParentTaskId;
+        }
+
+        return chain;
+    }
+
     private async Task SyncAssignmentsAsync(Guid taskId, IEnumerable<string> selectedUserIds, CancellationToken cancellationToken)
     {
         var selected = selectedUserIds.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
@@ -512,18 +576,8 @@ public class ProjectTasksController : Controller
 
     private static void NormalizeTaskRelation(ProjectTask task)
     {
-        if (task.ProjectId.HasValue)
-        {
-            task.CustomerId = null;
-            task.ManualProjectName = null;
-            task.ManualCustomerName = null;
-            return;
-        }
-
-        if (task.CustomerId.HasValue)
-        {
-            task.ManualCustomerName = null;
-        }
+        task.ManualProjectName = null;
+        task.ManualCustomerName = null;
     }
 
     private async Task<string> GetUserDisplayNameAsync(string? userId)
