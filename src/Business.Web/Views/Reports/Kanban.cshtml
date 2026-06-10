@@ -38,7 +38,7 @@
     </div>
 
     <form asp-action="Kanban" method="get" class="diagram-filter-bar">
-        <select name="projectId" class="form-select form-select-sm">
+        <select name="projectId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Proje ara veya seç">
             <option value="">Tüm projeler</option>
             @foreach (var project in Model.Projects)
             {

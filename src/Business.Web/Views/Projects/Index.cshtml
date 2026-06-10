@@ -35,7 +35,7 @@
                 <option value="@item" selected="@(ViewBag.FilterPriority == item)">@item.ToDisplayName()</option>
             }
         </select>
-        <select name="customerId" class="form-select form-select-sm">
+        <select name="customerId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Müşteri ara veya seç">
             <option value="">Müşteri</option>
             @foreach (var customer in ViewBag.Customers)
             {

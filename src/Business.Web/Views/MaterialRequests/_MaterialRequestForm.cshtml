@@ -8,7 +8,7 @@
         <div class="form-grid">
             <div class="mb-3">
                 <label asp-for="ProjectId" class="form-label">Proje</label>
-                <select asp-for="ProjectId" class="form-select">
+                <select asp-for="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya seç">
                     <option value="">Genel</option>
                     @foreach (var project in ViewBag.Projects)
                     {
@@ -18,7 +18,7 @@
             </div>
             <div class="mb-3">
                 <label asp-for="MaterialId" class="form-label">Malzeme sınıfı</label>
-                <select asp-for="MaterialId" class="form-select">
+                <select asp-for="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
                     <option value="">Seçilmedi</option>
                     @foreach (var material in ViewBag.Materials)
                     {

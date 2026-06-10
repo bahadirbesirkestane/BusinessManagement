@@ -42,7 +42,7 @@
 
             <div class="mb-3">
                 <label asp-for="ProjectId" class="form-label">Proje</label>
-                <select asp-for="ProjectId" class="form-select relation-field" data-relation="project">
+                <select asp-for="ProjectId" class="form-select relation-field" data-relation="project" data-searchable-select data-search-placeholder="Proje ara veya seç">
                     <option value="">Genel</option>
                     @foreach (var project in ViewBag.Projects)
                     {
@@ -52,7 +52,7 @@
             </div>
             <div class="mb-3">
                 <label asp-for="CustomerId" class="form-label">Müşteri</label>
-                <select asp-for="CustomerId" class="form-select relation-field" data-relation="customer">
+                <select asp-for="CustomerId" class="form-select relation-field" data-relation="customer" data-searchable-select data-search-placeholder="Müşteri ara veya seç">
                     <option value="">Genel</option>
                     @foreach (var customer in ViewBag.Customers)
                     {
@@ -71,7 +71,7 @@
 
             <div class="mb-3">
                 <label asp-for="TaskCategoryId" class="form-label">Kategori</label>
-                <select asp-for="TaskCategoryId" class="form-select">
+                <select asp-for="TaskCategoryId" class="form-select" data-searchable-select data-search-placeholder="Kategori ara veya seç">
                     <option value="">Seçilmedi</option>
                     @foreach (var category in ViewBag.TaskCategories)
                     {
@@ -81,7 +81,7 @@
             </div>
             <div class="mb-3">
                 <label asp-for="ResponsibleUserId" class="form-label">Sorumlu Kişi</label>
-                <select asp-for="ResponsibleUserId" class="form-select">
+                <select asp-for="ResponsibleUserId" class="form-select" data-searchable-select data-search-placeholder="Sorumlu ara veya seç">
                     <option value="">Sorumlu seçilmedi</option>
                     @foreach (var user in ViewBag.Users)
                     {
