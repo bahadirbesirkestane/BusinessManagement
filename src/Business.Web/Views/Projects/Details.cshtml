@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = Model.Project.Code;
     var visibleProjectTasks = ViewBag.VisibleProjectTasks as IReadOnlyList<ProjectTask> ?? [];
+    var taskHierarchyLabels = ViewBag.TaskHierarchyLabels as IReadOnlyDictionary<Guid, string> ?? new Dictionary<Guid, string>();
 }
 
 <section class="project-header">
@@ -30,7 +31,13 @@
                 <p class="section-kicker">Görevler</p>
                 <h2>Proje işleri</h2>
             </div>
-            <a class="btn btn-outline-primary btn-sm" asp-controller="ProjectTasks" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
+            <div class="toolbar-actions">
+                <a class="btn btn-outline-primary btn-sm" asp-controller="ProjectTasks" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
+                @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                {
+                    <a class="btn btn-primary btn-sm" asp-controller="ProjectTasks" asp-action="Create" asp-route-projectId="@Model.Project.Id">Yeni Görev Ekle</a>
+                }
+            </div>
         </div>
         <div class="list-stack">
             @foreach (var task in visibleProjectTasks.Take(6))
@@ -38,7 +45,16 @@
                 <a class="list-row list-row-link" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id">
                     <span>
                         <strong>@task.Title</strong>
-                        <small>@(task.TaskCategory?.Name ?? "Kategori yok") · %@task.ProgressPercent · @task.Assignments.Count atanan</small>
+                        <small>
+                            @(task.TaskCategory?.Name ?? "Kategori yok") · %@task.ProgressPercent · @task.Assignments.Count atanan
+                            @if (task.ParentTaskId.HasValue)
+                            {
+                                var treeText = taskHierarchyLabels.TryGetValue(task.Id, out var hierarchyLabel)
+                                    ? hierarchyLabel.Replace("Hiyerarşi: ", "").Replace("HiyerarÅŸi: ", "")
+                                    : "Alt görev";
+                                <span class="task-tree-badge" title="Alt görev">↳ @treeText</span>
+                            }
+                        </small>
                     </span>
                     <span class="status-pill">@task.Status.ToDisplayName()</span>
                 </a>
@@ -58,7 +74,13 @@
                     <p class="section-kicker">Satın alma</p>
                     <h2>Siparişler</h2>
                 </div>
-                <a class="btn btn-outline-primary btn-sm" asp-controller="PurchaseOrders" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
+                <div class="toolbar-actions">
+                    <a class="btn btn-outline-primary btn-sm" asp-controller="PurchaseOrders" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
+                    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+                    {
+                        <a class="btn btn-primary btn-sm" asp-controller="PurchaseOrders" asp-action="Create" asp-route-projectId="@Model.Project.Id">Yeni Sipariş Ekle</a>
+                    }
+                </div>
             </div>
             <div class="list-stack">
                 @foreach (var order in Model.Project.PurchaseOrders.OrderByDescending(x => x.CreatedAt).Take(6))

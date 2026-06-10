@@ -271,7 +271,17 @@ public class ProjectTasksController : Controller
     public async Task<IActionResult> Create(Guid? projectId, CancellationToken cancellationToken)
     {
         await FillLookupsAsync(cancellationToken);
-        return View(new ProjectTask { ProjectId = projectId });
+        var task = new ProjectTask { ProjectId = projectId };
+        if (projectId.HasValue)
+        {
+            task.CustomerId = await _context.Projects
+                .AsNoTracking()
+                .Where(x => x.Id == projectId.Value)
+                .Select(x => x.CustomerId)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        return View(task);
     }
 
     [HttpPost]
@@ -566,18 +576,8 @@ public class ProjectTasksController : Controller
 
     private static void NormalizeTaskRelation(ProjectTask task)
     {
-        if (task.ProjectId.HasValue)
-        {
-            task.CustomerId = null;
-            task.ManualProjectName = null;
-            task.ManualCustomerName = null;
-            return;
-        }
-
-        if (task.CustomerId.HasValue)
-        {
-            task.ManualCustomerName = null;
-        }
+        task.ManualProjectName = null;
+        task.ManualCustomerName = null;
     }
 
     private async Task<string> GetUserDisplayNameAsync(string? userId)

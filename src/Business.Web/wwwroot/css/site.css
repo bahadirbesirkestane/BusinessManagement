@@ -476,6 +476,20 @@ a:hover {
   color: var(--muted);
 }
 
+.task-tree-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border: 1px solid rgba(37, 99, 235, .2);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: .72rem;
+  font-weight: 850;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;

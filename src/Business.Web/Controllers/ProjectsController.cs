@@ -146,6 +146,7 @@ public class ProjectsController : Controller
             [project.Code] = null
         };
         ViewBag.VisibleProjectTasks = GetVisibleProjectTasks(project);
+        ViewBag.TaskHierarchyLabels = CreateTaskHierarchyLabels(project.Tasks);
         return View(new ProjectDetailsViewModel
         {
             Project = project,
@@ -377,6 +378,58 @@ public class ProjectsController : Controller
                 x.ResponsibleUserId == userId)
             .OrderByDescending(x => x.CreatedAt)
             .ToList();
+    }
+
+    private static IReadOnlyDictionary<Guid, string> CreateTaskHierarchyLabels(IEnumerable<ProjectTask> tasks)
+    {
+        var taskList = tasks.ToList();
+        var taskMap = taskList.ToDictionary(x => x.Id);
+        var orderedSiblings = taskList
+            .GroupBy(x => x.ParentTaskId ?? Guid.Empty)
+            .ToDictionary(
+                x => x.Key,
+                x => x.OrderBy(task => task.SortOrder).ThenBy(task => task.Title).Select(task => task.Id).ToList());
+        var labels = new Dictionary<Guid, string>();
+
+        foreach (var task in taskList)
+        {
+            labels[task.Id] = CreateTaskHierarchyLabel(task);
+        }
+
+        return labels;
+
+        string CreateTaskHierarchyLabel(ProjectTask task)
+        {
+            if (!string.IsNullOrWhiteSpace(task.WbsCode))
+            {
+                return $"Hiyerarşi: {task.WbsCode}";
+            }
+
+            var path = new List<int>();
+            var current = task;
+            var visitedIds = new HashSet<Guid>();
+
+            while (visitedIds.Add(current.Id))
+            {
+                var siblingKey = current.ParentTaskId ?? Guid.Empty;
+                var siblings = orderedSiblings.TryGetValue(siblingKey, out var siblingIds)
+                    ? siblingIds
+                    : [];
+                var index = siblings.IndexOf(current.Id) + 1;
+                path.Insert(0, index > 0 ? index : 1);
+
+                if (!current.ParentTaskId.HasValue || !taskMap.TryGetValue(current.ParentTaskId.Value, out var parent))
+                {
+                    break;
+                }
+
+                current = parent;
+            }
+
+            return path.Count > 1
+                ? $"Hiyerarşi: {string.Join(".", path)}"
+                : "Hiyerarşi: Ana görev";
+        }
     }
 
     private void RemoveActivityRecords(RecordOwnerType ownerType, Guid ownerId)

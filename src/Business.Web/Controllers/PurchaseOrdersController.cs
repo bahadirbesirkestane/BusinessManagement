@@ -210,10 +210,16 @@ public class PurchaseOrdersController : Controller
     }
 
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
-    public async Task<IActionResult> Create(CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid? projectId, CancellationToken cancellationToken)
     {
         await FillLookupsAsync(cancellationToken);
-        return View(new PurchaseOrder { OrderNumber = await GenerateOrderNumberAsync(cancellationToken), OrderDate = DateTime.Today, Scope = PurchaseOrderScope.General });
+        return View(new PurchaseOrder
+        {
+            ProjectId = projectId,
+            OrderNumber = await GenerateOrderNumberAsync(cancellationToken),
+            OrderDate = DateTime.Today,
+            Scope = projectId.HasValue ? PurchaseOrderScope.Project : PurchaseOrderScope.General
+        });
     }
 
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
