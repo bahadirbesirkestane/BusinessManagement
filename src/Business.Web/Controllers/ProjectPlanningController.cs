@@ -31,7 +31,7 @@ public class ProjectPlanningController : Controller
 
     public async Task<IActionResult> Index(Guid? projectId, CancellationToken cancellationToken)
     {
-        var model = await BuildIndexViewModelAsync(projectId, new ProjectPlanningTaskFormViewModel(), false, cancellationToken);
+        var model = await BuildIndexViewModelAsync(projectId, new ProjectPlanningTaskFormViewModel(), false, "create", cancellationToken);
         return View(model);
     }
 
@@ -68,7 +68,7 @@ public class ProjectPlanningController : Controller
 
         if (!ModelState.IsValid)
         {
-            var invalidModel = await BuildIndexViewModelAsync(taskForm.ProjectId, taskForm, true, cancellationToken);
+            var invalidModel = await BuildIndexViewModelAsync(taskForm.ProjectId, taskForm, true, "create", cancellationToken);
             return View(nameof(Index), invalidModel);
         }
 
@@ -101,10 +101,65 @@ public class ProjectPlanningController : Controller
         return RedirectToAction(nameof(Index), new { projectId = taskForm.ProjectId });
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateTask([Bind(Prefix = "TaskForm")] ProjectPlanningTaskFormViewModel taskForm, CancellationToken cancellationToken)
+    {
+        if (!CanUpdatePlanningTask())
+        {
+            return Forbid();
+        }
+
+        if (!taskForm.TaskId.HasValue)
+        {
+            ModelState.AddModelError(string.Empty, "Düzenlenecek görev bulunamadı.");
+        }
+
+        var task = taskForm.TaskId.HasValue
+            ? await _context.ProjectTasks.FirstOrDefaultAsync(x => x.Id == taskForm.TaskId.Value && x.ProjectId == taskForm.ProjectId, cancellationToken)
+            : null;
+
+        if (task is null)
+        {
+            ModelState.AddModelError(string.Empty, "Düzenlenecek görev bulunamadı.");
+        }
+
+        var projectExists = await _context.Projects
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == taskForm.ProjectId && x.Status != ProjectStatus.Cancelled, cancellationToken);
+
+        if (!projectExists)
+        {
+            ModelState.AddModelError(string.Empty, "Seçilen proje bulunamadı veya iptal edilmiş.");
+        }
+
+        if (!ModelState.IsValid || task is null)
+        {
+            var invalidModel = await BuildIndexViewModelAsync(taskForm.ProjectId, taskForm, true, "edit", cancellationToken);
+            return View(nameof(Index), invalidModel);
+        }
+
+        task.Title = taskForm.Title.Trim();
+        task.Description = string.IsNullOrWhiteSpace(taskForm.Description) ? null : taskForm.Description.Trim();
+        task.StartDate = taskForm.StartDate;
+        task.DueDate = taskForm.DueDate;
+        task.Status = taskForm.Status;
+        task.Priority = taskForm.Priority;
+        task.ProgressPercent = taskForm.Status == WorkTaskStatus.Done ? 100 : taskForm.ProgressPercent;
+        task.IsMilestone = taskForm.IsMilestone;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await UpdateAssignmentsAsync(task.Id, taskForm.AssignedUserIds, cancellationToken);
+        await _projectTimelineService.AddForTaskAsync(task.Id, "Görev güncellendi", task.Title, cancellationToken);
+
+        return RedirectToAction(nameof(Index), new { projectId = taskForm.ProjectId });
+    }
+
     private async Task<ProjectPlanningIndexViewModel> BuildIndexViewModelAsync(
         Guid? projectId,
         ProjectPlanningTaskFormViewModel taskForm,
         bool openTaskForm,
+        string taskFormMode,
         CancellationToken cancellationToken)
     {
         var projects = await _context.Projects
@@ -160,7 +215,8 @@ public class ProjectPlanningController : Controller
             GanttTasks = ganttTasks,
             Users = await GetUserOptionsAsync(cancellationToken),
             TaskForm = taskForm,
-            OpenTaskForm = openTaskForm
+            OpenTaskForm = openTaskForm,
+            TaskFormMode = taskFormMode
         };
     }
 
@@ -239,6 +295,13 @@ public class ProjectPlanningController : Controller
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     }
 
+    private bool CanUpdatePlanningTask()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    }
+
     private async Task AddAssignmentsAsync(Guid taskId, IEnumerable<string> selectedUserIds, CancellationToken cancellationToken)
     {
         var userIds = selectedUserIds
@@ -256,6 +319,21 @@ public class ProjectPlanningController : Controller
         }
 
         if (userIds.Count > 0)
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private async Task UpdateAssignmentsAsync(Guid taskId, IEnumerable<string> selectedUserIds, CancellationToken cancellationToken)
+    {
+        var existingAssignments = await _context.ProjectTaskAssignments
+            .Where(x => x.ProjectTaskId == taskId)
+            .ToListAsync(cancellationToken);
+
+        _context.ProjectTaskAssignments.RemoveRange(existingAssignments);
+        await AddAssignmentsAsync(taskId, selectedUserIds, cancellationToken);
+
+        if (existingAssignments.Count > 0)
         {
             await _context.SaveChangesAsync(cancellationToken);
         }
@@ -335,6 +413,7 @@ public class ProjectPlanningController : Controller
                 Id = task.Id,
                 ParentTaskId = task.ParentTaskId,
                 Title = task.Title,
+                Description = task.Description,
                 WbsCode = task.WbsCode,
                 DisplayWbsCode = string.IsNullOrWhiteSpace(task.WbsCode) ? generatedWbsCode : task.WbsCode,
                 OutlineLevel = level,
@@ -347,6 +426,7 @@ public class ProjectPlanningController : Controller
                 PriorityCss = task.Priority.ToString().ToLowerInvariant(),
                 ResponsibleText = responsibleText,
                 AssignedText = assignedNames.Count > 0 ? string.Join(", ", assignedNames) : "Atanan yok",
+                AssignedUserIds = task.Assignments.Select(x => x.UserId).ToList(),
                 LatestUpdateText = latestUpdate is null
                     ? "Güncelleme yok"
                     : latestUpdate.Title,

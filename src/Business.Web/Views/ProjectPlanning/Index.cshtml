@@ -5,11 +5,15 @@
     var canCreateTask = User.IsInRole(AppRoles.Admin) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canUpdateTask = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var planningTasks = Model.Tasks.Select(x => new
     {
         id = x.Id.ToString(),
         parentId = x.ParentTaskId?.ToString(),
         title = x.Title,
+        description = x.Description,
         wbs = x.DisplayWbsCode,
         outlineLevel = x.OutlineLevel,
         hasChildren = x.HasChildren,
@@ -18,6 +22,9 @@
         end = x.DueDate?.ToString("yyyy-MM-dd"),
         progress = x.Status == WorkTaskStatus.Done ? 100 : x.ProgressPercent,
         customClass = x.Status.ToString().ToLowerInvariant(),
+        statusValue = (int)x.Status,
+        priorityValue = (int)x.Priority,
+        assignedUserIds = x.AssignedUserIds,
         url = Url.Action("Details", "ProjectTasks", new { id = x.Id }),
         statusText = x.StatusText,
         priorityText = x.PriorityText,
@@ -128,7 +135,7 @@
                         <button type="button" data-custom-gantt-view="month">Ay</button>
                     </div>
                 </div>
-                <div id="project_planning_custom_gantt" class="planning-custom-board" data-can-create-task="@canCreateTask.ToString().ToLowerInvariant()"></div>
+                <div id="project_planning_custom_gantt" class="planning-custom-board" data-can-create-task="@canCreateTask.ToString().ToLowerInvariant()" data-can-update-task="@canUpdateTask.ToString().ToLowerInvariant()"></div>
                 <div id="project_planning_custom_popup" class="planning-custom-popup is-hidden" role="tooltip"></div>
             </section>
         }
@@ -245,13 +252,14 @@
     }
 </section>
 
-@if (canCreateTask && Model.ProjectId.HasValue && Model.SelectedProjectText is not null)
+@if ((canCreateTask || canUpdateTask) && Model.ProjectId.HasValue && Model.SelectedProjectText is not null)
 {
     <div class="modal fade planning-task-modal" id="planningTaskModal" tabindex="-1" aria-labelledby="planningTaskModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
-                <form asp-action="AddTask" method="post">
+                <form asp-action="AddTask" method="post" id="planningTaskForm">
                     @Html.AntiForgeryToken()
+                    <input asp-for="TaskForm.TaskId" type="hidden" />
                     <input asp-for="TaskForm.ProjectId" type="hidden" value="@Model.ProjectId" />
                     <input asp-for="TaskForm.ParentTaskId" type="hidden" />
                     <div class="modal-header">
@@ -566,9 +574,12 @@
                     const toggle = task.hasChildren
                         ? `<button class="planning-tree-toggle ${customCollapsedIds.has(task.id) ? 'is-collapsed' : ''}" type="button" data-custom-tree-toggle="${escapePlanningHtml(task.id)}" aria-label="Alt görevleri kapat/aç">&rsaquo;</button>`
                         : '<span class="planning-tree-toggle-placeholder"></span>';
-                    const addButton = customBoard.dataset.canCreateTask === 'true'
-                        ? `<button class="planning-add-child" type="button" data-planning-task-trigger data-parent-id="${escapePlanningHtml(task.id)}" data-parent-title="${escapePlanningHtml(task.title)}">+</button>`
-                        : '';
+                    const actionButtons = `
+                        <div class="planning-task-actions">
+                            ${customBoard.dataset.canCreateTask === 'true' ? `<button class="planning-add-child" type="button" data-planning-task-trigger data-parent-id="${escapePlanningHtml(task.id)}" data-parent-title="${escapePlanningHtml(task.title)}" title="Alt görev ekle">+</button>` : ''}
+                            <button class="planning-add-child is-disabled" type="button" title="Silme bu aşamada pasif" aria-disabled="true">−</button>
+                            ${customBoard.dataset.canUpdateTask === 'true' ? `<button class="planning-add-child" type="button" data-planning-edit-task="${escapePlanningHtml(task.id)}" title="Görevi düzenle">✎</button>` : ''}
+                        </div>`;
 
                     return `
                         <div class="planning-custom-row ${hidden ? 'is-hidden' : ''}" data-custom-row-id="${escapePlanningHtml(task.id)}" data-parent-id="${escapePlanningHtml(task.parentId || '')}">
@@ -578,7 +589,7 @@
                                     <strong>${escapePlanningHtml(task.title)}</strong>
                                     ${task.isMilestone ? '<em>Kilometre taşı</em>' : ''}
                                 </a>
-                                ${addButton}
+                                ${actionButtons}
                             </div>
                             <div class="planning-custom-timeline" style="width:${timelineWidth}px;--planning-period-width:${columnWidth}px">
                                 <div class="planning-custom-grid">${gridCells}</div>
@@ -616,6 +627,22 @@
                     });
                     bar.addEventListener('mouseleave', hideCustomPopup);
                 });
+            }
+
+            function renderCustomGanttSafely() {
+                try {
+                    renderCustomGantt();
+                } catch {
+                    if (customBoard) {
+                        customBoard.innerHTML = '<p class="planning-empty">Zaman çizelgesi yüklenirken bir sorun oluştu.</p>';
+                    }
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', renderCustomGanttSafely, { once: true });
+            } else {
+                renderCustomGanttSafely();
             }
 
             function showError() {
@@ -676,7 +703,7 @@
             }
 
             window.addEventListener('load', function () {
-                renderCustomGantt();
+                renderCustomGanttSafely();
 
                 customModeButtons.forEach(function (button) {
                     button.addEventListener('click', function () {
@@ -788,15 +815,80 @@
 
                 const modalElement = document.getElementById('planningTaskModal');
                 if (modalElement && typeof bootstrap !== 'undefined') {
-                    const parentInput = modalElement.querySelector('[name="TaskForm.ParentTaskId"]');
                     const modalTitle = document.getElementById('planningTaskModalTitle');
                     const parentText = document.getElementById('planningTaskParentText');
                     const modal = new bootstrap.Modal(modalElement);
+                    const planningForm = document.getElementById('planningTaskForm');
+                    const addTaskUrl = '@Url.Action("AddTask", "ProjectPlanning")';
+                    const updateTaskUrl = '@Url.Action("UpdateTask", "ProjectPlanning")';
+
+                    function setPlanningField(name, value) {
+                        const field = modalElement.querySelector(`[name="${name}"]`);
+                        if (field) {
+                            field.value = value ?? '';
+                        }
+                    }
+
+                    function setPlanningCheckbox(name, checked) {
+                        const field = modalElement.querySelector(`[name="${name}"]`);
+                        if (field) {
+                            field.checked = Boolean(checked);
+                        }
+                    }
+
+                    function setAssignedUsers(userIds) {
+                        const selectedIds = new Set(userIds || []);
+                        modalElement.querySelectorAll('[name="TaskForm.AssignedUserIds"]').forEach(function (checkbox) {
+                            checkbox.checked = selectedIds.has(checkbox.value);
+                        });
+                    }
+
+                    function openCreateTaskModal(parentId, parentTitle) {
+                        planningForm.action = addTaskUrl;
+                        setPlanningField('TaskForm.TaskId', '');
+                        setPlanningField('TaskForm.ParentTaskId', parentId || '');
+                        setPlanningField('TaskForm.Title', '');
+                        setPlanningField('TaskForm.Description', '');
+                        setPlanningField('TaskForm.StartDate', '');
+                        setPlanningField('TaskForm.DueDate', '');
+                        setPlanningField('TaskForm.Status', '0');
+                        setPlanningField('TaskForm.Priority', '1');
+                        setPlanningField('TaskForm.ProgressPercent', '0');
+                        setPlanningCheckbox('TaskForm.IsMilestone', false);
+                        setAssignedUsers([]);
+                        modalTitle.textContent = parentId ? 'Alt görev ekle' : 'Ana görev ekle';
+                        parentText.textContent = parentId ? parentTitle + ' altına eklenecek.' : 'Ana görev olarak eklenecek.';
+                        modal.show();
+                    }
+
+                    function openEditTaskModal(task) {
+                        planningForm.action = updateTaskUrl;
+                        setPlanningField('TaskForm.TaskId', task.id);
+                        setPlanningField('TaskForm.ParentTaskId', task.parentId || '');
+                        setPlanningField('TaskForm.Title', task.title || '');
+                        setPlanningField('TaskForm.Description', task.description || '');
+                        setPlanningField('TaskForm.StartDate', task.start || '');
+                        setPlanningField('TaskForm.DueDate', task.end || '');
+                        setPlanningField('TaskForm.Status', String(task.statusValue ?? 0));
+                        setPlanningField('TaskForm.Priority', String(task.priorityValue ?? 1));
+                        setPlanningField('TaskForm.ProgressPercent', String(task.progress ?? 0));
+                        setPlanningCheckbox('TaskForm.IsMilestone', task.isMilestone);
+                        setAssignedUsers(task.assignedUserIds || []);
+                        modalTitle.textContent = 'Görev düzenle';
+                        parentText.textContent = 'Üst görev bu aşamada değiştirilmeyecek.';
+                        modal.show();
+                    }
 
                     document.querySelectorAll('[data-planning-task-trigger]').forEach(function (button) {
                         button.addEventListener('click', function () {
+                            if (button.closest('.planning-custom-board')) {
+                                return;
+                            }
+
                             const parentId = button.dataset.parentId || '';
                             const parentTitle = button.dataset.parentTitle || '';
+                            openCreateTaskModal(parentId, parentTitle);
+                            return;
                             parentInput.value = parentId;
                             modalTitle.textContent = parentId ? 'Alt görev ekle' : 'Ana görev ekle';
                             parentText.textContent = parentId ? parentTitle + ' altına eklenecek.' : 'Ana görev olarak eklenecek.';
@@ -812,13 +904,35 @@
 
                         const parentId = button.dataset.parentId || '';
                         const parentTitle = button.dataset.parentTitle || '';
+                        openCreateTaskModal(parentId, parentTitle);
+                        return;
                         parentInput.value = parentId;
                         modalTitle.textContent = parentId ? 'Alt gÃ¶rev ekle' : 'Ana gÃ¶rev ekle';
                         parentText.textContent = parentId ? parentTitle + ' altÄ±na eklenecek.' : 'Ana gÃ¶rev olarak eklenecek.';
                         modal.show();
                     });
 
-                    if (@JsonSerializer.Serialize(Model.OpenTaskForm)) {
+                    document.addEventListener('click', function (event) {
+                        const button = event.target.closest('[data-planning-edit-task]');
+                        if (!button) {
+                            return;
+                        }
+
+                        const task = projectPlanningTasks.find(function (candidate) {
+                            return candidate.id === button.dataset.planningEditTask;
+                        });
+
+                        if (task) {
+                            openEditTaskModal(task);
+                        }
+                    });
+
+                    if (@Html.Raw(JsonSerializer.Serialize(Model.OpenTaskForm))) {
+                        if (@Html.Raw(JsonSerializer.Serialize(Model.TaskFormMode)) === 'edit') {
+                            planningForm.action = updateTaskUrl;
+                            modalTitle.textContent = 'Görev düzenle';
+                            parentText.textContent = 'Üst görev bu aşamada değiştirilmeyecek.';
+                        }
                         modal.show();
                     }
                 }

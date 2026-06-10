@@ -1956,6 +1956,24 @@ a:hover {
   background: var(--accent-soft);
 }
 
+.planning-task-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.planning-add-child.is-disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.planning-add-child.is-disabled:hover {
+  border-color: var(--line);
+  background: #fff;
+}
+
 .planning-user-checks {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));

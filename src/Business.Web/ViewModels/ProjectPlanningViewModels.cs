@@ -13,6 +13,7 @@ public class ProjectPlanningIndexViewModel
     public IReadOnlyList<ProjectPlanningUserOptionViewModel> Users { get; set; } = [];
     public ProjectPlanningTaskFormViewModel TaskForm { get; set; } = new();
     public bool OpenTaskForm { get; set; }
+    public string TaskFormMode { get; set; } = "create";
 }
 
 public class ProjectPlanningProjectOptionViewModel
@@ -26,6 +27,7 @@ public class ProjectPlanningTaskRowViewModel
     public Guid Id { get; set; }
     public Guid? ParentTaskId { get; set; }
     public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public string? WbsCode { get; set; }
     public string DisplayWbsCode { get; set; } = string.Empty;
     public int OutlineLevel { get; set; }
@@ -38,6 +40,7 @@ public class ProjectPlanningTaskRowViewModel
     public string PriorityCss { get; set; } = string.Empty;
     public string ResponsibleText { get; set; } = string.Empty;
     public string AssignedText { get; set; } = string.Empty;
+    public IReadOnlyList<string> AssignedUserIds { get; set; } = [];
     public DateTime? StartDate { get; set; }
     public DateTime? DueDate { get; set; }
     public int ProgressPercent { get; set; }
@@ -56,6 +59,8 @@ public class ProjectPlanningUserOptionViewModel
 
 public class ProjectPlanningTaskFormViewModel : IValidatableObject
 {
+    public Guid? TaskId { get; set; }
+
     [Required(ErrorMessage = "Proje bilgisi zorunludur.")]
     public Guid ProjectId { get; set; }
 
