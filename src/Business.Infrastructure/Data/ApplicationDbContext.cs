@@ -194,6 +194,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.HasIndex(x => x.Name).IsUnique();
             entity.Property(x => x.Name).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.Code).HasMaxLength(40);
             entity.Property(x => x.Description).HasMaxLength(1000);
             entity.HasMany(x => x.Tasks).WithOne(x => x.ProjectTemplate).HasForeignKey(x => x.ProjectTemplateId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -203,8 +204,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Title).HasMaxLength(220).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(1000);
             entity.Property(x => x.WbsCode).HasMaxLength(40);
+            entity.Property(x => x.DefaultAssignedUserId).HasMaxLength(450);
+            entity.Property(x => x.DefaultResponsibleUserId).HasMaxLength(450);
             entity.HasIndex(x => new { x.ProjectTemplateId, x.ParentTemplateTaskId, x.SortOrder });
             entity.HasOne(x => x.ParentTemplateTask).WithMany(x => x.SubTasks).HasForeignKey(x => x.ParentTemplateTaskId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(x => x.TaskCategory).WithMany().HasForeignKey(x => x.TaskCategoryId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.DefaultAssignedUserId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.DefaultResponsibleUserId).OnDelete(DeleteBehavior.NoAction);
         });
 
         builder.Entity<ProjectTaskAssignment>(entity =>

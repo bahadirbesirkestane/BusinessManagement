@@ -1,0 +1,23 @@
+@model ProjectTemplateFormViewModel
+
+<div class="form-grid">
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label">Sablon adi</label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Code" class="form-label">Sablon kodu</label>
+        <input asp-for="Code" class="form-control" />
+        <span asp-validation-for="Code" class="text-danger"></span>
+    </div>
+    <div class="mb-3 wide">
+        <label asp-for="Description" class="form-label">Aciklama</label>
+        <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+    <label class="check-card check-inline wide">
+        <input asp-for="IsActive" />
+        <span>Sablon aktif olarak kullanilsin</span>
+    </label>
+</div>

@@ -149,6 +149,7 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         services.AddScoped(typeof(ICrudService<>), typeof(CrudService<>));
         services.AddScoped<IProjectService, ProjectService>();
+        services.AddScoped<IProjectTemplateService, ProjectTemplateService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IMaterialRequestService, MaterialRequestService>();
         services.AddScoped<ICustomerService, CustomerService>();

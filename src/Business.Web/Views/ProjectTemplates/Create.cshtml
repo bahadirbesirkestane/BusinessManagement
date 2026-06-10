@@ -1,0 +1,28 @@
+@model ProjectTemplateFormViewModel
+@{
+    ViewData["Title"] = "Yeni Gorev Sablonu";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Gorev sablonlari</p>
+            <h2>Yeni sablon olustur</h2>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Listeye don</a>
+    </div>
+
+    <form asp-action="Create" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        <partial name="_TemplateForm" model="Model" />
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgec</a>
+            <button type="submit" class="btn btn-primary">Kaydet</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

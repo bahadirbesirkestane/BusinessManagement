@@ -1,0 +1,90 @@
+@model IReadOnlyList<ProjectTemplateListItemViewModel>
+@{
+    ViewData["Title"] = "Gorev Sablonlari";
+    var canManageTemplates = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">Gorev yonetimi</p>
+        <h2>Gorev sablonlari</h2>
+        <p>Tekrar eden proje planlarini sablon olarak yonetin ve istediginiz projeye tek adimda gorev aktarimi yapin.</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Toplam sablon</span>
+            <strong>@Model.Count</strong>
+        </div>
+        <div>
+            <span>Aktif sablon</span>
+            <strong>@Model.Count(x => x.IsActive)</strong>
+        </div>
+        <div>
+            <span>Toplam sablon gorevi</span>
+            <strong>@Model.Sum(x => x.TaskCount)</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Sablon listesi</p>
+            <h2>Kayitli plan sablonlari</h2>
+        </div>
+        @if (canManageTemplates)
+        {
+            <a class="btn btn-primary btn-sm" asp-action="Create">Yeni sablon</a>
+        }
+    </div>
+
+    @if (!Model.Any())
+    {
+        <p class="empty-note">Henüz gorev sablonu bulunmuyor.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Sablon</th>
+                        <th>Aciklama</th>
+                        <th>Durum</th>
+                        <th>Gorev sayisi</th>
+                        <th class="text-end">Islemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@item.Name</strong>
+                                @if (!string.IsNullOrWhiteSpace(item.Code))
+                                {
+                                    <div class="text-muted small">@item.Code</div>
+                                }
+                            </td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Description) ? "-" : item.Description)</td>
+                            <td>
+                                <span class="status-pill @(item.IsActive ? "status-done" : "status-waiting")">
+                                    @(item.IsActive ? "Aktif" : "Pasif")
+                                </span>
+                            </td>
+                            <td>@item.TaskCount</td>
+                            <td class="text-end">
+                                <a class="btn btn-outline-primary btn-sm" asp-action="Details" asp-route-id="@item.Id">Detay</a>
+                                @if (canManageTemplates)
+                                {
+                                    <a class="btn btn-outline-secondary btn-sm" asp-action="Edit" asp-route-id="@item.Id">Duzenle</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

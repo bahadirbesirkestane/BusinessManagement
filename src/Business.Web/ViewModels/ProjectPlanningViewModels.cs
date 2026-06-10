@@ -14,7 +14,9 @@ public class ProjectPlanningIndexViewModel
     public IReadOnlyList<ProjectPlanningTaskRowViewModel> Tasks { get; set; } = [];
     public IReadOnlyList<ProjectPlanningGanttTaskViewModel> GanttTasks { get; set; } = [];
     public IReadOnlyList<ProjectPlanningUserOptionViewModel> Users { get; set; } = [];
+    public IReadOnlyList<ProjectPlanningTemplateOptionViewModel> Templates { get; set; } = [];
     public ProjectPlanningTaskFormViewModel TaskForm { get; set; } = new();
+    public ProjectTemplateApplyViewModel TemplateApplyForm { get; set; } = new();
     public bool OpenTaskForm { get; set; }
     public string TaskFormMode { get; set; } = "create";
 }
@@ -57,6 +59,12 @@ public class ProjectPlanningTaskRowViewModel
 public class ProjectPlanningUserOptionViewModel
 {
     public string Id { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
+}
+
+public class ProjectPlanningTemplateOptionViewModel
+{
+    public Guid Id { get; set; }
     public string Text { get; set; } = string.Empty;
 }
 

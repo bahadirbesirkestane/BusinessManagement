@@ -51,7 +51,8 @@
             {
                 (Label: "Tüm Görevler", Url: "/ProjectTasks"),
                 (Label: "Bana Atananlar", Url: "/ProjectTasks/AssignedToMe"),
-                (Label: "Görev Kategorileri", Url: "/TaskCategories")
+                (Label: "Görev Kategorileri", Url: "/TaskCategories"),
+                (Label: "Görev Şablonları", Url: "/ProjectTemplates")
             }
         },
         new
@@ -171,6 +172,11 @@
         if (url.StartsWith("/TaskCategories", StringComparison.OrdinalIgnoreCase))
         {
             return HasPermission(AppPermissions.ProjectsManage);
+        }
+
+        if (url.StartsWith("/ProjectTemplates", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.ProjectsView, AppPermissions.ProjectsManage);
         }
 
         if (url.StartsWith("/Projects", StringComparison.OrdinalIgnoreCase))

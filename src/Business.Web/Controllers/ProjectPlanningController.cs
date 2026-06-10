@@ -18,15 +18,18 @@ public class ProjectPlanningController : Controller
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IProjectTimelineService _projectTimelineService;
+    private readonly IProjectTemplateService _projectTemplateService;
 
     public ProjectPlanningController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
-        IProjectTimelineService projectTimelineService)
+        IProjectTimelineService projectTimelineService,
+        IProjectTemplateService projectTemplateService)
     {
         _context = context;
         _userManager = userManager;
         _projectTimelineService = projectTimelineService;
+        _projectTemplateService = projectTemplateService;
     }
 
     public async Task<IActionResult> Index(Guid? projectId, CancellationToken cancellationToken)
@@ -236,7 +239,12 @@ public class ProjectPlanningController : Controller
             Tasks = tasks,
             GanttTasks = ganttTasks,
             Users = await GetUserOptionsAsync(cancellationToken),
+            Templates = await GetTemplateOptionsAsync(cancellationToken),
             TaskForm = taskForm,
+            TemplateApplyForm = new ProjectTemplateApplyViewModel
+            {
+                ProjectId = projectId ?? Guid.Empty
+            },
             OpenTaskForm = openTaskForm,
             TaskFormMode = taskFormMode
         };
@@ -322,6 +330,23 @@ public class ProjectPlanningController : Controller
                 Text = x.FullName ?? x.Email ?? x.UserName ?? x.Id
             })
             .ToListAsync(cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<ProjectPlanningTemplateOptionViewModel>> GetTemplateOptionsAsync(CancellationToken cancellationToken)
+    {
+        var templates = await _projectTemplateService.GetAllAsync(cancellationToken);
+
+        return templates
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .Select(x => new ProjectPlanningTemplateOptionViewModel
+            {
+                Id = x.Id,
+                Text = string.IsNullOrWhiteSpace(x.Code)
+                    ? x.Name
+                    : $"{x.Code} - {x.Name}"
+            })
+            .ToList();
     }
 
     private bool CanCreatePlanningTask()

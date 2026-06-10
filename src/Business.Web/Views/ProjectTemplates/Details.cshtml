@@ -1,0 +1,417 @@
+@model ProjectTemplateDetailsViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Gorev Sablonu Detayi";
+    var canManageTemplates = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var taskItems = Model.Tasks.Select(x => new
+    {
+        id = x.Id.ToString(),
+        parentTemplateTaskId = x.ParentTemplateTaskId?.ToString(),
+        title = x.Title,
+        description = x.Description,
+        taskCategoryId = x.TaskCategoryId?.ToString(),
+        defaultDurationDays = x.DefaultDurationDays,
+        defaultStartOffsetDays = x.DefaultStartOffsetDays,
+        defaultPriority = (int)x.DefaultPriority,
+        defaultAssignedUserId = x.DefaultAssignedUserId,
+        defaultResponsibleUserId = x.DefaultResponsibleUserId,
+        isMilestone = x.IsMilestone,
+        priorityText = x.PriorityText
+    });
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">Gorev sablonlari</p>
+        <h2>@Model.Name</h2>
+        <p>@(string.IsNullOrWhiteSpace(Model.Description) ? "Bu sablon, tekrarlanan proje gorev agaclarini hizli sekilde olusturmak icin kullanilir." : Model.Description)</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Sablon kodu</span>
+            <strong>@(string.IsNullOrWhiteSpace(Model.Code) ? "-" : Model.Code)</strong>
+        </div>
+        <div>
+            <span>Durum</span>
+            <strong>@(Model.IsActive ? "Aktif" : "Pasif")</strong>
+        </div>
+        <div>
+            <span>Sablon gorevi</span>
+            <strong>@Model.Tasks.Count</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Sablon yonetimi</p>
+            <h2>Sablon aksiyonlari</h2>
+        </div>
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Listeye don</a>
+            @if (canManageTemplates)
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Sablonu duzenle</a>
+                <button class="btn btn-primary btn-sm" type="button" data-template-task-trigger data-parent-id="" data-parent-title="">Ana sablon gorevi ekle</button>
+            }
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="panel-block h-100">
+                <div class="panel-heading">
+                    <div>
+                        <p class="section-kicker">Gorev agaci</p>
+                        <h2>Sablon gorevleri</h2>
+                    </div>
+                </div>
+
+                @if (!Model.Tasks.Any())
+                {
+                    <p class="empty-note">Bu sablona henüz gorev eklenmemis.</p>
+                }
+                else
+                {
+                    <div class="plan-list-board">
+                        <div class="plan-list-head">
+                            <span>Gorev</span>
+                            <span>Varsayilan bilgiler</span>
+                        </div>
+                        @foreach (var task in Model.Tasks)
+                        {
+                            <div class="plan-list-row" data-plan-list-row data-task-id="@task.Id" data-parent-id="@task.ParentTemplateTaskId">
+                                <div class="plan-list-task">
+                                    @if (task.HasChildren)
+                                    {
+                                        <button class="planning-tree-toggle" type="button" data-plan-list-toggle="@task.Id" aria-label="Alt gorevleri kapat veya ac">&rsaquo;</button>
+                                    }
+                                    else
+                                    {
+                                        <span class="planning-tree-toggle-placeholder"></span>
+                                    }
+                                    <div class="planning-tree-title" style="--task-level:@task.OutlineLevel">
+                                        <strong>@(string.IsNullOrWhiteSpace(task.WbsCode) ? "-" : task.WbsCode) @task.Title</strong>
+                                        @if (task.IsMilestone)
+                                        {
+                                            <em>Kilometre tasi</em>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(task.Description))
+                                        {
+                                            <small class="d-block text-muted">@task.Description</small>
+                                        }
+                                    </div>
+                                    @if (canManageTemplates)
+                                    {
+                                        <div class="planning-task-actions">
+                                            <button class="planning-add-child" type="button" data-template-task-trigger data-parent-id="@task.Id" data-parent-title="@task.Title" title="Alt gorev ekle">+</button>
+                                            <button class="planning-add-child" type="button" data-template-edit-task="@task.Id" title="Gorevi duzenle">✎</button>
+                                            <form asp-action="DeleteTask" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="templateId" value="@Model.Id" />
+                                                <input type="hidden" name="taskId" value="@task.Id" />
+                                                <button class="planning-add-child" type="submit" title="Gorevi sil" onclick="return confirm('Bu sablon gorevi ve alt gorevleri silinsin mi?');">-</button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="plan-list-meta">
+                                    <div>
+                                        <span>Kategori</span>
+                                        <strong>@(string.IsNullOrWhiteSpace(task.CategoryName) ? "-" : task.CategoryName)</strong>
+                                    </div>
+                                    <div>
+                                        <span>Baslangic / sure</span>
+                                        <strong>@(task.DefaultStartOffsetDays?.ToString() ?? "-") gun / @(task.DefaultDurationDays?.ToString() ?? "-") gun</strong>
+                                    </div>
+                                    <div>
+                                        <span>Atama</span>
+                                        <strong>@(task.AssignedUserText ?? task.ResponsibleUserText ?? "-")</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="panel-block mb-4">
+                <div class="panel-heading">
+                    <div>
+                        <p class="section-kicker">Projeye uygula</p>
+                        <h2>Sablondan gorev yukle</h2>
+                    </div>
+                </div>
+                <form asp-action="ApplyToProject" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="TemplateId" value="@Model.Id" />
+                    <div class="mb-3">
+                        <label class="form-label" for="applyProjectId">Proje</label>
+                        <select id="applyProjectId" name="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya sec">
+                            <option value="">Proje secin</option>
+                            @foreach (var project in Model.Projects)
+                            {
+                                <option value="@project.Id">@project.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="applyBaseStartDate">Temel baslangic tarihi</label>
+                        <input id="applyBaseStartDate" name="BaseStartDate" type="date" class="form-control" value="@(Model.ApplyForm.BaseStartDate?.ToString("yyyy-MM-dd"))" />
+                        <div class="form-text">Bos birakilirsa proje baslangic tarihi kullanilir.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Projeye uygula</button>
+                </form>
+            </div>
+
+            <div class="panel-block">
+                <div class="panel-heading">
+                    <div>
+                        <p class="section-kicker">Kullanim notu</p>
+                        <h2>Faz 1 davranisi</h2>
+                    </div>
+                </div>
+                <ul class="mb-0">
+                    <li>Sablon uygulandiginda mevcut proje gorevleri silinmez.</li>
+                    <li>Gorevler proje icine ek gorevler olarak olusturulur.</li>
+                    <li>Baslangic ofseti ve varsayilan sure alanlari tarihli gorev olusturmada kullanilir.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+@if (canManageTemplates)
+{
+    <div class="modal fade planning-task-modal" id="templateTaskModal" tabindex="-1" aria-labelledby="templateTaskModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <form asp-action="AddTask" method="post" id="templateTaskForm">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="TaskForm.Id" type="hidden" />
+                    <input asp-for="TaskForm.ProjectTemplateId" type="hidden" value="@Model.Id" />
+                    <input asp-for="TaskForm.ParentTemplateTaskId" type="hidden" />
+                    <div class="modal-header">
+                        <div>
+                            <p class="section-kicker mb-1">Gorev sablonlari</p>
+                            <h2 class="modal-title fs-5" id="templateTaskModalTitle">Sablon gorevi ekle</h2>
+                            <small class="text-muted" id="templateTaskParentText">Ana sablon gorevi olarak eklenecek.</small>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="form-grid">
+                            <div class="mb-3 wide">
+                                <label asp-for="TaskForm.Title" class="form-label">Gorev basligi</label>
+                                <input asp-for="TaskForm.Title" class="form-control" />
+                                <span asp-validation-for="TaskForm.Title" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3 wide">
+                                <label asp-for="TaskForm.Description" class="form-label">Aciklama</label>
+                                <textarea asp-for="TaskForm.Description" class="form-control" rows="3"></textarea>
+                                <span asp-validation-for="TaskForm.Description" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.TaskCategoryId" class="form-label">Kategori</label>
+                                <select asp-for="TaskForm.TaskCategoryId" class="form-select">
+                                    <option value="">Kategori secin</option>
+                                    @foreach (var category in Model.TaskCategories)
+                                    {
+                                        <option value="@category.Value">@category.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.DefaultPriority" class="form-label">Oncelik</label>
+                                <select asp-for="TaskForm.DefaultPriority" asp-items="Html.GetEnumSelectList<ProjectPriority>()" class="form-select"></select>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.DefaultStartOffsetDays" class="form-label">Baslangic ofseti (gun)</label>
+                                <input asp-for="TaskForm.DefaultStartOffsetDays" type="number" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.DefaultDurationDays" class="form-label">Varsayilan sure (gun)</label>
+                                <input asp-for="TaskForm.DefaultDurationDays" type="number" min="1" class="form-control" />
+                                <span asp-validation-for="TaskForm.DefaultDurationDays" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.DefaultAssignedUserId" class="form-label">Varsayilan atanan</label>
+                                <select asp-for="TaskForm.DefaultAssignedUserId" class="form-select">
+                                    <option value="">Kullanici secin</option>
+                                    @foreach (var user in Model.Users)
+                                    {
+                                        <option value="@user.Value">@user.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="TaskForm.DefaultResponsibleUserId" class="form-label">Varsayilan sorumlu</label>
+                                <select asp-for="TaskForm.DefaultResponsibleUserId" class="form-select">
+                                    <option value="">Kullanici secin</option>
+                                    @foreach (var user in Model.Users)
+                                    {
+                                        <option value="@user.Value">@user.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <label class="check-card check-inline wide">
+                                <input asp-for="TaskForm.IsMilestone" />
+                                <span>Kilometre tasi gorevi</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgec</button>
+                        <button type="submit" class="btn btn-primary">Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const templateTaskItems = @Html.Raw(JsonSerializer.Serialize(taskItems));
+
+        (function () {
+            const rows = Array.from(document.querySelectorAll('[data-plan-list-row]'));
+            const collapsedIds = new Set();
+
+            function isHiddenByCollapsedParent(row) {
+                let parentId = row.dataset.parentId;
+                while (parentId) {
+                    if (collapsedIds.has(parentId)) {
+                        return true;
+                    }
+
+                    const parentRow = rows.find(function (candidate) {
+                        return candidate.dataset.taskId === parentId;
+                    });
+
+                    parentId = parentRow ? parentRow.dataset.parentId : '';
+                }
+
+                return false;
+            }
+
+            function syncTreeVisibility() {
+                rows.forEach(function (row) {
+                    row.classList.toggle('is-hidden', isHiddenByCollapsedParent(row));
+                });
+            }
+
+            document.querySelectorAll('[data-plan-list-toggle]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const taskId = button.dataset.planListToggle;
+                    if (collapsedIds.has(taskId)) {
+                        collapsedIds.delete(taskId);
+                        button.classList.remove('is-collapsed');
+                    } else {
+                        collapsedIds.add(taskId);
+                        button.classList.add('is-collapsed');
+                    }
+
+                    syncTreeVisibility();
+                });
+            });
+
+            const modalElement = document.getElementById('templateTaskModal');
+            if (!modalElement || typeof bootstrap === 'undefined') {
+                return;
+            }
+
+            const modal = new bootstrap.Modal(modalElement);
+            const form = document.getElementById('templateTaskForm');
+            const title = document.getElementById('templateTaskModalTitle');
+            const parentText = document.getElementById('templateTaskParentText');
+            const addTaskUrl = '@Url.Action("AddTask", "ProjectTemplates")';
+            const updateTaskUrl = '@Url.Action("UpdateTask", "ProjectTemplates")';
+
+            function setField(name, value) {
+                const field = modalElement.querySelector(`[name="${name}"]`);
+                if (field) {
+                    field.value = value ?? '';
+                }
+            }
+
+            function setCheckbox(name, checked) {
+                const field = modalElement.querySelector(`[name="${name}"]`);
+                if (field) {
+                    field.checked = Boolean(checked);
+                }
+            }
+
+            function openCreate(parentId, parentTitle) {
+                form.action = addTaskUrl;
+                setField('TaskForm.Id', '');
+                setField('TaskForm.ParentTemplateTaskId', parentId || '');
+                setField('TaskForm.Title', '');
+                setField('TaskForm.Description', '');
+                setField('TaskForm.TaskCategoryId', '');
+                setField('TaskForm.DefaultPriority', '1');
+                setField('TaskForm.DefaultStartOffsetDays', '');
+                setField('TaskForm.DefaultDurationDays', '');
+                setField('TaskForm.DefaultAssignedUserId', '');
+                setField('TaskForm.DefaultResponsibleUserId', '');
+                setCheckbox('TaskForm.IsMilestone', false);
+                title.textContent = parentId ? 'Alt sablon gorevi ekle' : 'Ana sablon gorevi ekle';
+                parentText.textContent = parentId ? parentTitle + ' altina eklenecek.' : 'Ana sablon gorevi olarak eklenecek.';
+                modal.show();
+            }
+
+            function openEdit(taskId) {
+                const task = templateTaskItems.find(function (candidate) {
+                    return candidate.id === taskId;
+                });
+
+                if (!task) {
+                    return;
+                }
+
+                form.action = updateTaskUrl;
+                setField('TaskForm.Id', task.id);
+                setField('TaskForm.ParentTemplateTaskId', task.parentTemplateTaskId || '');
+                setField('TaskForm.Title', task.title || '');
+                setField('TaskForm.Description', task.description || '');
+                setField('TaskForm.TaskCategoryId', task.taskCategoryId || '');
+                setField('TaskForm.DefaultPriority', String(task.defaultPriority ?? 1));
+                setField('TaskForm.DefaultStartOffsetDays', task.defaultStartOffsetDays ?? '');
+                setField('TaskForm.DefaultDurationDays', task.defaultDurationDays ?? '');
+                setField('TaskForm.DefaultAssignedUserId', task.defaultAssignedUserId || '');
+                setField('TaskForm.DefaultResponsibleUserId', task.defaultResponsibleUserId || '');
+                setCheckbox('TaskForm.IsMilestone', task.isMilestone);
+                title.textContent = 'Sablon gorevini duzenle';
+                parentText.textContent = 'Ust gorev bu asamada degistirilmez.';
+                modal.show();
+            }
+
+            document.addEventListener('click', function (event) {
+                const createButton = event.target.closest('[data-template-task-trigger]');
+                if (createButton) {
+                    openCreate(createButton.dataset.parentId || '', createButton.dataset.parentTitle || '');
+                    return;
+                }
+
+                const editButton = event.target.closest('[data-template-edit-task]');
+                if (editButton) {
+                    openEdit(editButton.dataset.templateEditTask);
+                }
+            });
+
+            if (@Html.Raw(JsonSerializer.Serialize(Model.OpenTaskForm))) {
+                if (@Html.Raw(JsonSerializer.Serialize(Model.TaskFormMode)) === 'edit') {
+                    form.action = updateTaskUrl;
+                    title.textContent = 'Sablon gorevini duzenle';
+                    parentText.textContent = 'Ust gorev bu asamada degistirilmez.';
+                }
+                modal.show();
+            }
+        })();
+    </script>
+}

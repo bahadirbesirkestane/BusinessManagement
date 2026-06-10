@@ -25,8 +25,13 @@ public class ProjectTemplateTask : BaseEntity
     public string? WbsCode { get; set; }
 
     public int OutlineLevel { get; set; }
+    public Guid? TaskCategoryId { get; set; }
+    public TaskCategory? TaskCategory { get; set; }
     public int? DefaultDurationDays { get; set; }
+    public int? DefaultStartOffsetDays { get; set; }
     public ProjectPriority DefaultPriority { get; set; } = ProjectPriority.Normal;
+    public string? DefaultAssignedUserId { get; set; }
+    public string? DefaultResponsibleUserId { get; set; }
     public bool IsMilestone { get; set; }
 
     public ICollection<ProjectTemplateTask> SubTasks { get; set; } = new List<ProjectTemplateTask>();

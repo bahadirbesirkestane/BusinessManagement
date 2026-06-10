@@ -113,6 +113,25 @@
         <a class="btn btn-outline-secondary btn-sm" asp-action="PlanList">Temizle</a>
     </form>
 
+    @if (Model.ProjectId.HasValue && Model.SelectedProjectText is not null && Model.Templates.Any())
+    {
+        <form asp-controller="ProjectTemplates" asp-action="ApplyToProject" method="post" class="diagram-filter-bar">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="ProjectId" value="@Model.ProjectId" />
+            <input type="hidden" name="ReturnAction" value="PlanList" />
+            <select name="TemplateId" class="form-select form-select-sm">
+                <option value="">Görev şablonu seçin</option>
+                @foreach (var template in Model.Templates)
+                {
+                    <option value="@template.Id">@template.Text</option>
+                }
+            </select>
+            <input name="BaseStartDate" type="date" class="form-control form-control-sm" value="@(Model.TemplateApplyForm.BaseStartDate?.ToString("yyyy-MM-dd"))" />
+            <button class="btn btn-outline-primary btn-sm" type="submit">Şablondan yükle</button>
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="ProjectTemplates" asp-action="Index">Şablonlar</a>
+        </form>
+    }
+
     @if (!Model.ProjectId.HasValue)
     {
         <p class="empty-note">Plan liste görünümünü açmak için üst alandan bir proje seçin.</p>
