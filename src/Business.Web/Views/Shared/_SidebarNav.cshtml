@@ -60,7 +60,8 @@
             Title = "Kişisel Alan",
             Items = new[]
             {
-                (Label: "Kişisel Notlar", Url: "/PersonalNotes")
+                (Label: "Kişisel Notlar", Url: "/PersonalNotes"),
+                (Label: "Kişisel Görevler", Url: "/PersonalTasks")
             }
         },
         new
@@ -179,6 +180,11 @@
         }
 
         if (url.StartsWith("/PersonalNotes", StringComparison.OrdinalIgnoreCase))
+        {
+            return User.Identity?.IsAuthenticated == true;
+        }
+
+        if (url.StartsWith("/PersonalTasks", StringComparison.OrdinalIgnoreCase))
         {
             return User.Identity?.IsAuthenticated == true;
         }

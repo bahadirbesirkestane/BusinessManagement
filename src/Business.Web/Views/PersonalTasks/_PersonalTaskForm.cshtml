@@ -1,0 +1,91 @@
+@using Business.Domain.Enums
+@model Business.Web.ViewModels.PersonalTaskFormViewModel
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Kişisel alan</p>
+            <h2>@ViewData["Title"]</h2>
+        </div>
+    </div>
+    <form method="post" class="app-form">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="mb-3 wide">
+                <label asp-for="Title" class="form-label">Başlık</label>
+                <input asp-for="Title" class="form-control" />
+                <span asp-validation-for="Title" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Status" class="form-label">Durum</label>
+                <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<PersonalTaskStatus>()"></select>
+                <span asp-validation-for="Status" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Priority" class="form-label">Öncelik</label>
+                <select asp-for="Priority" class="form-select" asp-items="Html.GetEnumSelectList<ProjectPriority>()"></select>
+                <span asp-validation-for="Priority" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="CustomerId" class="form-label">Müşteri</label>
+                <select asp-for="CustomerId" class="form-select" data-searchable-select data-search-placeholder="Müşteri ara veya seç">
+                    <option value="">Bağlantı yok</option>
+                    @foreach (var item in Model.Customers)
+                    {
+                        <option value="@item.Value">@item.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ProjectId" class="form-label">Proje</label>
+                <select asp-for="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya seç">
+                    <option value="">Bağlantı yok</option>
+                    @foreach (var item in Model.Projects)
+                    {
+                        <option value="@item.Value">@item.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ProjectTaskId" class="form-label">Normal görev bağlantısı</label>
+                <select asp-for="ProjectTaskId" class="form-select" data-searchable-select data-search-placeholder="Görev ara veya seç">
+                    <option value="">Bağlantı yok</option>
+                    @foreach (var item in Model.ProjectTasks)
+                    {
+                        <option value="@item.Value">@item.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="StartDate" class="form-label">Başlangıç tarihi</label>
+                <input asp-for="StartDate" class="form-control" type="date" />
+                <span asp-validation-for="StartDate" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="DueDate" class="form-label">Termin tarihi</label>
+                <input asp-for="DueDate" class="form-control" type="date" />
+                <span asp-validation-for="DueDate" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="CompletedAt" class="form-label">Tamamlanma tarihi</label>
+                <input asp-for="CompletedAt" class="form-control" type="date" />
+                <span asp-validation-for="CompletedAt" class="text-danger"></span>
+            </div>
+            <div class="mb-3 wide">
+                <label asp-for="Description" class="form-label">Açıklama</label>
+                <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+            <div class="mb-3 wide">
+                <label asp-for="Notes" class="form-label">Not</label>
+                <textarea asp-for="Notes" class="form-control" rows="5"></textarea>
+                <span asp-validation-for="Notes" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="form-actions">
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+        </div>
+    </form>
+</section>

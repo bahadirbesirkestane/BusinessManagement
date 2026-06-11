@@ -1,0 +1,110 @@
+@model Business.Web.ViewModels.PersonalTaskIndexViewModel
+@{
+    ViewData["Title"] = "Kişisel Görevler";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Kişisel alan</p>
+            <h2>Kişisel görevler</h2>
+            <p class="record-count">Kayıt sayısı: <strong>@Model.Tasks.Count</strong></p>
+        </div>
+        <a class="btn btn-primary btn-sm" asp-action="Create">Yeni kişisel görev</a>
+    </div>
+
+    <form asp-action="Index" method="get" class="list-filter-bar">
+        <select name="filter" class="form-select form-select-sm">
+            <option value="open" selected="@(Model.Filter == "open")">Açık görevler</option>
+            <option value="completed" selected="@(Model.Filter == "completed")">Tamamlananlar</option>
+            <option value="overdue" selected="@(Model.Filter == "overdue")">Gecikenler</option>
+        </select>
+        <select name="customerId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Müşteri ara veya seç">
+            <option value="">Müşteri</option>
+            @foreach (var item in Model.Customers)
+            {
+                <option value="@item.Value" selected="@(Model.CustomerId?.ToString() == item.Value)">@item.Text</option>
+            }
+        </select>
+        <select name="projectId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Proje ara veya seç">
+            <option value="">Proje</option>
+            @foreach (var item in Model.Projects)
+            {
+                <option value="@item.Value" selected="@(Model.ProjectId?.ToString() == item.Value)">@item.Text</option>
+            }
+        </select>
+        <select name="projectTaskId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Görev ara veya seç">
+            <option value="">Normal görev bağlantısı</option>
+            @foreach (var item in Model.ProjectTasks)
+            {
+                <option value="@item.Value" selected="@(Model.ProjectTaskId?.ToString() == item.Value)">@item.Text</option>
+            }
+        </select>
+        <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
+        <a class="icon-filter-button clear" asp-action="Index" title="Temizle" aria-label="Temizle">×</a>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    <th>Görev</th>
+                    <th>Bağlantılar</th>
+                    <th>Durum</th>
+                    <th>Öncelik</th>
+                    <th>Termin</th>
+                    <th>Oluşturma</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var task in Model.Tasks)
+                {
+                    var summary = string.IsNullOrWhiteSpace(task.Description)
+                        ? null
+                        : task.Description!.Length > 100 ? task.Description[..100] + "..." : task.Description;
+                    var links = string.Join(" · ", new[] { task.CustomerName, task.ProjectName, task.ProjectTaskTitle }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                    <tr class="status-row status-@task.Status.ToString().ToLowerInvariant()">
+                        <td>
+                            <strong>@task.Title</strong>
+                            <small class="d-block text-muted">@((summary ?? "Açıklama yok"))</small>
+                        </td>
+                        <td>@(string.IsNullOrWhiteSpace(links) ? "-" : links)</td>
+                        <td>
+                            <span class="status-pill status-@task.Status.ToString().ToLowerInvariant()">@task.StatusText</span>
+                            @if (task.IsOverdue)
+                            {
+                                <small class="d-block text-danger">Gecikmiş</small>
+                            }
+                        </td>
+                        <td><span class="priority-pill priority-@task.Priority.ToString().ToLowerInvariant()">@task.PriorityText</span></td>
+                        <td>@(task.DueDate.HasValue ? task.DueDate.Value.ToString("dd.MM.yyyy") : "-")</td>
+                        <td>@task.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@task.Id">Detay</a>
+                            <span> · </span><a asp-action="Edit" asp-route-id="@task.Id">Düzenle</a>
+                            <span> · </span>
+                            <form asp-action="UpdateStatus" method="post" class="inline-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@task.Id" />
+                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                <select name="status" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()" aria-label="Görev durumu">
+                                    @foreach (PersonalTaskStatus status in Enum.GetValues<PersonalTaskStatus>())
+                                    {
+                                        <option value="@status" selected="@(task.Status == status)">@status.ToDisplayName()</option>
+                                    }
+                                </select>
+                            </form>
+                            <span> · </span><a class="text-danger" asp-action="Delete" asp-route-id="@task.Id">Sil</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (!Model.Tasks.Any())
+    {
+        <p class="empty-note">Filtreye uygun kişisel görev bulunmuyor.</p>
+    }
+</section>

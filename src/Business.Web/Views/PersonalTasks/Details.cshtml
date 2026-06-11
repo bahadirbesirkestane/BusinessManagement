@@ -1,0 +1,49 @@
+@using Business.Domain.Enums
+@model Business.Web.ViewModels.PersonalTaskDetailsViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    var links = string.Join(" · ", new[] { Model.CustomerName, Model.ProjectName, Model.ProjectTaskTitle }.Where(x => !string.IsNullOrWhiteSpace(x)));
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Kişisel görev</p>
+            <h2>@Model.Title</h2>
+            <p>@Model.PriorityText</p>
+        </div>
+        <div class="project-header-actions">
+            <form asp-action="UpdateStatus" method="post" class="inline-status-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                <select name="status" class="status-select status-@Model.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Görev durumu">
+                    @foreach (PersonalTaskStatus status in Enum.GetValues<PersonalTaskStatus>())
+                    {
+                        <option value="@status" selected="@(Model.Status == status)">@status.ToDisplayName()</option>
+                    }
+                </select>
+            </form>
+            <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+            <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id">Sil</a>
+        </div>
+    </div>
+
+    <dl class="row">
+        <dt class="col-sm-3">Durum</dt><dd class="col-sm-9">@Model.StatusText</dd>
+        <dt class="col-sm-3">Öncelik</dt><dd class="col-sm-9">@Model.PriorityText</dd>
+        <dt class="col-sm-3">Bağlantılar</dt><dd class="col-sm-9">@(string.IsNullOrWhiteSpace(links) ? "Bağlantı yok" : links)</dd>
+        <dt class="col-sm-3">Başlangıç</dt><dd class="col-sm-9">@(Model.StartDate?.ToString("dd.MM.yyyy") ?? "-")</dd>
+        <dt class="col-sm-3">Termin</dt><dd class="col-sm-9">@(Model.DueDate?.ToString("dd.MM.yyyy") ?? "-")</dd>
+        <dt class="col-sm-3">Tamamlanma</dt><dd class="col-sm-9">@(Model.CompletedAt?.ToString("dd.MM.yyyy") ?? "-")</dd>
+        <dt class="col-sm-3">Oluşturma</dt><dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+        <dt class="col-sm-3">Son güncelleme</dt><dd class="col-sm-9">@(Model.UpdatedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "-")</dd>
+        <dt class="col-sm-3">Açıklama</dt><dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.Description) ? "-" : Model.Description)</dd>
+        <dt class="col-sm-3">Not</dt><dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.Notes) ? "-" : Model.Notes)</dd>
+    </dl>
+
+    @if (Model.IsOverdue)
+    {
+        <p class="text-danger">Bu kişisel görev gecikmiş durumda.</p>
+    }
+</section>
