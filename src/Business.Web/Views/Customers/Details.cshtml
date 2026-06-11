@@ -11,6 +11,8 @@
         </div>
         <div class="actions-row">
             <a asp-action="Index">Listeye dön</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="PersonalNotes" asp-action="Create" asp-route-customerId="@Model.Id">Bana özel not ekle</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="PersonalTasks" asp-action="Create" asp-route-customerId="@Model.Id">Bana özel görev ekle</a>
             @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage))
             {
                 <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>

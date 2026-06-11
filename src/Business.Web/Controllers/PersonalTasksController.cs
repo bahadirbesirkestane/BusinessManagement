@@ -131,7 +131,7 @@ public class PersonalTasksController : Controller
         });
     }
 
-    public async Task<IActionResult> Create(CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid? customerId, Guid? projectId, Guid? projectTaskId, CancellationToken cancellationToken)
     {
         ViewBag.Breadcrumbs = new Dictionary<string, string?>
         {
@@ -139,7 +139,12 @@ public class PersonalTasksController : Controller
             ["Yeni Görev"] = null
         };
 
-        return View(await BuildFormModelAsync(new PersonalTaskFormViewModel(), cancellationToken));
+        return View(await BuildFormModelAsync(new PersonalTaskFormViewModel
+        {
+            CustomerId = customerId,
+            ProjectId = projectId,
+            ProjectTaskId = projectTaskId
+        }, cancellationToken));
     }
 
     [HttpPost]

@@ -13,6 +13,8 @@
     </div>
     <div class="project-header-actions">
         <span class="status-pill">@Model.Project.Status.ToDisplayName()</span>
+        <a class="btn btn-outline-secondary btn-sm" asp-controller="PersonalNotes" asp-action="Create" asp-route-projectId="@Model.Project.Id">Bana özel not ekle</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-controller="PersonalTasks" asp-action="Create" asp-route-projectId="@Model.Project.Id">Bana özel görev ekle</a>
         @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
         {
             <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Project.Id">Projeyi Düzenle</a>
@@ -50,7 +52,7 @@
                             @if (task.ParentTaskId.HasValue)
                             {
                                 var treeText = taskHierarchyLabels.TryGetValue(task.Id, out var hierarchyLabel)
-                                    ? hierarchyLabel.Replace("Hiyerarşi: ", "").Replace("HiyerarÅŸi: ", "")
+                                    ? hierarchyLabel.Replace("Hiyerarşi: ", "")
                                     : "Alt görev";
                                 <span class="task-tree-badge" title="Alt görev">↳ @treeText</span>
                             }
