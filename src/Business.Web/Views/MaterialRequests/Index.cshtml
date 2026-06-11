@@ -68,7 +68,8 @@
     {
         <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
         </form>
     }
 
@@ -78,7 +79,9 @@
                 <tr>
                     @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
                     {
-                        <th></th>
+                        <th class="bulk-check-cell">
+                            <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm malzeme taleplerini seç" />
+                        </th>
                     }
                     <th>Malzeme</th>
                     <th>Proje</th>
@@ -93,7 +96,7 @@
             <tbody>
                 @foreach (var request in Model)
                 {
-                    <tr class="status-row status-@request.Status.ToString().ToLowerInvariant()">
+                    <tr class="status-row status-@request.Status.ToString().ToLowerInvariant()" data-row-link="@Url.Action("Details", new { id = request.Id })">
                         @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
                         {
                             <td><input type="checkbox" name="ids" value="@request.Id" form="bulkDeleteForm" /></td>

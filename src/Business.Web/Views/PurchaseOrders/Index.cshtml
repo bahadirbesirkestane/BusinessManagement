@@ -99,7 +99,9 @@
                     <th>Sipariş</th>
                     @if (User.IsInRole(AppRoles.Admin))
                     {
-                        <th></th>
+                        <th class="bulk-check-cell">
+                            <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm siparişleri seç" />
+                        </th>
                     }
                     <th>Proje</th>
                     <th>Adet / miktar</th>

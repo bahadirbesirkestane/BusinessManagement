@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="~/Business.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
+    <a class="skip-link" href="#mainContent">İçeriğe geç</a>
     <div class="app-shell">
         <aside class="app-sidebar">
             <a class="brand" asp-area="" asp-controller="Dashboard" asp-action="Index">
@@ -20,7 +21,7 @@
                 </span>
             </a>
 
-            <nav class="side-nav">
+            <nav class="side-nav" aria-label="Ana menü">
                 <partial name="_SidebarNav" />
             </nav>
 
@@ -49,7 +50,7 @@
                 <partial name="_SidebarNav" />
             </div>
 
-            <main role="main" class="content-wrap">
+            <main id="mainContent" role="main" class="content-wrap">
                 @if (ViewBag.Breadcrumbs is IEnumerable<KeyValuePair<string, string?>> breadcrumbs)
                 {
                     <nav class="breadcrumb-nav" aria-label="Sayfa yolu">

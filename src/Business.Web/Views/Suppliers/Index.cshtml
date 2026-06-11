@@ -15,15 +15,36 @@
             <a class="btn btn-primary btn-sm" asp-action="Create">Yeni tedarikçi</a>
         }
     </div>
+
+    <form asp-action="Index" method="get" class="list-filter-bar">
+        <div class="filter-field filter-search">
+            <span class="filter-icon" aria-hidden="true">⌕</span>
+            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Tedarikçi, iletişim, vade veya not ara" />
+        </div>
+        <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
+        <a class="icon-filter-button clear" asp-action="Index" title="Temizle" aria-label="Temizle">×</a>
+    </form>
+
     @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.SuppliersManage))
     {
         <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
             <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
         </form>
     }
+
     <div class="table-responsive">
         <table class="table app-table align-middle">
-            <thead><tr><th>Ad</th><th>Tür</th><th>İletişim</th><th>Vade</th><th>Güvenilirlik</th><th></th></tr></thead>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Ad</th>
+                    <th>Tür</th>
+                    <th>İletişim</th>
+                    <th>Vade</th>
+                    <th>Güvenilirlik</th>
+                    <th></th>
+                </tr>
+            </thead>
             <tbody>
                 @foreach (var supplier in Model)
                 {

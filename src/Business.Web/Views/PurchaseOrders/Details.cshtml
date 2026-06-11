@@ -1,9 +1,6 @@
 @model PurchaseOrder
 @{
     ViewData["Title"] = "Sipariş Detayı";
-}
-
-@{
     var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
 }
 
@@ -31,6 +28,15 @@
             else
             {
                 <span class="status-pill status-@Model.Status.ToString().ToLowerInvariant()">@Model.Status.ToDisplayName()</span>
+            }
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+            {
+                <form asp-action="Repeat" method="post" class="inline-status-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button class="btn btn-outline-secondary btn-sm" type="submit">Siparişi tekrarla</button>
+                </form>
             }
             @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
             {

@@ -68,7 +68,9 @@
                 <tr>
                     @if (User.IsInRole(AppRoles.Admin))
                     {
-                        <th></th>
+                        <th class="bulk-check-cell">
+                            <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm projeleri seç" />
+                        </th>
                     }
                     <th>Kod</th>
                     <th>Proje</th>

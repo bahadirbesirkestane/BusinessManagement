@@ -212,6 +212,61 @@ public class PurchaseOrdersController : Controller
         return View(order);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
+    public async Task<IActionResult> Repeat(Guid id, string? returnUrl, CancellationToken cancellationToken)
+    {
+        var sourceOrder = await _context.PurchaseOrders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (sourceOrder is null)
+        {
+            return NotFound();
+        }
+
+        var currentUser = await _userManager.GetUserAsync(User);
+        var orderNumber = await GenerateOrderNumberAsync(cancellationToken);
+        var today = DateTime.Today;
+        var repeatedOrder = new PurchaseOrder
+        {
+            ProjectId = sourceOrder.ProjectId,
+            SupplierId = sourceOrder.SupplierId,
+            MaterialId = sourceOrder.MaterialId,
+            OrderNumber = orderNumber,
+            Scope = sourceOrder.Scope,
+            TrackingState = 0,
+            Content = sourceOrder.Content,
+            Quantity = sourceOrder.Quantity,
+            QuantityText = sourceOrder.QuantityText,
+            Unit = sourceOrder.Unit,
+            Quality = sourceOrder.Quality,
+            Status = PurchaseOrderStatus.Requested,
+            OrderDate = today,
+            ExpectedArrivalDate = sourceOrder.ExpectedArrivalDate.HasValue && sourceOrder.ExpectedArrivalDate.Value.Date >= today
+                ? sourceOrder.ExpectedArrivalDate
+                : null,
+            ArrivalDate = null,
+            RequestedBy = currentUser?.FullName ?? User.Identity?.Name ?? sourceOrder.RequestedBy,
+            RequestedByUserId = currentUser?.Id,
+            PaymentTerm = sourceOrder.PaymentTerm,
+            UnitPrice = sourceOrder.UnitPrice,
+            UnitPriceText = sourceOrder.UnitPriceText,
+            OrderTotal = sourceOrder.OrderTotal,
+            Currency = sourceOrder.Currency,
+            VatRate = sourceOrder.VatRate,
+            Notes = sourceOrder.Notes,
+            IsActive = sourceOrder.IsActive
+        };
+
+        await _purchaseOrderService.CreateAsync(repeatedOrder, cancellationToken);
+        await _projectTimelineService.AddForOrderAsync(repeatedOrder.Id, "Sipariş tekrarlandı", repeatedOrder.Content, cancellationToken);
+        TempData["Success"] = $"Yeni sipariş oluşturuldu: {orderNumber}";
+
+        return RedirectToLocal(returnUrl);
+    }
+
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
     public async Task<IActionResult> Create(Guid? projectId, CancellationToken cancellationToken)
     {

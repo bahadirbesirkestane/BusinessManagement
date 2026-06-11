@@ -16,7 +16,11 @@ public class SuppliersController : Controller
         _supplierService = supplierService;
     }
 
-    public async Task<IActionResult> Index(CancellationToken cancellationToken) => View(await _supplierService.GetAllAsync(cancellationToken));
+    public async Task<IActionResult> Index(string? q, CancellationToken cancellationToken)
+    {
+        ViewBag.FilterQ = q;
+        return View(await _supplierService.SearchAsync(q, cancellationToken));
+    }
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken) => (await _supplierService.GetDetailsAsync(id, cancellationToken)) is { } supplier ? View(supplier) : NotFound();
 
     [Authorize(Policy = AppPolicies.CanManageSuppliers)]

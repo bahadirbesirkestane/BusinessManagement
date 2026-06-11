@@ -178,7 +178,7 @@
             <div class="plan-list-board">
                 <div class="plan-list-head">
                     <span>Görev ağacı</span>
-                    <span>Tarih ve durum</span>
+                    <span>Tarih, açıklama ve durum</span>
                 </div>
                 @foreach (var task in Model.Tasks)
                 {
@@ -215,6 +215,10 @@
                             <div>
                                 <span>Tarih aralığı</span>
                                 <strong>@GetDateRangeText(task)</strong>
+                            </div>
+                            <div>
+                                <span>Açıklama</span>
+                                <p class="plan-list-description" title="@task.Description">@(string.IsNullOrWhiteSpace(task.Description) ? "-" : task.Description)</p>
                             </div>
                             <div>
                                 <span>Gün bilgisi</span>

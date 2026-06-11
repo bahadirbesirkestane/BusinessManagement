@@ -302,6 +302,14 @@
 @if (User.Identity?.IsAuthenticated == true)
 {
     <div class="side-user">@displayName</div>
+    <div class="side-nav-tools">
+        <input class="form-control form-control-sm side-nav-filter"
+               type="search"
+               placeholder="Menüde ara"
+               autocomplete="off"
+               aria-label="Menüde ara"
+               data-nav-filter />
+    </div>
 
     foreach (var group in groups)
     {
@@ -311,7 +319,7 @@
         }
 
         var isOpen = IsGroupOpen(group.Items);
-        <details class="side-group" @(isOpen ? "open" : "")>
+        <details class="side-group" data-nav-group="@group.Title" @(isOpen ? "open" : "")>
             <summary>@group.Title</summary>
             <div class="side-subnav">
                 @foreach (var item in group.Items)
@@ -320,7 +328,9 @@
                     {
                         continue;
                     }
-                    <a class="@(IsActiveLink(item.Url) ? "active" : "")" href="@item.Url">@item.Label</a>
+                    <a class="@(IsActiveLink(item.Url) ? "active" : "")"
+                       href="@item.Url"
+                       data-nav-item="@item.Label">@item.Label</a>
                 }
             </div>
         </details>
