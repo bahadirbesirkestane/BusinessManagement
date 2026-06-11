@@ -158,6 +158,8 @@ public static class DependencyInjection
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IMaterialService, MaterialService>();
         services.AddScoped<ILookupService, LookupService>();
+        services.AddScoped<IPersonalNoteService, PersonalNoteService>();
+        services.AddScoped<IPersonalTaskService, PersonalTaskService>();
         services.AddScoped<IRecordActivityService, RecordActivityService>();
         services.AddScoped<IProjectTimelineService, ProjectTimelineService>();
         services.AddScoped<IAdminRecoveryCodeService, AdminRecoveryCodeService>();
