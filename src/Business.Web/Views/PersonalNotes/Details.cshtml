@@ -1,0 +1,56 @@
+@model Business.Web.ViewModels.PersonalNoteDetailsViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    var links = string.Join(" · ", new[] { Model.CustomerName, Model.ProjectName, Model.ProjectTaskTitle }.Where(x => !string.IsNullOrWhiteSpace(x)));
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Kişisel not</p>
+            <h2>@Model.Title</h2>
+            <p>@Model.CategoryText</p>
+        </div>
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+            <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id">Sil</a>
+        </div>
+    </div>
+
+    <div class="list-stack">
+        <div class="list-row">
+            <span>
+                <strong>Bağlantılar</strong>
+                <small>@(string.IsNullOrWhiteSpace(links) ? "Bağlantı yok" : links)</small>
+            </span>
+        </div>
+        <div class="list-row">
+            <span>
+                <strong>Oluşturulma</strong>
+                <small>@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+            </span>
+        </div>
+        <div class="list-row">
+            <span>
+                <strong>Son güncelleme</strong>
+                <small>@(Model.UpdatedAt.HasValue ? Model.UpdatedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "-")</small>
+            </span>
+        </div>
+        <div class="list-row">
+            <span>
+                <strong>Hatırlatma</strong>
+                <small>@(Model.ReminderAt.HasValue ? Model.ReminderAt.Value.ToString("dd.MM.yyyy HH:mm") : "-")</small>
+            </span>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block mt-3">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">İçerik</p>
+            <h2>Not metni</h2>
+        </div>
+    </div>
+    <div style="white-space: pre-wrap;">@Model.Content</div>
+</section>

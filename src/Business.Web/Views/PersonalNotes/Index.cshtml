@@ -1,0 +1,87 @@
+@model Business.Web.ViewModels.PersonalNoteIndexViewModel
+@{
+    ViewData["Title"] = "Kişisel Notlar";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Kişisel alan</p>
+            <h2>Kişisel notlar</h2>
+            <p class="record-count">Kayıt sayısı: <strong>@Model.Notes.Count</strong></p>
+        </div>
+        <a class="btn btn-primary btn-sm" asp-action="Create">Yeni not</a>
+    </div>
+
+    <form asp-action="Index" method="get" class="list-filter-bar">
+        <div class="filter-field filter-search">
+            <span class="filter-icon" aria-hidden="true">⌕</span>
+            <input name="q" value="@Model.TitleFilter" class="form-control form-control-sm" placeholder="Başlık veya içerik ara" />
+        </div>
+        <select name="customerId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Müşteri ara veya seç">
+            <option value="">Müşteri</option>
+            @foreach (var item in Model.Customers)
+            {
+                <option value="@item.Value" selected="@(Model.CustomerId?.ToString() == item.Value)">@item.Text</option>
+            }
+        </select>
+        <select name="projectId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Proje ara veya seç">
+            <option value="">Proje</option>
+            @foreach (var item in Model.Projects)
+            {
+                <option value="@item.Value" selected="@(Model.ProjectId?.ToString() == item.Value)">@item.Text</option>
+            }
+        </select>
+        <select name="projectTaskId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Görev ara veya seç">
+            <option value="">Görev</option>
+            @foreach (var item in Model.ProjectTasks)
+            {
+                <option value="@item.Value" selected="@(Model.ProjectTaskId?.ToString() == item.Value)">@item.Text</option>
+            }
+        </select>
+        <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
+        <a class="icon-filter-button clear" asp-action="Index" title="Temizle" aria-label="Temizle">×</a>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    <th>Başlık</th>
+                    <th>Tür</th>
+                    <th>Bağlantılar</th>
+                    <th>Hatırlatma</th>
+                    <th>Oluşturma</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var note in Model.Notes)
+                {
+                    var summary = note.Content.Length > 120 ? note.Content[..120] + "..." : note.Content;
+                    var links = string.Join(" · ", new[] { note.CustomerName, note.ProjectName, note.ProjectTaskTitle }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                    <tr>
+                        <td>
+                            <strong>@note.Title</strong>
+                            <small class="d-block text-muted">@summary</small>
+                        </td>
+                        <td><span class="status-pill">@note.CategoryText</span></td>
+                        <td>@(string.IsNullOrWhiteSpace(links) ? "-" : links)</td>
+                        <td>@(note.ReminderAt.HasValue ? note.ReminderAt.Value.ToString("dd.MM.yyyy HH:mm") : "-")</td>
+                        <td>@note.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@note.Id">Detay</a>
+                            <span> · </span><a asp-action="Edit" asp-route-id="@note.Id">Düzenle</a>
+                            <span> · </span><a class="text-danger" asp-action="Delete" asp-route-id="@note.Id">Sil</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (!Model.Notes.Any())
+    {
+        <p class="empty-note">Henüz kişisel not bulunmuyor.</p>
+    }
+</section>

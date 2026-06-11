@@ -57,6 +57,14 @@
         },
         new
         {
+            Title = "Kişisel Alan",
+            Items = new[]
+            {
+                (Label: "Kişisel Notlar", Url: "/PersonalNotes")
+            }
+        },
+        new
+        {
             Title = "Siparişler",
             Items = new[]
             {
@@ -168,6 +176,11 @@
         if (url.StartsWith("/ProjectTasks", StringComparison.OrdinalIgnoreCase))
         {
             return HasPermission(AppPermissions.TasksView, AppPermissions.TasksCreate, AppPermissions.TasksUpdate, AppPermissions.TasksChangeStatus, AppPermissions.TasksComplete);
+        }
+
+        if (url.StartsWith("/PersonalNotes", StringComparison.OrdinalIgnoreCase))
+        {
+            return User.Identity?.IsAuthenticated == true;
         }
 
         if (url.StartsWith("/TaskCategories", StringComparison.OrdinalIgnoreCase))

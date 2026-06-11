@@ -1,0 +1,71 @@
+@using Business.Domain.Enums
+@model Business.Web.ViewModels.PersonalNoteFormViewModel
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Kişisel alan</p>
+            <h2>@ViewData["Title"]</h2>
+        </div>
+    </div>
+    <form method="post" class="app-form">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="mb-3">
+                <label asp-for="Category" class="form-label">Not türü</label>
+                <select asp-for="Category" class="form-select" asp-items="Html.GetEnumSelectList<PersonalNoteCategory>()"></select>
+                <span asp-validation-for="Category" class="text-danger"></span>
+            </div>
+            <div class="mb-3 wide">
+                <label asp-for="Title" class="form-label">Başlık</label>
+                <input asp-for="Title" class="form-control" />
+                <span asp-validation-for="Title" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="CustomerId" class="form-label">Müşteri</label>
+                <select asp-for="CustomerId" class="form-select" data-searchable-select data-search-placeholder="Müşteri ara veya seç">
+                    <option value="">Bağlantı yok</option>
+                    @foreach (var item in Model.Customers)
+                    {
+                        <option value="@item.Value">@item.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ProjectId" class="form-label">Proje</label>
+                <select asp-for="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya seç">
+                    <option value="">Bağlantı yok</option>
+                    @foreach (var item in Model.Projects)
+                    {
+                        <option value="@item.Value">@item.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ProjectTaskId" class="form-label">Görev</label>
+                <select asp-for="ProjectTaskId" class="form-select" data-searchable-select data-search-placeholder="Görev ara veya seç">
+                    <option value="">Bağlantı yok</option>
+                    @foreach (var item in Model.ProjectTasks)
+                    {
+                        <option value="@item.Value">@item.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ReminderAt" class="form-label">Hatırlatma tarihi</label>
+                <input asp-for="ReminderAt" class="form-control" type="datetime-local" />
+                <span asp-validation-for="ReminderAt" class="text-danger"></span>
+            </div>
+            <div class="mb-3 wide">
+                <label asp-for="Content" class="form-label">İçerik</label>
+                <textarea asp-for="Content" class="form-control" rows="10"></textarea>
+                <span asp-validation-for="Content" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="form-actions">
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+        </div>
+    </form>
+</section>
