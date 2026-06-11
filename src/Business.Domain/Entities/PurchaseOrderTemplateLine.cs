@@ -10,6 +10,9 @@ public class PurchaseOrderTemplateLine : BaseEntity
 
     public int SortOrder { get; set; }
 
+    public Guid? SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+
     public Guid? MaterialId { get; set; }
     public Material? Material { get; set; }
 
@@ -28,6 +31,8 @@ public class PurchaseOrderTemplateLine : BaseEntity
 
     [StringLength(120, ErrorMessage = "Kalite en fazla 120 karakter olabilir.")]
     public string? Quality { get; set; }
+
+    public int? ExpectedArrivalOffsetDays { get; set; }
 
     [Range(0, 999999999, ErrorMessage = "Birim fiyat 0'dan küçük olamaz.")]
     public decimal? UnitPrice { get; set; }

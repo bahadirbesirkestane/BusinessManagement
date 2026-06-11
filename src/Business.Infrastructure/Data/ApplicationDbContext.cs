@@ -304,6 +304,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Notes).HasMaxLength(2000);
             entity.HasIndex(x => new { x.PurchaseOrderTemplateId, x.SortOrder });
             entity.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<MaterialRequest>(entity =>

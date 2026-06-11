@@ -54,6 +54,10 @@
             @if (canManageTemplates)
             {
                 <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Sablonu duzenle</a>
+                <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu gorev sablonu ve tum alt sablon gorevleri silinsin mi?');">Sil</button>
+                </form>
                 <button class="btn btn-primary btn-sm" type="button" data-template-task-trigger data-parent-id="" data-parent-title="">Ana sablon gorevi ekle</button>
             }
         </div>

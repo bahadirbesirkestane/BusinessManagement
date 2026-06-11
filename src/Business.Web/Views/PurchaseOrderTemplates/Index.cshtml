@@ -1,27 +1,27 @@
 @model IReadOnlyList<PurchaseOrderTemplateListItemViewModel>
 @{
-    ViewData["Title"] = "Sipariş Şablonları";
+    ViewData["Title"] = "Siparis Sablonlari";
     var canManageTemplates = User.IsInRole(AppRoles.Admin) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
 }
 
 <section class="diagram-hero">
     <div>
-        <p class="section-kicker">Satın alma</p>
-        <h2>Sipariş şablonları</h2>
-        <p>Tekrar eden satın alma kalemlerini standartlaştırmak için sipariş şablonlarını yönetin.</p>
+        <p class="section-kicker">Satin alma</p>
+        <h2>Siparis sablonlari</h2>
+        <p>Tekrar eden satin alma kalemlerini standartlastirmak icin siparis sablonlarini yonetin.</p>
     </div>
     <div class="diagram-summary-grid">
         <div>
-            <span>Toplam şablon</span>
+            <span>Toplam sablon</span>
             <strong>@Model.Count</strong>
         </div>
         <div>
-            <span>Aktif şablon</span>
+            <span>Aktif sablon</span>
             <strong>@Model.Count(x => x.IsActive)</strong>
         </div>
         <div>
-            <span>Toplam satır</span>
+            <span>Toplam satir</span>
             <strong>@Model.Sum(x => x.LineCount)</strong>
         </div>
     </div>
@@ -30,18 +30,18 @@
 <section class="panel-block">
     <div class="panel-heading">
         <div>
-            <p class="section-kicker">Şablon listesi</p>
-            <h2>Kayıtlı sipariş şablonları</h2>
+            <p class="section-kicker">Sablon listesi</p>
+            <h2>Kayitli siparis sablonlari</h2>
         </div>
         @if (canManageTemplates)
         {
-            <a class="btn btn-primary btn-sm" asp-action="Create">Yeni şablon</a>
+            <a class="btn btn-primary btn-sm" asp-action="Create">Yeni sablon</a>
         }
     </div>
 
     @if (!Model.Any())
     {
-        <p class="empty-note">Henüz sipariş şablonu bulunmuyor.</p>
+        <p class="empty-note">Henuz siparis sablonu bulunmuyor.</p>
     }
     else
     {
@@ -49,12 +49,12 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Şablon</th>
+                        <th>Sablon</th>
                         <th>Kapsam</th>
-                        <th>Tedarikçi</th>
-                        <th>Satır</th>
+                        <th>Tedarikci</th>
+                        <th>Satir</th>
                         <th>Durum</th>
-                        <th class="text-end">İşlemler</th>
+                        <th class="text-end">Islemler</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -84,7 +84,11 @@
                                 <a class="btn btn-outline-primary btn-sm" asp-action="Details" asp-route-id="@item.Id">Detay</a>
                                 @if (canManageTemplates)
                                 {
-                                    <a class="btn btn-outline-secondary btn-sm" asp-action="Edit" asp-route-id="@item.Id">Düzenle</a>
+                                    <a class="btn btn-outline-secondary btn-sm" asp-action="Edit" asp-route-id="@item.Id">Duzenle</a>
+                                    <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu siparis sablonu ve tum satirlari silinsin mi?');">Sil</button>
+                                    </form>
                                 }
                             </td>
                         </tr>

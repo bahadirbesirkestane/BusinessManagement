@@ -9,4 +9,5 @@ public interface IPurchaseOrderTemplateService : ICrudService<PurchaseOrderTempl
     Task AddLineAsync(PurchaseOrderTemplateLine line, CancellationToken cancellationToken = default);
     Task UpdateLineAsync(PurchaseOrderTemplateLine line, CancellationToken cancellationToken = default);
     Task DeleteLineAsync(Guid templateId, Guid lineId, CancellationToken cancellationToken = default);
+    Task<int> ApplyTemplateAsync(Guid templateId, Guid? projectId, DateTime orderDate, string? requestedByUserId, string? requestedBy, CancellationToken cancellationToken = default);
 }

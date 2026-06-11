@@ -49,6 +49,7 @@ public class PurchaseOrderTemplateLineFormViewModel
 {
     public Guid? Id { get; set; }
     public Guid PurchaseOrderTemplateId { get; set; }
+    public Guid? SupplierId { get; set; }
     public Guid? MaterialId { get; set; }
 
     [Required(ErrorMessage = "Sipariş içeriği zorunludur.")]
@@ -67,6 +68,8 @@ public class PurchaseOrderTemplateLineFormViewModel
     [StringLength(120, ErrorMessage = "Kalite en fazla 120 karakter olabilir.")]
     public string? Quality { get; set; }
 
+    public int? ExpectedArrivalOffsetDays { get; set; }
+
     [Range(0, 999999999, ErrorMessage = "Birim fiyat 0'dan küçük olamaz.")]
     public decimal? UnitPrice { get; set; }
 
@@ -82,15 +85,29 @@ public class PurchaseOrderTemplateLineItemViewModel
     public Guid Id { get; set; }
     public int SortOrder { get; set; }
     public string Content { get; set; } = string.Empty;
+    public Guid? SupplierId { get; set; }
+    public string? SupplierName { get; set; }
     public Guid? MaterialId { get; set; }
     public string? MaterialName { get; set; }
     public decimal? Quantity { get; set; }
     public string? QuantityText { get; set; }
     public string? Unit { get; set; }
     public string? Quality { get; set; }
+    public int? ExpectedArrivalOffsetDays { get; set; }
     public decimal? UnitPrice { get; set; }
     public decimal? OrderTotal { get; set; }
     public string? Notes { get; set; }
+}
+
+public class PurchaseOrderTemplateApplyViewModel
+{
+    [Required]
+    public Guid TemplateId { get; set; }
+
+    public Guid? ProjectId { get; set; }
+
+    [Required(ErrorMessage = "Sipariş tarihi zorunludur.")]
+    public DateTime OrderDate { get; set; } = DateTime.Today;
 }
 
 public class PurchaseOrderTemplateDetailsViewModel
@@ -109,6 +126,9 @@ public class PurchaseOrderTemplateDetailsViewModel
     public IReadOnlyList<PurchaseOrderTemplateLineItemViewModel> Lines { get; set; } = [];
     public PurchaseOrderTemplateLineFormViewModel LineForm { get; set; } = new();
     public IReadOnlyList<ProjectTemplateLookupItemViewModel> Materials { get; set; } = [];
+    public IReadOnlyList<ProjectTemplateLookupItemViewModel> Suppliers { get; set; } = [];
+    public IReadOnlyList<ProjectPlanningProjectOptionViewModel> Projects { get; set; } = [];
+    public PurchaseOrderTemplateApplyViewModel ApplyForm { get; set; } = new();
     public bool OpenLineForm { get; set; }
     public string LineFormMode { get; set; } = "create";
 }

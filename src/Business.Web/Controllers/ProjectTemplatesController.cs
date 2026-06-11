@@ -172,6 +172,16 @@ public class ProjectTemplatesController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanManageProjects)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await _projectTemplateService.DeleteAsync(id, cancellationToken);
+        TempData["Success"] = "Görev şablonu silindi.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanManageProjects)]
     public async Task<IActionResult> AddTask([Bind(Prefix = "TaskForm")] ProjectTemplateTaskFormViewModel taskForm, CancellationToken cancellationToken)
     {
         var template = await _projectTemplateService.GetByIdAsync(taskForm.ProjectTemplateId, cancellationToken);

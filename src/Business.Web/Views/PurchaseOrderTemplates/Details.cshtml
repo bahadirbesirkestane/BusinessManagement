@@ -1,18 +1,20 @@
 @model PurchaseOrderTemplateDetailsViewModel
 @using System.Text.Json
 @{
-    ViewData["Title"] = "Sipariş Şablonu Detayı";
+    ViewData["Title"] = "Siparis Sablonu Detayi";
     var canManageTemplates = User.IsInRole(AppRoles.Admin) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
     var lineItems = Model.Lines.Select(x => new
     {
         id = x.Id.ToString(),
         content = x.Content,
+        supplierId = x.SupplierId?.ToString(),
         materialId = x.MaterialId?.ToString(),
         quantity = x.Quantity,
         quantityText = x.QuantityText,
         unit = x.Unit,
         quality = x.Quality,
+        expectedArrivalOffsetDays = x.ExpectedArrivalOffsetDays,
         unitPrice = x.UnitPrice,
         orderTotal = x.OrderTotal,
         notes = x.Notes
@@ -21,21 +23,21 @@
 
 <section class="diagram-hero">
     <div>
-        <p class="section-kicker">Sipariş şablonları</p>
+        <p class="section-kicker">Siparis sablonlari</p>
         <h2>@Model.Name</h2>
-        <p>@(string.IsNullOrWhiteSpace(Model.Description) ? "Tekrar eden satın alma kayıtları için kullanılacak ön tanımlı satırları burada yönetin." : Model.Description)</p>
+        <p>@(string.IsNullOrWhiteSpace(Model.Description) ? "Tekrar eden satin alma kayitlari icin kullanilacak on tanimli satirlari burada yonetin." : Model.Description)</p>
     </div>
     <div class="diagram-summary-grid">
         <div>
-            <span>Şablon kodu</span>
+            <span>Sablon kodu</span>
             <strong>@(string.IsNullOrWhiteSpace(Model.Code) ? "-" : Model.Code)</strong>
         </div>
         <div>
-            <span>Varsayılan tedarikçi</span>
+            <span>Varsayilan tedarikci</span>
             <strong>@(Model.SupplierName ?? "-")</strong>
         </div>
         <div>
-            <span>Şablon satırı</span>
+            <span>Sablon satiri</span>
             <strong>@Model.Lines.Count</strong>
         </div>
     </div>
@@ -44,15 +46,19 @@
 <section class="panel-block">
     <div class="panel-heading">
         <div>
-            <p class="section-kicker">Şablon özeti</p>
-            <h2>Varsayılan bilgiler</h2>
+            <p class="section-kicker">Sablon ozeti</p>
+            <h2>Varsayilan bilgiler</h2>
         </div>
         <div class="toolbar-actions">
-            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Listeye dön</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Listeye don</a>
             @if (canManageTemplates)
             {
-                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Şablonu düzenle</a>
-                <button class="btn btn-primary btn-sm" type="button" data-template-line-trigger>Satır ekle</button>
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Sablonu duzenle</a>
+                <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu siparis sablonu ve tum sablon satirlari silinsin mi?');">Sil</button>
+                </form>
+                <button class="btn btn-primary btn-sm" type="button" data-template-line-trigger>Satir ekle</button>
             }
         </div>
     </div>
@@ -62,25 +68,72 @@
             <div class="panel-block h-100">
                 <dl class="mb-0">
                     <div class="mb-2"><dt>Kapsam</dt><dd>@Model.ScopeText</dd></div>
-                    <div class="mb-2"><dt>Varsayılan durum</dt><dd>@Model.StatusText</dd></div>
+                    <div class="mb-2"><dt>Varsayilan durum</dt><dd>@Model.StatusText</dd></div>
                     <div class="mb-2"><dt>Vade</dt><dd>@(Model.DefaultPaymentTerm ?? "-")</dd></div>
                     <div class="mb-2"><dt>Para birimi</dt><dd>@Model.DefaultCurrency</dd></div>
-                    <div><dt>KDV oranı</dt><dd>@(Model.DefaultVatRate?.ToString("0.##") ?? "-")</dd></div>
+                    <div><dt>KDV orani</dt><dd>@(Model.DefaultVatRate?.ToString("0.##") ?? "-")</dd></div>
                 </dl>
             </div>
         </div>
+
         <div class="col-lg-8">
             <div class="panel-block h-100">
                 <div class="panel-heading">
                     <div>
-                        <p class="section-kicker">Şablon satırları</p>
-                        <h2>Satın alma kalemleri</h2>
+                        <p class="section-kicker">Tek seferde olustur</p>
+                        <h2>Sablonu siparise donustur</h2>
+                    </div>
+                </div>
+                <div class="row g-4 align-items-end">
+                    <div class="col-md-8">
+                        <form asp-action="ApplyTemplate" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="TemplateId" value="@Model.Id" />
+                            <div class="mb-3">
+                                <label class="form-label" for="applyProjectId">Proje</label>
+                                <select id="applyProjectId" name="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya sec">
+                                    <option value="">Genel siparis</option>
+                                    @foreach (var project in Model.Projects)
+                                    {
+                                        <option value="@project.Id">@project.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="applyOrderDate">Siparis tarihi</label>
+                                <input id="applyOrderDate" name="OrderDate" type="date" class="form-control" value="@Model.ApplyForm.OrderDate.ToString("yyyy-MM-dd")" />
+                                <div class="form-text">Satir bazli teslim ofseti varsa bu tarihe gore hesaplanir.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Sablondan siparis olustur</button>
+                        </form>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="panel-block h-100 mb-0">
+                            <p class="section-kicker">Bilgi</p>
+                            <h3 class="h6">Uygulama davranisi</h3>
+                            <ul class="mb-0 ps-3">
+                                <li>Her satir ayri siparis olarak acilir.</li>
+                                <li>Satir tedarikcisi varsa once o kullanilir.</li>
+                                <li>Proje secilirse siparisler proje kapsaminda olusur.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="panel-block">
+                <div class="panel-heading">
+                    <div>
+                        <p class="section-kicker">Sablon satirlari</p>
+                        <h2>Satin alma kalemleri</h2>
                     </div>
                 </div>
 
                 @if (!Model.Lines.Any())
                 {
-                    <p class="empty-note">Bu şablona henüz satır eklenmemiş.</p>
+                    <p class="empty-note">Bu sablona henuz satir eklenmemis.</p>
                 }
                 else
                 {
@@ -89,12 +142,14 @@
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>İçerik</th>
+                                    <th>Tedarikci</th>
+                                    <th>Icerik</th>
                                     <th>Malzeme</th>
                                     <th>Miktar</th>
+                                    <th>Teslim ofseti</th>
                                     <th>Birim fiyat</th>
                                     <th>Tutar</th>
-                                    <th class="text-end">İşlemler</th>
+                                    <th class="text-end">Islemler</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -102,6 +157,7 @@
                                 {
                                     <tr>
                                         <td>@line.SortOrder</td>
+                                        <td>@(line.SupplierName ?? Model.SupplierName ?? "-")</td>
                                         <td>
                                             <strong>@line.Content</strong>
                                             @if (!string.IsNullOrWhiteSpace(line.Quality) || !string.IsNullOrWhiteSpace(line.Notes))
@@ -114,17 +170,18 @@
                                         </td>
                                         <td>@(line.MaterialName ?? "-")</td>
                                         <td>@(line.QuantityText ?? line.Quantity?.ToString("0.###") ?? "-") @(line.Unit ?? "")</td>
+                                        <td>@(line.ExpectedArrivalOffsetDays?.ToString() ?? "-")</td>
                                         <td>@(line.UnitPrice?.ToString("N2") ?? "-")</td>
                                         <td>@(line.OrderTotal?.ToString("N2") ?? "-")</td>
                                         <td class="text-end">
                                             @if (canManageTemplates)
                                             {
-                                                <button class="btn btn-outline-secondary btn-sm" type="button" data-template-edit-line="@line.Id">Düzenle</button>
+                                                <button class="btn btn-outline-secondary btn-sm" type="button" data-template-edit-line="@line.Id">Duzenle</button>
                                                 <form asp-action="DeleteLine" method="post" class="d-inline">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="templateId" value="@Model.Id" />
                                                     <input type="hidden" name="lineId" value="@line.Id" />
-                                                    <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu şablon satırı silinsin mi?');">Sil</button>
+                                                    <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu sablon satiri silinsin mi?');">Sil</button>
                                                 </form>
                                             }
                                         </td>
@@ -150,8 +207,8 @@
                     <input asp-for="LineForm.PurchaseOrderTemplateId" type="hidden" value="@Model.Id" />
                     <div class="modal-header">
                         <div>
-                            <p class="section-kicker mb-1">Sipariş şablonları</p>
-                            <h2 class="modal-title fs-5" id="templateLineModalTitle">Şablon satırı ekle</h2>
+                            <p class="section-kicker mb-1">Siparis sablonlari</p>
+                            <h2 class="modal-title fs-5" id="templateLineModalTitle">Sablon satiri ekle</h2>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
                     </div>
@@ -159,14 +216,24 @@
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
                         <div class="form-grid">
                             <div class="mb-3 wide">
-                                <label asp-for="LineForm.Content" class="form-label">Sipariş içeriği</label>
+                                <label asp-for="LineForm.Content" class="form-label">Siparis icerigi</label>
                                 <input asp-for="LineForm.Content" class="form-control" />
                                 <span asp-validation-for="LineForm.Content" class="text-danger"></span>
                             </div>
                             <div class="mb-3">
+                                <label asp-for="LineForm.SupplierId" class="form-label">Tedarikci</label>
+                                <select asp-for="LineForm.SupplierId" class="form-select" data-searchable-select data-search-placeholder="Tedarikci ara veya sec">
+                                    <option value="">Sablon varsayilani</option>
+                                    @foreach (var supplier in Model.Suppliers)
+                                    {
+                                        <option value="@supplier.Value">@supplier.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-3">
                                 <label asp-for="LineForm.MaterialId" class="form-label">Malzeme</label>
-                                <select asp-for="LineForm.MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
-                                    <option value="">Seçilmedi</option>
+                                <select asp-for="LineForm.MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya sec">
+                                    <option value="">Secilmedi</option>
                                     @foreach (var material in Model.Materials)
                                     {
                                         <option value="@material.Value">@material.Text</option>
@@ -190,6 +257,10 @@
                                 <input asp-for="LineForm.Quality" class="form-control" />
                             </div>
                             <div class="mb-3">
+                                <label asp-for="LineForm.ExpectedArrivalOffsetDays" class="form-label">Teslim ofseti (gun)</label>
+                                <input asp-for="LineForm.ExpectedArrivalOffsetDays" type="number" class="form-control" />
+                            </div>
+                            <div class="mb-3">
                                 <label asp-for="LineForm.UnitPrice" class="form-label">Birim fiyat</label>
                                 <input asp-for="LineForm.UnitPrice" type="number" step="0.01" class="form-control" />
                             </div>
@@ -204,7 +275,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgec</button>
                         <button type="submit" class="btn btn-primary">Kaydet</button>
                     </div>
                 </form>
@@ -241,15 +312,17 @@
                 form.action = addUrl;
                 setField('LineForm.Id', '');
                 setField('LineForm.Content', '');
+                setField('LineForm.SupplierId', '');
                 setField('LineForm.MaterialId', '');
                 setField('LineForm.Quantity', '');
                 setField('LineForm.QuantityText', '');
                 setField('LineForm.Unit', '');
                 setField('LineForm.Quality', '');
+                setField('LineForm.ExpectedArrivalOffsetDays', '');
                 setField('LineForm.UnitPrice', '');
                 setField('LineForm.OrderTotal', '');
                 setField('LineForm.Notes', '');
-                title.textContent = 'Şablon satırı ekle';
+                title.textContent = 'Sablon satiri ekle';
                 modal.show();
             }
 
@@ -262,15 +335,17 @@
                 form.action = updateUrl;
                 setField('LineForm.Id', line.id);
                 setField('LineForm.Content', line.content || '');
+                setField('LineForm.SupplierId', line.supplierId || '');
                 setField('LineForm.MaterialId', line.materialId || '');
                 setField('LineForm.Quantity', line.quantity ?? '');
                 setField('LineForm.QuantityText', line.quantityText || '');
                 setField('LineForm.Unit', line.unit || '');
                 setField('LineForm.Quality', line.quality || '');
+                setField('LineForm.ExpectedArrivalOffsetDays', line.expectedArrivalOffsetDays ?? '');
                 setField('LineForm.UnitPrice', line.unitPrice ?? '');
                 setField('LineForm.OrderTotal', line.orderTotal ?? '');
                 setField('LineForm.Notes', line.notes || '');
-                title.textContent = 'Şablon satırını düzenle';
+                title.textContent = 'Sablon satirini duzenle';
                 modal.show();
             }
 
@@ -289,7 +364,7 @@
             if (@Html.Raw(JsonSerializer.Serialize(Model.OpenLineForm))) {
                 if (@Html.Raw(JsonSerializer.Serialize(Model.LineFormMode)) === 'edit') {
                     form.action = updateUrl;
-                    title.textContent = 'Şablon satırını düzenle';
+                    title.textContent = 'Sablon satirini duzenle';
                 }
                 modal.show();
             }
