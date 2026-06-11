@@ -12,7 +12,30 @@
         <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Sipariş listesi</a>
     </div>
 
+    @if (ViewBag.Templates is IEnumerable<dynamic> templates && templates.Any())
+    {
+        <form asp-action="QuickCreate" method="get" class="diagram-filter-bar mb-3">
+            <select name="projectId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Proje ara veya seç">
+                <option value="">Genel sipariş</option>
+                @foreach (var project in ViewBag.Projects)
+                {
+                    <option value="@project.Id" selected="@(Model.ProjectId == project.Id)">@project.Code - @project.Name</option>
+                }
+            </select>
+            <select name="templateId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Şablon ara veya seç">
+                <option value="">Sipariş şablonu seçin</option>
+                @foreach (var template in templates)
+                {
+                    <option value="@template.Id" selected="@(Model.TemplateId == template.Id)">@template.Text</option>
+                }
+            </select>
+            <button class="btn btn-outline-primary btn-sm" type="submit">Şablonu yükle</button>
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="PurchaseOrderTemplates" asp-action="Index">Şablonlar</a>
+        </form>
+    }
+
     <form method="post" class="app-form quick-order-form" data-quick-order-form>
+        <input asp-for="TemplateId" type="hidden" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
         <div class="quick-order-context">

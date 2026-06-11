@@ -20,6 +20,7 @@ public class PurchaseOrdersController : Controller
     private readonly IRecordActivityService _recordActivityService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IProjectTimelineService _projectTimelineService;
+    private readonly IPurchaseOrderTemplateService _purchaseOrderTemplateService;
     private readonly ApplicationDbContext _context;
 
     public PurchaseOrdersController(
@@ -28,6 +29,7 @@ public class PurchaseOrdersController : Controller
         IRecordActivityService recordActivityService,
         UserManager<ApplicationUser> userManager,
         IProjectTimelineService projectTimelineService,
+        IPurchaseOrderTemplateService purchaseOrderTemplateService,
         ApplicationDbContext context)
     {
         _purchaseOrderService = purchaseOrderService;
@@ -35,6 +37,7 @@ public class PurchaseOrdersController : Controller
         _recordActivityService = recordActivityService;
         _userManager = userManager;
         _projectTimelineService = projectTimelineService;
+        _purchaseOrderTemplateService = purchaseOrderTemplateService;
         _context = context;
     }
 
@@ -223,16 +226,11 @@ public class PurchaseOrdersController : Controller
     }
 
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
-    public async Task<IActionResult> QuickCreate(Guid? projectId, CancellationToken cancellationToken)
+    public async Task<IActionResult> QuickCreate(Guid? projectId, Guid? templateId, CancellationToken cancellationToken)
     {
-        await FillLookupsAsync(cancellationToken);
-        return View(new QuickPurchaseOrderViewModel
-        {
-            ProjectId = projectId,
-            Scope = projectId.HasValue ? PurchaseOrderScope.Project : PurchaseOrderScope.General,
-            OrderDate = DateTime.Today,
-            Currency = "TRY"
-        });
+        var model = await BuildQuickCreateModelAsync(projectId, templateId, cancellationToken);
+        await FillQuickCreateLookupsAsync(cancellationToken);
+        return View(model);
     }
 
     [HttpPost]
@@ -252,7 +250,7 @@ public class PurchaseOrdersController : Controller
         if (!ModelState.IsValid)
         {
             EnsureQuickRows(model);
-            await FillLookupsAsync(cancellationToken);
+            await FillQuickCreateLookupsAsync(cancellationToken);
             return View(model);
         }
 
@@ -455,6 +453,72 @@ public class PurchaseOrdersController : Controller
             .Where(x => x.IsActive)
             .OrderBy(x => x.FullName)
             .ToListAsync(cancellationToken);
+    }
+
+    private async Task FillQuickCreateLookupsAsync(CancellationToken cancellationToken)
+    {
+        await FillLookupsAsync(cancellationToken);
+        ViewBag.Templates = await _context.PurchaseOrderTemplates
+            .AsNoTracking()
+            .Include(x => x.DefaultSupplier)
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .Select(x => new
+            {
+                x.Id,
+                Text = string.IsNullOrWhiteSpace(x.Code)
+                    ? x.Name
+                    : x.Code + " - " + x.Name,
+                SupplierName = x.DefaultSupplier != null ? x.DefaultSupplier.Name : null
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<QuickPurchaseOrderViewModel> BuildQuickCreateModelAsync(Guid? projectId, Guid? templateId, CancellationToken cancellationToken)
+    {
+        var model = new QuickPurchaseOrderViewModel
+        {
+            TemplateId = templateId,
+            ProjectId = projectId,
+            Scope = projectId.HasValue ? PurchaseOrderScope.Project : PurchaseOrderScope.General,
+            OrderDate = DateTime.Today,
+            Currency = "TRY"
+        };
+
+        if (!templateId.HasValue)
+        {
+            return model;
+        }
+
+        var template = await _purchaseOrderTemplateService.GetTemplateWithLinesAsync(templateId.Value, cancellationToken);
+        if (template is null || !template.IsActive)
+        {
+            return model;
+        }
+
+        model.SupplierId = template.DefaultSupplierId;
+        model.Scope = projectId.HasValue ? PurchaseOrderScope.Project : template.DefaultScope;
+        model.Status = template.DefaultStatus;
+        model.Currency = string.IsNullOrWhiteSpace(template.DefaultCurrency) ? "TRY" : template.DefaultCurrency;
+        model.PaymentTerm = template.DefaultPaymentTerm;
+        model.Lines = template.Lines
+            .OrderBy(x => x.SortOrder)
+            .Select(x => new QuickPurchaseOrderLineViewModel
+            {
+                MaterialId = x.MaterialId,
+                Content = x.Content,
+                Quantity = x.Quantity,
+                QuantityText = x.QuantityText,
+                Unit = x.Unit,
+                Quality = x.Quality,
+                UnitPrice = x.UnitPrice,
+                OrderTotal = x.OrderTotal,
+                Notes = x.Notes
+            })
+            .ToList();
+
+        EnsureQuickRows(model);
+        return model;
     }
 
     private static void EnsureQuickRows(QuickPurchaseOrderViewModel model)

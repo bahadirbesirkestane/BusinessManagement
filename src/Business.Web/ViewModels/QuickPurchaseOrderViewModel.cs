@@ -5,6 +5,7 @@ namespace Business.Web.ViewModels;
 
 public class QuickPurchaseOrderViewModel
 {
+    public Guid? TemplateId { get; set; }
     public Guid? ProjectId { get; set; }
     public Guid? SupplierId { get; set; }
     public PurchaseOrderScope Scope { get; set; } = PurchaseOrderScope.General;
