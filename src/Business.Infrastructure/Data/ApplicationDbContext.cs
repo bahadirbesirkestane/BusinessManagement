@@ -42,6 +42,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<StockItem> StockItems => Set<StockItem>();
     public DbSet<RecordComment> RecordComments => Set<RecordComment>();
     public DbSet<RecordFile> RecordFiles => Set<RecordFile>();
+    public DbSet<PersonalNote> PersonalNotes => Set<PersonalNote>();
+    public DbSet<PersonalTask> PersonalTasks => Set<PersonalTask>();
     public DbSet<TaskCategory> TaskCategories => Set<TaskCategory>();
     public DbSet<ProjectTaskAssignment> ProjectTaskAssignments => Set<ProjectTaskAssignment>();
     public DbSet<ProjectTemplate> ProjectTemplates => Set<ProjectTemplate>();
@@ -416,6 +418,39 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.RelativePath).HasMaxLength(520).IsRequired();
             entity.Property(x => x.ContentType).HasMaxLength(160);
             entity.Property(x => x.Description).HasMaxLength(500);
+        });
+
+        builder.Entity<PersonalNote>(entity =>
+        {
+            entity.Property(x => x.OwnerUserId).HasMaxLength(450).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(220).IsRequired();
+            entity.Property(x => x.Content).HasMaxLength(4000).IsRequired();
+            entity.HasIndex(x => new { x.OwnerUserId, x.CreatedAt });
+            entity.HasIndex(x => new { x.OwnerUserId, x.Category, x.CreatedAt });
+            entity.HasIndex(x => new { x.OwnerUserId, x.CustomerId });
+            entity.HasIndex(x => new { x.OwnerUserId, x.ProjectId });
+            entity.HasIndex(x => new { x.OwnerUserId, x.ProjectTaskId });
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.OwnerUserId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.ProjectTask).WithMany().HasForeignKey(x => x.ProjectTaskId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<PersonalTask>(entity =>
+        {
+            entity.Property(x => x.OwnerUserId).HasMaxLength(450).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(220).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.OwnerUserId, x.Status, x.DueDate });
+            entity.HasIndex(x => new { x.OwnerUserId, x.CreatedAt });
+            entity.HasIndex(x => new { x.OwnerUserId, x.CustomerId });
+            entity.HasIndex(x => new { x.OwnerUserId, x.ProjectId });
+            entity.HasIndex(x => new { x.OwnerUserId, x.ProjectTaskId });
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.OwnerUserId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.ProjectTask).WithMany().HasForeignKey(x => x.ProjectTaskId).OnDelete(DeleteBehavior.SetNull);
         });
     }
 
