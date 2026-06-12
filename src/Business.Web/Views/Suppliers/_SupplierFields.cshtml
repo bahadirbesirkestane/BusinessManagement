@@ -1,0 +1,41 @@
+@model Supplier
+
+<div class="form-grid">
+    <div class="mb-3 wide">
+        <label asp-for="Name" class="form-label">Ad</label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Type" class="form-label">Tür</label>
+        <input asp-for="Type" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Reliability" class="form-label">Güvenilirlik</label>
+        <select asp-for="Reliability" asp-items="Html.GetEnumSelectList<SupplierReliability>()" class="form-select"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Phone" class="form-label">Telefon</label>
+        <input asp-for="Phone" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label">E-posta</label>
+        <input asp-for="Email" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="PaymentTerm" class="form-label">Vade</label>
+        <input asp-for="PaymentTerm" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Website" class="form-label">Web sitesi</label>
+        <input asp-for="Website" class="form-control" />
+    </div>
+    <div class="mb-3 wide">
+        <label asp-for="Address" class="form-label">Adres</label>
+        <textarea asp-for="Address" class="form-control" rows="2"></textarea>
+    </div>
+    <div class="mb-3 wide">
+        <label asp-for="Notes" class="form-label">Not</label>
+        <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+    </div>
+</div>

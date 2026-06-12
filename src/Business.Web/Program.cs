@@ -59,6 +59,7 @@ app.Use(async (context, next) =>
 
 app.UseStatusCodePagesWithReExecute("/Home/Status", "?code={0}");
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthentication();

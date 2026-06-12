@@ -1,0 +1,25 @@
+@model Supplier
+@{
+    var isEdit = Model.Id != Guid.Empty;
+}
+
+<div class="offcanvas-header">
+    <div>
+        <p class="section-kicker mb-1">Hızlı işlem</p>
+        <h2 class="fs-5 mb-0" id="supplierSidePanelTitle">@(isEdit ? "Tedarikçiyi düzenle" : "Yeni tedarikçi ekle")</h2>
+        <small class="text-muted">Kayıt hızlıca kaydedilir, liste yerinde kalır.</small>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Kapat"></button>
+</div>
+<div class="offcanvas-body">
+    <form method="post" asp-action="SavePanel" class="app-form" data-supplier-panel-form>
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <partial name="_SupplierFields" model="Model" />
+        <div class="offcanvas-form-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">Vazgeç</button>
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+        </div>
+    </form>
+</div>
