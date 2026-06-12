@@ -15,6 +15,7 @@ namespace Business.Web.Controllers;
 [Authorize(Policy = AppPolicies.CanViewPurchasing)]
 public class PurchaseOrdersController : Controller
 {
+    private const int DefaultListTake = 50;
     private readonly IPurchaseOrderService _purchaseOrderService;
     private readonly ILookupService _lookupService;
     private readonly IRecordActivityService _recordActivityService;
@@ -53,8 +54,58 @@ public class PurchaseOrdersController : Controller
         DateTime? dateFrom,
         DateTime? dateTo,
         string? sort,
-        CancellationToken cancellationToken)
+        bool load = true,
+        int take = DefaultListTake,
+        bool showAll = false,
+        CancellationToken cancellationToken = default)
     {
+        take = Math.Max(DefaultListTake, take);
+
+        ViewBag.FilterQ = q;
+        ViewBag.FilterStatus = status;
+        ViewBag.FilterScope = scope;
+        ViewBag.FilterSupplierId = supplierId;
+        ViewBag.FilterMaterialId = materialId;
+        ViewBag.FilterRequestedByUserId = requestedByUserId;
+        ViewBag.FilterRequestedBy = requestedBy;
+        ViewBag.FilterDateFrom = dateFrom?.ToString("yyyy-MM-dd");
+        ViewBag.FilterDateTo = dateTo?.ToString("yyyy-MM-dd");
+        ViewBag.Sort = sort;
+        ViewBag.ProjectId = projectId;
+        ViewBag.Load = load;
+        ViewBag.CurrentTake = take;
+        ViewBag.ShowAll = showAll;
+        ViewBag.ListAction = nameof(Index);
+        ViewBag.OrderListTitle = "Genel ve proje siparişleri";
+        await FillLookupsAsync(cancellationToken);
+        ViewBag.StatusOptions = Enum.GetValues<PurchaseOrderStatus>()
+            .Where(x => x != PurchaseOrderStatus.Delivered)
+            .ToList();
+
+        if (projectId.HasValue)
+        {
+            var project = await _context.Projects.AsNoTracking().ApplyRecordVisibility(User).FirstOrDefaultAsync(x => x.Id == projectId.Value, cancellationToken);
+            if (project is not null)
+            {
+                ViewBag.Breadcrumbs = new Dictionary<string, string?>
+                {
+                    ["Projeler"] = Url.Action("Index", "Projects"),
+                    [project.Code] = Url.Action("Details", "Projects", new { id = project.Id }),
+                    ["Siparişler"] = null
+                };
+            }
+        }
+
+        if (!load)
+        {
+            ViewBag.IsDeferredLoad = true;
+            ViewBag.HasMore = false;
+            ViewBag.ResultCount = 0;
+            return View(Array.Empty<PurchaseOrder>());
+        }
+
+        ViewBag.IsDeferredLoad = false;
+
         var query = _context.PurchaseOrders
             .Include(x => x.Project)
             .Include(x => x.Supplier)
@@ -65,7 +116,6 @@ public class PurchaseOrdersController : Controller
         if (projectId.HasValue)
         {
             query = query.Where(x => x.ProjectId == projectId);
-            ViewBag.ProjectId = projectId;
         }
 
         if (!string.IsNullOrWhiteSpace(q))
@@ -86,6 +136,10 @@ public class PurchaseOrdersController : Controller
         if (status.HasValue)
         {
             query = query.Where(x => x.Status == status.Value);
+        }
+        else
+        {
+            query = query.Where(x => x.Status != PurchaseOrderStatus.Delivered);
         }
 
         if (scope.HasValue)
@@ -144,32 +198,53 @@ public class PurchaseOrdersController : Controller
             _ => query.OrderByDescending(x => x.CreatedAt)
         };
 
-        ViewBag.FilterQ = q;
-        ViewBag.FilterStatus = status;
-        ViewBag.FilterScope = scope;
-        ViewBag.FilterSupplierId = supplierId;
-        ViewBag.FilterMaterialId = materialId;
-        ViewBag.FilterRequestedByUserId = requestedByUserId;
-        ViewBag.FilterRequestedBy = requestedBy;
-        ViewBag.FilterDateFrom = dateFrom?.ToString("yyyy-MM-dd");
-        ViewBag.FilterDateTo = dateTo?.ToString("yyyy-MM-dd");
-        ViewBag.Sort = sort;
-        await FillLookupsAsync(cancellationToken);
-        if (projectId.HasValue)
+        List<PurchaseOrder> orders;
+        var hasMore = false;
+
+        if (showAll)
         {
-            var project = await _context.Projects.AsNoTracking().ApplyRecordVisibility(User).FirstOrDefaultAsync(x => x.Id == projectId.Value, cancellationToken);
-            if (project is not null)
+            orders = await query.ToListAsync(cancellationToken);
+        }
+        else
+        {
+            orders = await query.Take(take + 1).ToListAsync(cancellationToken);
+            hasMore = orders.Count > take;
+            if (hasMore)
             {
-                ViewBag.Breadcrumbs = new Dictionary<string, string?>
-                {
-                    ["Projeler"] = Url.Action("Index", "Projects"),
-                    [project.Code] = Url.Action("Details", "Projects", new { id = project.Id }),
-                    ["Siparişler"] = null
-                };
+                orders.RemoveAt(orders.Count - 1);
             }
         }
 
-        return View(await query.ToListAsync(cancellationToken));
+        ViewBag.HasMore = hasMore;
+        ViewBag.NextTake = take + DefaultListTake;
+        ViewBag.ResultCount = orders.Count;
+
+        return View(orders);
+    }
+
+    public async Task<IActionResult> Delivered(
+        Guid? projectId,
+        string? q,
+        PurchaseOrderScope? scope,
+        Guid? supplierId,
+        Guid? materialId,
+        string? requestedByUserId,
+        string? requestedBy,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        string? sort,
+        bool load = false,
+        int take = DefaultListTake,
+        bool showAll = false,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await Index(projectId, q, PurchaseOrderStatus.Delivered, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, sort, load, take, showAll, cancellationToken);
+        ViewBag.OrderListTitle = "Teslim edilen siparişler";
+        ViewBag.ListAction = nameof(Delivered);
+        ViewBag.StatusOptions = new List<PurchaseOrderStatus> { PurchaseOrderStatus.Delivered };
+        return result is ViewResult viewResult
+            ? View(nameof(Index), viewResult.Model)
+            : result;
     }
 
     public async Task<IActionResult> Details(Guid id, string? returnUrl, CancellationToken cancellationToken)

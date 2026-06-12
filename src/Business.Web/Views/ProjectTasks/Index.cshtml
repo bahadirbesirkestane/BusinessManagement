@@ -1,35 +1,75 @@
 @model IReadOnlyList<ProjectTask>
 @{
-    var userNames = (IReadOnlyDictionary<string, string>)(ViewBag.UserNames ?? new Dictionary<string, string>());
-    var listAction = ViewBag.AssignedToMe == true ? "AssignedToMe" : "Index";
-    var canCreateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     ViewData["Title"] = "Görevler";
+    var userNames = (IReadOnlyDictionary<string, string>)(ViewBag.UserNames ?? new Dictionary<string, string>());
+    var listAction = (string)(ViewBag.ListAction ?? (ViewBag.AssignedToMe == true ? "AssignedToMe" : "Index"));
+    var canCreateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var isDeferredLoad = ViewBag.IsDeferredLoad == true;
+    var hasMore = ViewBag.HasMore == true;
+    var currentTake = (int)(ViewBag.CurrentTake ?? 50);
+    var nextTake = (int)(ViewBag.NextTake ?? (currentTake + 50));
+    var requiresManualLoad = !string.Equals(listAction, "Index", StringComparison.OrdinalIgnoreCase) && !string.Equals(listAction, "AssignedToMe", StringComparison.OrdinalIgnoreCase);
+    var showAll = ViewBag.ShowAll == true;
+    var statusOptions = (IReadOnlyList<WorkTaskStatus>)(ViewBag.StatusOptions ?? Enum.GetValues<WorkTaskStatus>().ToList());
+    var moreRoute = new Dictionary<string, string?>();
+    var showAllRoute = new Dictionary<string, string?>();
+    moreRoute["projectId"] = ViewBag.ProjectId?.ToString();
+    moreRoute["q"] = ViewBag.FilterQ;
+    moreRoute["status"] = ViewBag.FilterStatus?.ToString();
+    moreRoute["priority"] = ViewBag.FilterPriority?.ToString();
+    moreRoute["categoryId"] = ViewBag.FilterCategoryId?.ToString();
+    moreRoute["customerId"] = ViewBag.FilterCustomerId?.ToString();
+    moreRoute["responsibleUserId"] = ViewBag.FilterResponsibleUserId;
+    moreRoute["assignedUserId"] = ViewBag.FilterAssignedUserId;
+    moreRoute["sort"] = ViewBag.Sort;
+    if (requiresManualLoad)
+    {
+        moreRoute["load"] = "true";
+        showAllRoute["load"] = "true";
+    }
+    moreRoute["take"] = nextTake.ToString();
+    showAllRoute["projectId"] = ViewBag.ProjectId?.ToString();
+    showAllRoute["q"] = ViewBag.FilterQ;
+    showAllRoute["status"] = ViewBag.FilterStatus?.ToString();
+    showAllRoute["priority"] = ViewBag.FilterPriority?.ToString();
+    showAllRoute["categoryId"] = ViewBag.FilterCategoryId?.ToString();
+    showAllRoute["customerId"] = ViewBag.FilterCustomerId?.ToString();
+    showAllRoute["responsibleUserId"] = ViewBag.FilterResponsibleUserId;
+    showAllRoute["assignedUserId"] = ViewBag.FilterAssignedUserId;
+    showAllRoute["sort"] = ViewBag.Sort;
+    showAllRoute["showAll"] = "true";
 }
 
 <section class="panel-block">
     <div class="panel-heading">
         <div>
             <p class="section-kicker">Görevler</p>
-            <h2>@(ViewBag.TaskListTitle ?? "Tüm Görevler")</h2>
-            <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
+            <h2>@(ViewBag.TaskListTitle ?? "Tüm görevler")</h2>
+            <p class="record-count">@(isDeferredLoad ? "Liste henüz yüklenmedi." : $"Gösterilen kayıt sayısı: {Model.Count}")</p>
         </div>
         @if (canCreateTask)
         {
-            <a class="btn btn-primary" asp-action="Create">Görev Ekle</a>
+            <a class="btn btn-primary" asp-action="Create">Görev ekle</a>
         }
     </div>
-    <form asp-action="@listAction" method="get" class="list-filter-bar">
+
+    <form id="tasksFilterForm" asp-action="@listAction" method="get" class="list-filter-bar">
         @if (ViewBag.ProjectId is not null)
         {
             <input type="hidden" name="projectId" value="@ViewBag.ProjectId" />
         }
+        @if (requiresManualLoad)
+        {
+            <input type="hidden" name="load" value="true" />
+        }
+        <input type="hidden" name="take" value="@currentTake" />
         <div class="filter-field filter-search">
             <span class="filter-icon" aria-hidden="true">⌕</span>
-            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Görev, açıklama, bağlantı ara" />
+            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Görev, açıklama veya bağlantı ara" />
         </div>
         <select name="status" class="form-select form-select-sm">
             <option value="">Durum</option>
-            @foreach (WorkTaskStatus item in Enum.GetValues<WorkTaskStatus>())
+            @foreach (var item in statusOptions)
             {
                 <option value="@item" selected="@(ViewBag.FilterStatus == item)">@item.ToDisplayName()</option>
             }
@@ -94,16 +134,29 @@
         </form>
     }
 
-    @if (!Model.Any())
+    @if (isDeferredLoad)
     {
         <div class="empty-note empty-note-empty-state">
             <div>
-                <strong>Henüz görev yok.</strong>
-                <span>İlk görevi oluşturun ya da filtreleri temizleyerek farklı kayıtları kontrol edin.</span>
+                <strong>Görev listesi hazır bekliyor.</strong>
+                <span>Sistem yükünü azaltmak için görevler sayfa açılır açılmaz yüklenmez. Filtre seçip verileri getirin.</span>
+            </div>
+            <div class="empty-state-actions">
+                <button class="btn btn-primary btn-sm" type="submit" form="tasksFilterForm">Verileri getir</button>
+                <a class="btn btn-outline-secondary btn-sm" asp-action="@listAction" asp-all-route-data="showAllRoute">Tümünü göster</a>
+            </div>
+        </div>
+    }
+    else if (!Model.Any())
+    {
+        <div class="empty-note empty-note-empty-state">
+            <div>
+                <strong>Uygun görev bulunamadı.</strong>
+                <span>Filtreleri temizleyin ya da tamamlanan görevler için ayrı sayfayı açın.</span>
             </div>
             @if (canCreateTask)
             {
-                <a class="btn btn-primary btn-sm" asp-action="Create">İlk görevi oluştur</a>
+                <a class="btn btn-primary btn-sm" asp-action="Create">Yeni görev oluştur</a>
             }
         </div>
     }
@@ -111,27 +164,27 @@
     {
         <div class="table-responsive">
             <table class="table app-table align-middle">
-                    <thead>
-                        <tr>
-                            <th>Görev</th>
-                            <th>Bağlantı</th>
-                            @if (User.IsInRole(AppRoles.Admin))
-                            {
-                                <th class="bulk-check-cell">
-                                    <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm görevleri seç" />
-                                </th>
-                            }
-                            <th>Kategori</th>
-                            <th>Sorumlu</th>
-                            <th>Atananlar</th>
-                            <th>Durum</th>
-                            <th>İlerleme</th>
-                            <th>Öncelik</th>
-                            <th>Tarih</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                <thead>
+                    <tr>
+                        <th>Görev</th>
+                        <th>Bağlantı</th>
+                        @if (User.IsInRole(AppRoles.Admin))
+                        {
+                            <th class="bulk-check-cell">
+                                <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm görevleri seç" />
+                            </th>
+                        }
+                        <th>Kategori</th>
+                        <th>Sorumlu</th>
+                        <th>Atananlar</th>
+                        <th>Durum</th>
+                        <th>İlerleme</th>
+                        <th>Öncelik</th>
+                        <th>Tarih</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
                     @foreach (var task in Model)
                     {
                         var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
@@ -151,13 +204,7 @@
                             data-preview-description="@previewDescription"
                             data-preview-status="@task.Status.ToDisplayName()">
                             <td><strong>@task.Title</strong></td>
-                            <td>
-                                @(task.Project?.Code
-                                    ?? task.Customer?.Name
-                                    ?? task.ManualProjectName
-                                    ?? task.ManualCustomerName
-                                    ?? "Genel")
-                            </td>
+                            <td>@(task.Project?.Code ?? task.Customer?.Name ?? task.ManualProjectName ?? task.ManualCustomerName ?? "Genel")</td>
                             @if (User.IsInRole(AppRoles.Admin))
                             {
                                 <td><input type="checkbox" name="ids" value="@task.Id" form="bulkDeleteForm" /></td>
@@ -233,9 +280,23 @@
                             </td>
                         </tr>
                     }
-                    </tbody>
-                </table>
+                </tbody>
+            </table>
         </div>
+
+        @if (hasMore || showAll)
+        {
+            <div class="list-load-more">
+                @if (hasMore)
+                {
+                    <a class="btn btn-outline-secondary btn-sm" asp-action="@listAction" asp-all-route-data="moreRoute">Daha fazla göster</a>
+                }
+                @if (!showAll)
+                {
+                    <a class="btn btn-outline-primary btn-sm" asp-action="@listAction" asp-all-route-data="showAllRoute">Tümünü göster</a>
+                }
+            </div>
+        }
     }
 </section>
 

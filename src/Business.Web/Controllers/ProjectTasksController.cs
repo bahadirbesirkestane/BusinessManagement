@@ -15,6 +15,7 @@ namespace Business.Web.Controllers;
 [Authorize(Policy = AppPolicies.CanViewTasks)]
 public class ProjectTasksController : Controller
 {
+    private const int DefaultListTake = 50;
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IRecordActivityService _recordActivityService;
@@ -32,8 +33,54 @@ public class ProjectTasksController : Controller
         _projectTimelineService = projectTimelineService;
     }
 
-    public async Task<IActionResult> Index(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
+        take = Math.Max(DefaultListTake, take);
+
+        ViewBag.FilterQ = q;
+        ViewBag.FilterStatus = status;
+        ViewBag.FilterPriority = priority;
+        ViewBag.FilterCategoryId = categoryId;
+        ViewBag.FilterCustomerId = customerId;
+        ViewBag.FilterResponsibleUserId = responsibleUserId;
+        ViewBag.FilterAssignedUserId = assignedUserId;
+        ViewBag.Sort = sort;
+        ViewBag.ProjectId = projectId;
+        ViewBag.Load = load;
+        ViewBag.CurrentTake = take;
+        ViewBag.ShowAll = showAll;
+        ViewBag.ListAction = nameof(Index);
+        ViewBag.TaskListTitle = "Tüm görevler";
+        await FillFilterLookupsAsync(cancellationToken);
+        ViewBag.StatusOptions = Enum.GetValues<WorkTaskStatus>()
+            .Where(x => x != WorkTaskStatus.Done)
+            .ToList();
+
+        if (projectId.HasValue)
+        {
+            var project = await _context.Projects.AsNoTracking().FirstOrDefaultAsync(x => x.Id == projectId.Value, cancellationToken);
+            if (project is not null)
+            {
+                ViewBag.Breadcrumbs = new Dictionary<string, string?>
+                {
+                    ["Projeler"] = Url.Action("Index", "Projects"),
+                    [project.Code] = Url.Action("Details", "Projects", new { id = project.Id }),
+                    ["Görevler"] = null
+                };
+            }
+        }
+
+        if (!load)
+        {
+            ViewBag.IsDeferredLoad = true;
+            ViewBag.HasMore = false;
+            ViewBag.ResultCount = 0;
+            ViewBag.UserNames = new Dictionary<string, string>();
+            return View(Array.Empty<ProjectTask>());
+        }
+
+        ViewBag.IsDeferredLoad = false;
+
         var query = _context.ProjectTasks
             .Include(x => x.Project)
             .Include(x => x.Customer)
@@ -45,7 +92,6 @@ public class ProjectTasksController : Controller
         if (projectId.HasValue)
         {
             query = query.Where(x => x.ProjectId == projectId);
-            ViewBag.ProjectId = projectId;
         }
 
         if (!string.IsNullOrWhiteSpace(q))
@@ -64,6 +110,10 @@ public class ProjectTasksController : Controller
         if (status.HasValue)
         {
             query = query.Where(x => x.Status == status.Value);
+        }
+        else
+        {
+            query = query.Where(x => x.Status != WorkTaskStatus.Done);
         }
 
         if (priority.HasValue)
@@ -105,33 +155,40 @@ public class ProjectTasksController : Controller
             _ => query.OrderByDescending(x => x.CreatedAt)
         };
 
-        ViewBag.FilterQ = q;
-        ViewBag.FilterStatus = status;
-        ViewBag.FilterPriority = priority;
-        ViewBag.FilterCategoryId = categoryId;
-        ViewBag.FilterCustomerId = customerId;
-        ViewBag.FilterResponsibleUserId = responsibleUserId;
-        ViewBag.FilterAssignedUserId = assignedUserId;
-        ViewBag.Sort = sort;
-        await FillFilterLookupsAsync(cancellationToken);
-        if (projectId.HasValue)
+        List<ProjectTask> tasks;
+        var hasMore = false;
+
+        if (showAll)
         {
-            var project = await _context.Projects.AsNoTracking().FirstOrDefaultAsync(x => x.Id == projectId.Value, cancellationToken);
-            if (project is not null)
+            tasks = await query.ToListAsync(cancellationToken);
+        }
+        else
+        {
+            tasks = await query.Take(take + 1).ToListAsync(cancellationToken);
+            hasMore = tasks.Count > take;
+            if (hasMore)
             {
-                ViewBag.Breadcrumbs = new Dictionary<string, string?>
-                {
-                    ["Projeler"] = Url.Action("Index", "Projects"),
-                    [project.Code] = Url.Action("Details", "Projects", new { id = project.Id }),
-                    ["Görevler"] = null
-                };
+                tasks.RemoveAt(tasks.Count - 1);
             }
         }
 
-        var tasks = await query.ToListAsync(cancellationToken);
+        ViewBag.HasMore = hasMore;
+        ViewBag.NextTake = take + DefaultListTake;
+        ViewBag.ResultCount = tasks.Count;
         ViewBag.UserNames = await GetTaskListUserNamesAsync(tasks, cancellationToken);
 
         return View(tasks);
+    }
+
+    public async Task<IActionResult> Completed(Guid? projectId, string? q, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = false, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    {
+        var result = await Index(projectId, q, WorkTaskStatus.Done, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, cancellationToken);
+        ViewBag.TaskListTitle = "Tamamlanan görevler";
+        ViewBag.ListAction = nameof(Completed);
+        ViewBag.StatusOptions = new List<WorkTaskStatus> { WorkTaskStatus.Done };
+        return result is ViewResult viewResult
+            ? View(nameof(Index), viewResult.Model)
+            : result;
     }
 
     public async Task<IActionResult> AssignedToMe(string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? sort, CancellationToken cancellationToken)

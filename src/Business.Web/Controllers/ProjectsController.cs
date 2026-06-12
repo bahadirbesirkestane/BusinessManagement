@@ -15,6 +15,7 @@ namespace Business.Web.Controllers;
 [Authorize(Policy = AppPolicies.CanViewProjects)]
 public class ProjectsController : Controller
 {
+    private const int DefaultListTake = 50;
     private readonly IProjectService _projectService;
     private readonly ILookupService _lookupService;
     private readonly IAuthorizationService _authorizationService;
@@ -41,8 +42,35 @@ public class ProjectsController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
+        take = Math.Max(DefaultListTake, take);
+
+        ViewBag.FilterQ = q;
+        ViewBag.FilterStatus = status;
+        ViewBag.FilterPriority = priority;
+        ViewBag.FilterCustomerId = customerId;
+        ViewBag.Sort = sort;
+        ViewBag.Load = load;
+        ViewBag.CurrentTake = take;
+        ViewBag.ShowAll = showAll;
+        ViewBag.ListAction = nameof(Index);
+        ViewBag.ProjectListTitle = "Tüm projeler";
+        ViewBag.Customers = await _context.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        ViewBag.StatusOptions = Enum.GetValues<ProjectStatus>()
+            .Where(x => x != ProjectStatus.Completed)
+            .ToList();
+
+        if (!load)
+        {
+            ViewBag.IsDeferredLoad = true;
+            ViewBag.HasMore = false;
+            ViewBag.ResultCount = 0;
+            return View(Array.Empty<Project>());
+        }
+
+        ViewBag.IsDeferredLoad = false;
+
         var query = _context.Projects
             .Include(x => x.Customer)
             .AsNoTracking()
@@ -62,6 +90,10 @@ public class ProjectsController : Controller
         if (status.HasValue)
         {
             query = query.Where(x => x.Status == status.Value);
+        }
+        else
+        {
+            query = query.Where(x => x.Status != ProjectStatus.Completed);
         }
 
         if (priority.HasValue)
@@ -84,20 +116,36 @@ public class ProjectsController : Controller
             _ => query.OrderByDescending(x => x.CreatedAt)
         };
 
-        ViewBag.FilterQ = q;
-        ViewBag.FilterStatus = status;
-        ViewBag.FilterPriority = priority;
-        ViewBag.FilterCustomerId = customerId;
-        ViewBag.Sort = sort;
-        ViewBag.Customers = await _context.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        List<Project> projects;
+        var hasMore = false;
 
-        return View(await query.ToListAsync(cancellationToken));
+        if (showAll)
+        {
+            projects = await query.ToListAsync(cancellationToken);
+        }
+        else
+        {
+            projects = await query.Take(take + 1).ToListAsync(cancellationToken);
+            hasMore = projects.Count > take;
+            if (hasMore)
+            {
+                projects.RemoveAt(projects.Count - 1);
+            }
+        }
+
+        ViewBag.HasMore = hasMore;
+        ViewBag.NextTake = take + DefaultListTake;
+        ViewBag.ResultCount = projects.Count;
+
+        return View(projects);
     }
 
-    public async Task<IActionResult> Completed(string? q, ProjectPriority? priority, Guid? customerId, string? sort, CancellationToken cancellationToken)
+    public async Task<IActionResult> Completed(string? q, ProjectPriority? priority, Guid? customerId, string? sort, bool load = false, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
-        var result = await Index(q, ProjectStatus.Completed, priority, customerId, sort, cancellationToken);
+        var result = await Index(q, ProjectStatus.Completed, priority, customerId, sort, load, take, showAll, cancellationToken);
         ViewBag.ProjectListTitle = "Tamamlanan projeler";
+        ViewBag.ListAction = nameof(Completed);
+        ViewBag.StatusOptions = new List<ProjectStatus> { ProjectStatus.Completed };
         return result is ViewResult viewResult
             ? View("Index", viewResult.Model)
             : result;

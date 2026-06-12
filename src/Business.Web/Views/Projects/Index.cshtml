@@ -2,14 +2,43 @@
 @{
     ViewData["Title"] = "Projeler";
     var canCreateProject = User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var isDeferredLoad = ViewBag.IsDeferredLoad == true;
+    var hasMore = ViewBag.HasMore == true;
+    var listAction = (string)(ViewBag.ListAction ?? "Index");
+    var requiresManualLoad = !string.Equals(listAction, "Index", StringComparison.OrdinalIgnoreCase);
+    var currentTake = (int)(ViewBag.CurrentTake ?? 50);
+    var nextTake = (int)(ViewBag.NextTake ?? (currentTake + 50));
+    var showAll = ViewBag.ShowAll == true;
+    var statusOptions = (IReadOnlyList<ProjectStatus>)(ViewBag.StatusOptions ?? Enum.GetValues<ProjectStatus>().ToList());
+    var moreRoute = new Dictionary<string, string?>();
+    var showAllRoute = new Dictionary<string, string?>();
+    moreRoute["q"] = ViewBag.FilterQ;
+    moreRoute["status"] = ViewBag.FilterStatus?.ToString();
+    moreRoute["priority"] = ViewBag.FilterPriority?.ToString();
+    moreRoute["customerId"] = ViewBag.FilterCustomerId?.ToString();
+    moreRoute["sort"] = ViewBag.Sort;
+    if (requiresManualLoad)
+    {
+        moreRoute["load"] = "true";
+        showAllRoute["load"] = "true";
+    }
+    moreRoute["take"] = nextTake.ToString();
+    showAllRoute["q"] = ViewBag.FilterQ;
+    showAllRoute["status"] = ViewBag.FilterStatus?.ToString();
+    showAllRoute["priority"] = ViewBag.FilterPriority?.ToString();
+    showAllRoute["customerId"] = ViewBag.FilterCustomerId?.ToString();
+    showAllRoute["sort"] = ViewBag.Sort;
+    showAllRoute["showAll"] = "true";
 }
 
 <section class="panel-block">
     <div class="panel-heading">
         <div>
             <p class="section-kicker">Proje merkezi</p>
-            <h2>@(ViewBag.ProjectListTitle ?? "Proje listesi")</h2>
-            <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
+            <h2>@(ViewBag.ProjectListTitle ?? "Tüm projeler")</h2>
+            <p class="record-count">
+                @(isDeferredLoad ? "Liste henüz yüklenmedi." : $"Gösterilen kayıt sayısı: {Model.Count}")
+            </p>
         </div>
         @if (canCreateProject)
         {
@@ -17,14 +46,19 @@
         }
     </div>
 
-    <form asp-action="Index" method="get" class="list-filter-bar">
+    <form id="projectsFilterForm" asp-action="@listAction" method="get" class="list-filter-bar">
+        @if (requiresManualLoad)
+        {
+            <input type="hidden" name="load" value="true" />
+        }
+        <input type="hidden" name="take" value="@currentTake" />
         <div class="filter-field filter-search">
             <span class="filter-icon" aria-hidden="true">⌕</span>
-            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Kod, proje, müşteri ara" />
+            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Kod, proje veya müşteri ara" />
         </div>
         <select name="status" class="form-select form-select-sm">
             <option value="">Durum</option>
-            @foreach (ProjectStatus item in Enum.GetValues<ProjectStatus>())
+            @foreach (var item in statusOptions)
             {
                 <option value="@item" selected="@(ViewBag.FilterStatus == item)">@item.ToDisplayName()</option>
             }
@@ -52,7 +86,7 @@
             <option value="created" selected="@(ViewBag.Sort == "created")">Eski kayıt</option>
         </select>
         <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
-        <a class="icon-filter-button clear" asp-action="Index" title="Temizle" aria-label="Temizle">×</a>
+        <a class="icon-filter-button clear" asp-action="@listAction" title="Temizle" aria-label="Temizle">×</a>
     </form>
 
     @if (User.IsInRole(AppRoles.Admin))
@@ -66,16 +100,29 @@
         </form>
     }
 
-    @if (!Model.Any())
+    @if (isDeferredLoad)
     {
         <div class="empty-note empty-note-empty-state">
             <div>
-                <strong>Henüz proje yok.</strong>
-                <span>Takibi başlatmak için ilk projeyi oluşturun veya üstteki filtreleri temizleyin.</span>
+                <strong>Veriler hazır bekliyor.</strong>
+                <span>Yanlışlıkla ağır liste açılmasını önlemek için proje kayıtları otomatik yüklenmez. Filtrelerinizi seçip verileri getirin.</span>
+            </div>
+            <div class="empty-state-actions">
+                <button class="btn btn-primary btn-sm" type="submit" form="projectsFilterForm">Verileri getir</button>
+                <a class="btn btn-outline-secondary btn-sm" asp-action="@listAction" asp-all-route-data="showAllRoute">Tümünü göster</a>
+            </div>
+        </div>
+    }
+    else if (!Model.Any())
+    {
+        <div class="empty-note empty-note-empty-state">
+            <div>
+                <strong>Uygun proje bulunamadı.</strong>
+                <span>Filtreleri daralttıysanız temizleyin ya da tamamlanan projeler için ayrı sayfayı açın.</span>
             </div>
             @if (canCreateProject)
             {
-                <a class="btn btn-primary btn-sm" asp-action="Create">İlk projeyi oluştur</a>
+                <a class="btn btn-primary btn-sm" asp-action="Create">Yeni proje oluştur</a>
             }
         </div>
     }
@@ -83,88 +130,102 @@
     {
         <div class="table-responsive">
             <table class="table app-table align-middle">
-                    <thead>
-                        <tr>
+                <thead>
+                    <tr>
+                        @if (User.IsInRole(AppRoles.Admin))
+                        {
+                            <th class="bulk-check-cell">
+                                <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm projeleri seç" />
+                            </th>
+                        }
+                        <th>Kod</th>
+                        <th>Proje</th>
+                        <th>Müşteri</th>
+                        <th>Durum</th>
+                        <th>Hedef</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var project in Model)
+                    {
+                        var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+                        var previewDescription = !string.IsNullOrWhiteSpace(project.Description)
+                            ? project.Description
+                            : "Bu proje için açıklama girilmemiş. Detay sayfasından görev, sipariş ve güncellemeleri inceleyebilirsiniz.";
+                        <tr class="status-row status-@project.Status.ToString().ToLowerInvariant()"
+                            data-row-link="@Url.Action("Details", new { id = project.Id, returnUrl })"
+                            data-preview-group="projects-list"
+                            data-preview-title="@project.Code - @project.Name"
+                            data-preview-subtitle="Müşteri: @(project.Customer?.Name ?? project.CustomerName ?? "Belirtilmedi")"
+                            data-preview-meta="Hedef tarih: @(project.TargetEndDate?.ToString("dd.MM.yyyy") ?? "Planlanmadı")"
+                            data-preview-description="@previewDescription"
+                            data-preview-status="@project.Status.ToDisplayName()">
                             @if (User.IsInRole(AppRoles.Admin))
                             {
-                                <th class="bulk-check-cell">
-                                    <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm projeleri seç" />
-                                </th>
+                                <td><input type="checkbox" name="ids" value="@project.Id" form="bulkDeleteForm" /></td>
                             }
-                            <th>Kod</th>
-                            <th>Proje</th>
-                            <th>Müşteri</th>
-                            <th>Durum</th>
-                            <th>Hedef</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var project in Model)
-                        {
-                            var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
-                            var previewDescription = !string.IsNullOrWhiteSpace(project.Description)
-                                ? project.Description
-                                : "Bu proje için açıklama girilmemiş. Detay sayfasından görev, sipariş ve güncellemeleri inceleyebilirsiniz.";
-                            <tr class="status-row status-@project.Status.ToString().ToLowerInvariant()"
-                                data-row-link="@Url.Action("Details", new { id = project.Id, returnUrl })"
-                                data-preview-group="projects-list"
-                                data-preview-title="@project.Code - @project.Name"
-                                data-preview-subtitle="Müşteri: @(project.Customer?.Name ?? project.CustomerName ?? "Belirtilmedi")"
-                                data-preview-meta="Hedef tarih: @(project.TargetEndDate?.ToString("dd.MM.yyyy") ?? "Planlanmadı")"
-                                data-preview-description="@previewDescription"
-                                data-preview-status="@project.Status.ToDisplayName()">
-                                @if (User.IsInRole(AppRoles.Admin))
+                            <td><strong>@project.Code</strong></td>
+                            <td>@project.Name</td>
+                            <td>@(project.Customer?.Name ?? project.CustomerName ?? "-")</td>
+                            <td>
+                                @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
                                 {
-                                    <td><input type="checkbox" name="ids" value="@project.Id" form="bulkDeleteForm" /></td>
+                                    <form asp-action="UpdateStatus" method="post" class="inline-status-form">
+                                        <input type="hidden" name="id" value="@project.Id" />
+                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                        <select name="status" class="status-select status-@project.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Proje durumu">
+                                            @foreach (ProjectStatus status in Enum.GetValues<ProjectStatus>())
+                                            {
+                                                <option value="@status" selected="@(project.Status == status)">@status.ToDisplayName()</option>
+                                            }
+                                        </select>
+                                    </form>
                                 }
-                                <td><strong>@project.Code</strong></td>
-                                <td>@project.Name</td>
-                                <td>@(project.Customer?.Name ?? project.CustomerName ?? "-")</td>
-                                <td>
-                                    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
-                                    {
-                                        <form asp-action="UpdateStatus" method="post" class="inline-status-form">
-                                            <input type="hidden" name="id" value="@project.Id" />
-                                            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-                                            <select name="status" class="status-select status-@project.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Proje durumu">
-                                                @foreach (ProjectStatus status in Enum.GetValues<ProjectStatus>())
-                                                {
-                                                    <option value="@status" selected="@(project.Status == status)">@status.ToDisplayName()</option>
-                                                }
-                                            </select>
-                                        </form>
-                                    }
-                                    else
-                                    {
-                                        <span class="status-pill status-@project.Status.ToString().ToLowerInvariant()">@project.Status.ToDisplayName()</span>
-                                    }
-                                </td>
-                                <td>@(project.TargetEndDate?.ToString("dd.MM.yyyy") ?? "-")</td>
-                                <td class="text-end action-cell">
-                                    <div class="action-shell">
-                                        <button class="preview-trigger" type="button" data-preview-trigger title="Hızlı önizleme" aria-label="Hızlı önizleme">i</button>
-                                        <details class="action-menu">
-                                            <summary aria-label="Proje işlemleri">...</summary>
-                                            <div class="action-menu-list">
-                                                <a asp-action="Details" asp-route-id="@project.Id" asp-route-returnUrl="@returnUrl">Detay</a>
-                                                @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
-                                                {
-                                                    <a asp-action="Edit" asp-route-id="@project.Id">Düzenle</a>
-                                                }
-                                                @if (User.IsInRole(AppRoles.Admin))
-                                                {
-                                                    <a class="text-danger" asp-action="Delete" asp-route-id="@project.Id">Sil</a>
-                                                }
-                                            </div>
-                                        </details>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                                else
+                                {
+                                    <span class="status-pill status-@project.Status.ToString().ToLowerInvariant()">@project.Status.ToDisplayName()</span>
+                                }
+                            </td>
+                            <td>@(project.TargetEndDate?.ToString("dd.MM.yyyy") ?? "-")</td>
+                            <td class="text-end action-cell">
+                                <div class="action-shell">
+                                    <button class="preview-trigger" type="button" data-preview-trigger title="Hızlı önizleme" aria-label="Hızlı önizleme">i</button>
+                                    <details class="action-menu">
+                                        <summary aria-label="Proje işlemleri">...</summary>
+                                        <div class="action-menu-list">
+                                            <a asp-action="Details" asp-route-id="@project.Id" asp-route-returnUrl="@returnUrl">Detay</a>
+                                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@project.Id">Düzenle</a>
+                                            }
+                                            @if (User.IsInRole(AppRoles.Admin))
+                                            {
+                                                <a class="text-danger" asp-action="Delete" asp-route-id="@project.Id">Sil</a>
+                                            }
+                                        </div>
+                                    </details>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
+
+        @if (hasMore || showAll)
+        {
+            <div class="list-load-more">
+                @if (hasMore)
+                {
+                    <a class="btn btn-outline-secondary btn-sm" asp-action="@listAction" asp-all-route-data="moreRoute">Daha fazla göster</a>
+                }
+                @if (!showAll)
+                {
+                    <a class="btn btn-outline-primary btn-sm" asp-action="@listAction" asp-all-route-data="showAllRoute">Tümünü göster</a>
+                }
+            </div>
+        }
     }
 </section>
 

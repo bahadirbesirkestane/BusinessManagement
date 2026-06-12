@@ -50,6 +50,7 @@
             Items = new[]
             {
                 (Label: "Tüm Görevler", Url: "/ProjectTasks"),
+                (Label: "Tamamlanan Görevler", Url: "/ProjectTasks/Completed"),
                 (Label: "Bana Atananlar", Url: "/ProjectTasks/AssignedToMe"),
                 (Label: "Görev Kategorileri", Url: "/TaskCategories"),
                 (Label: "Görev Şablonları", Url: "/ProjectTemplates")
@@ -70,6 +71,7 @@
             Items = new[]
             {
                 (Label: "Tüm Siparişler", Url: "/PurchaseOrders"),
+                (Label: "Teslim Edilen Siparişler", Url: "/PurchaseOrders/Delivered"),
                 (Label: "Hızlı Sipariş", Url: "/PurchaseOrders/QuickCreate"),
                 (Label: "Sipariş Şablonları", Url: "/PurchaseOrderTemplates")
             }
@@ -179,12 +181,8 @@
             return HasPermission(AppPermissions.TasksView, AppPermissions.TasksCreate, AppPermissions.TasksUpdate, AppPermissions.TasksChangeStatus, AppPermissions.TasksComplete);
         }
 
-        if (url.StartsWith("/PersonalNotes", StringComparison.OrdinalIgnoreCase))
-        {
-            return User.Identity?.IsAuthenticated == true;
-        }
-
-        if (url.StartsWith("/PersonalTasks", StringComparison.OrdinalIgnoreCase))
+        if (url.StartsWith("/PersonalNotes", StringComparison.OrdinalIgnoreCase) ||
+            url.StartsWith("/PersonalTasks", StringComparison.OrdinalIgnoreCase))
         {
             return User.Identity?.IsAuthenticated == true;
         }
@@ -328,6 +326,7 @@
                     {
                         continue;
                     }
+
                     <a class="@(IsActiveLink(item.Url) ? "active" : "")"
                        href="@item.Url"
                        data-nav-item="@item.Label">@item.Label</a>
