@@ -27,6 +27,7 @@ public class ReportsController : Controller
     {
         var projectOptions = await _context.Projects
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x => x.Status != ProjectStatus.Cancelled)
             .OrderBy(x => x.Code)
             .Select(x => new ProjectFilterOptionViewModel { Id = x.Id, Text = x.Code + " - " + x.Name })
@@ -36,6 +37,7 @@ public class ReportsController : Controller
             .Include(x => x.Customer)
             .Include(x => x.Tasks)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x => x.Status != ProjectStatus.Cancelled);
 
         if (projectId.HasValue)
@@ -48,6 +50,16 @@ public class ReportsController : Controller
             .ThenBy(x => x.Code)
             .Take(projectId.HasValue ? 1 : 40)
             .ToListAsync(cancellationToken);
+
+        if (!User.CanViewAdminOnlyRecords())
+        {
+            foreach (var project in projects)
+            {
+                project.Tasks = project.Tasks
+                    .Where(x => x.IsVisibleTo(User))
+                    .ToList();
+            }
+        }
 
         var datedProjects = projects
             .Where(x => x.StartDate.HasValue || x.TargetEndDate.HasValue || x.Tasks.Any(task => task.StartDate.HasValue || task.DueDate.HasValue))
@@ -123,7 +135,8 @@ public class ReportsController : Controller
             .Include(x => x.Customer)
             .Include(x => x.TaskCategory)
             .Include(x => x.Assignments)
-            .AsNoTracking();
+            .AsNoTracking()
+            .ApplyRecordVisibility(User);
 
         if (projectId.HasValue)
         {
@@ -158,6 +171,7 @@ public class ReportsController : Controller
             Columns = columns,
             Projects = await _context.Projects
                 .AsNoTracking()
+                .ApplyRecordVisibility(User)
                 .Where(x => x.Status != ProjectStatus.Cancelled)
                 .OrderBy(x => x.Code)
                 .Select(x => new ProjectFilterOptionViewModel { Id = x.Id, Text = x.Code + " - " + x.Name })

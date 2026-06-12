@@ -18,6 +18,7 @@ public class PurchaseOrder : BaseEntity, IValidatableObject
     [Required(ErrorMessage = "Sipariş numarası zorunludur.")]
     [StringLength(40, ErrorMessage = "Sipariş numarası en fazla 40 karakter olabilir.")]
     public string OrderNumber { get; set; } = string.Empty;
+    public RecordVisibility Visibility { get; set; } = RecordVisibility.General;
     public PurchaseOrderScope Scope { get; set; } = PurchaseOrderScope.General;
     public int TrackingState { get; set; }
     [Required(ErrorMessage = "Sipariş içeriği zorunludur.")]

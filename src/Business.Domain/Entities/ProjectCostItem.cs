@@ -12,6 +12,7 @@ public class ProjectCostItem : BaseEntity
     public Guid? PurchaseOrderId { get; set; }
     public PurchaseOrder? PurchaseOrder { get; set; }
 
+    public RecordVisibility Visibility { get; set; } = RecordVisibility.General;
     public CostItemType Type { get; set; } = CostItemType.Material;
     [Required(ErrorMessage = "Maliyet açıklaması zorunludur.")]
     [StringLength(320, ErrorMessage = "Maliyet açıklaması en fazla 320 karakter olabilir.")]

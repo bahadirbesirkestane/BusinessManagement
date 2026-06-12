@@ -30,6 +30,7 @@ public class ProjectTask : BaseEntity, IValidatableObject
 
     [StringLength(220, ErrorMessage = "Manuel müşteri adı en fazla 220 karakter olabilir.")]
     public string? ManualCustomerName { get; set; }
+    public RecordVisibility Visibility { get; set; } = RecordVisibility.General;
     public WorkTaskStatus Status { get; set; } = WorkTaskStatus.Todo;
     public ProjectPriority Priority { get; set; } = ProjectPriority.Normal;
     public DateTime? StartDate { get; set; }

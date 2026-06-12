@@ -39,7 +39,8 @@ public class ProjectTasksController : Controller
             .Include(x => x.Customer)
             .Include(x => x.TaskCategory)
             .Include(x => x.Assignments)
-            .AsNoTracking();
+            .AsNoTracking()
+            .ApplyRecordVisibility(User);
 
         if (projectId.HasValue)
         {
@@ -148,6 +149,7 @@ public class ProjectTasksController : Controller
             .Include(x => x.Assignments)
             .Include(x => x.Updates)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x =>
                 x.AssignedToUserId == userId ||
                 x.ResponsibleUserId == userId ||
@@ -230,7 +232,7 @@ public class ProjectTasksController : Controller
             return NotFound();
         }
 
-        if (!CanAccessTask(task))
+        if (!task.IsVisibleTo(User) || !CanAccessTask(task))
         {
             return NotFound();
         }
@@ -274,8 +276,18 @@ public class ProjectTasksController : Controller
         var task = new ProjectTask { ProjectId = projectId };
         if (projectId.HasValue)
         {
+            var canUseProject = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == projectId.Value, cancellationToken);
+            if (!canUseProject)
+            {
+                return NotFound();
+            }
+
             task.CustomerId = await _context.Projects
                 .AsNoTracking()
+                .ApplyRecordVisibility(User)
                 .Where(x => x.Id == projectId.Value)
                 .Select(x => x.CustomerId)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -289,7 +301,20 @@ public class ProjectTasksController : Controller
     [Authorize(Policy = AppPolicies.CanCreateTasks)]
     public async Task<IActionResult> Create(ProjectTask task, CancellationToken cancellationToken)
     {
+        task.Visibility = User.NormalizeRecordVisibility(task.Visibility);
         NormalizeTaskRelation(task);
+        if (task.ProjectId.HasValue)
+        {
+            var canUseProject = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == task.ProjectId.Value, cancellationToken);
+            if (!canUseProject)
+            {
+                ModelState.AddModelError(nameof(task.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+            }
+        }
+
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken);
@@ -307,7 +332,9 @@ public class ProjectTasksController : Controller
     public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
         var task = await _context.ProjectTasks
+            .Include(x => x.Project)
             .Include(x => x.Assignments)
+            .ApplyRecordVisibility(User)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (task is null)
         {
@@ -328,7 +355,20 @@ public class ProjectTasksController : Controller
             return BadRequest();
         }
 
+        task.Visibility = User.NormalizeRecordVisibility(task.Visibility);
         NormalizeTaskRelation(task);
+        if (task.ProjectId.HasValue)
+        {
+            var canUseProject = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == task.ProjectId.Value, cancellationToken);
+            if (!canUseProject)
+            {
+                ModelState.AddModelError(nameof(task.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+            }
+        }
+
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken);
@@ -347,8 +387,11 @@ public class ProjectTasksController : Controller
     [Authorize(Policy = AppPolicies.CanChangeTaskStatus)]
     public async Task<IActionResult> SubmitForReview(Guid id, CancellationToken cancellationToken)
     {
-        var task = await _context.ProjectTasks.FindAsync([id], cancellationToken);
-        if (task is null)
+        var task = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .ApplyRecordVisibility(User)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (task is null || !task.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -365,8 +408,11 @@ public class ProjectTasksController : Controller
     [Authorize(Policy = AppPolicies.CanCompleteTasks)]
     public async Task<IActionResult> Complete(Guid id, CancellationToken cancellationToken)
     {
-        var task = await _context.ProjectTasks.FindAsync([id], cancellationToken);
-        if (task is null)
+        var task = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .ApplyRecordVisibility(User)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (task is null || !task.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -389,8 +435,11 @@ public class ProjectTasksController : Controller
             return Forbid();
         }
 
-        var task = await _context.ProjectTasks.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (task is null)
+        var task = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .ApplyRecordVisibility(User)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (task is null || !task.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -446,7 +495,7 @@ public class ProjectTasksController : Controller
 
     private async Task FillLookupsAsync(CancellationToken cancellationToken)
     {
-        ViewBag.Projects = await _context.Projects.AsNoTracking().OrderBy(x => x.Code).ToListAsync(cancellationToken);
+        ViewBag.Projects = await _context.Projects.AsNoTracking().ApplyRecordVisibility(User).OrderBy(x => x.Code).ToListAsync(cancellationToken);
         ViewBag.Customers = await _context.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         ViewBag.Users = await _userManager.Users.Where(x => x.IsActive).OrderBy(x => x.FullName).ToListAsync(cancellationToken);
         ViewBag.TaskCategories = await _context.TaskCategories.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync(cancellationToken);
@@ -454,7 +503,7 @@ public class ProjectTasksController : Controller
 
     private async Task FillFilterLookupsAsync(CancellationToken cancellationToken)
     {
-        ViewBag.FilterProjects = await _context.Projects.AsNoTracking().OrderBy(x => x.Code).ToListAsync(cancellationToken);
+        ViewBag.FilterProjects = await _context.Projects.AsNoTracking().ApplyRecordVisibility(User).OrderBy(x => x.Code).ToListAsync(cancellationToken);
         ViewBag.FilterCustomers = await _context.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         ViewBag.FilterTaskCategories = await _context.TaskCategories.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync(cancellationToken);
         ViewBag.FilterUsers = await _userManager.Users.Where(x => x.IsActive).OrderBy(x => x.FullName).ToListAsync(cancellationToken);

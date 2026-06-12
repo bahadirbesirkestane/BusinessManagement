@@ -68,6 +68,13 @@
                 <label asp-for="Status" class="form-label">Durum</label>
                 <select asp-for="Status" asp-items="Html.GetEnumSelectList<WorkTaskStatus>()" class="form-select"></select>
             </div>
+            @if (User.IsInRole(AppRoles.Admin))
+            {
+                <div class="mb-3">
+                    <label asp-for="Visibility" class="form-label">Görünürlük</label>
+                    <select asp-for="Visibility" asp-items="Html.GetEnumSelectList<RecordVisibility>()" class="form-select"></select>
+                </div>
+            }
             <div class="mb-3 wide">
                 <label asp-for="Title" class="form-label">Başlık</label>
                 <input asp-for="Title" class="form-control" />

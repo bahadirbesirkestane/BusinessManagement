@@ -159,6 +159,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Code).HasMaxLength(32).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(220).IsRequired();
             entity.Property(x => x.CustomerName).HasMaxLength(180);
+            entity.Property(x => x.Visibility).HasDefaultValue(RecordVisibility.General);
             entity.Property(x => x.Currency).HasMaxLength(3);
             entity.Property(x => x.Budget).HasColumnType("decimal(18,2)");
             entity.HasOne(x => x.Customer).WithMany(x => x.Projects).HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
@@ -182,6 +183,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Title).HasMaxLength(220).IsRequired();
             entity.Property(x => x.ManualProjectName).HasMaxLength(220);
             entity.Property(x => x.ManualCustomerName).HasMaxLength(220);
+            entity.Property(x => x.Visibility).HasDefaultValue(RecordVisibility.General);
             entity.Property(x => x.AssignedToUserId).HasMaxLength(450);
             entity.Property(x => x.ResponsibleUserId).HasMaxLength(450);
             entity.Property(x => x.WbsCode).HasMaxLength(40);
@@ -256,6 +258,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Description).HasMaxLength(320).IsRequired();
             entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
             entity.Property(x => x.Currency).HasMaxLength(3);
+            entity.Property(x => x.Visibility).HasDefaultValue(RecordVisibility.General);
             entity.HasOne(x => x.PurchaseOrder).WithMany().HasForeignKey(x => x.PurchaseOrderId).OnDelete(DeleteBehavior.NoAction);
         });
 
@@ -264,6 +267,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.OrderNumber).IsUnique();
             entity.Property(x => x.OrderNumber).HasMaxLength(40).IsRequired();
             entity.Property(x => x.Content).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Visibility).HasDefaultValue(RecordVisibility.General);
             entity.Property(x => x.Quantity).HasColumnType("decimal(18,3)");
             entity.Property(x => x.QuantityText).HasMaxLength(80);
             entity.Property(x => x.Unit).HasMaxLength(40);

@@ -34,8 +34,15 @@ public class CostsController : Controller
             .Include(x => x.CostItems)
             .Include(x => x.PurchaseOrders)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
+
+        foreach (var project in projects)
+        {
+            project.CostItems = project.CostItems.Where(x => x.IsVisibleTo(User)).ToList();
+            project.PurchaseOrders = project.PurchaseOrders.Where(x => x.IsVisibleTo(User)).ToList();
+        }
 
         return View(projects);
     }
@@ -51,9 +58,24 @@ public class CostsController : Controller
             .Include(x => x.PurchaseOrders)
                 .ThenInclude(x => x.Material)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-        return project is null ? NotFound() : View(project);
+        if (project is null)
+        {
+            return NotFound();
+        }
+
+        project.CostItems = project.CostItems
+            .Where(x => x.IsVisibleTo(User))
+            .OrderByDescending(x => x.CostDate ?? x.CreatedAt)
+            .ToList();
+        project.PurchaseOrders = project.PurchaseOrders
+            .Where(x => x.IsVisibleTo(User))
+            .OrderByDescending(x => x.OrderDate ?? x.CreatedAt)
+            .ToList();
+
+        return View(project);
     }
 
     public async Task<IActionResult> PurchaseOrders(CancellationToken cancellationToken)
@@ -63,6 +85,7 @@ public class CostsController : Controller
             .Include(x => x.Supplier)
             .Include(x => x.Material)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .OrderByDescending(x => x.OrderDate ?? x.CreatedAt)
             .ToListAsync(cancellationToken);
 
@@ -76,6 +99,7 @@ public class CostsController : Controller
             .Include(x => x.Supplier)
             .Include(x => x.Material)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x => x.MaterialId != null)
             .OrderBy(x => x.Material == null ? string.Empty : x.Material.Name)
             .ThenByDescending(x => x.OrderDate ?? x.CreatedAt)
@@ -90,6 +114,7 @@ public class CostsController : Controller
             .Include(x => x.Project)
             .Include(x => x.PurchaseOrder)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x => x.Type == CostItemType.Overhead || x.Type == CostItemType.Other)
             .OrderByDescending(x => x.CostDate ?? x.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -115,6 +140,9 @@ public class CostsController : Controller
     [Authorize(Policy = AppPolicies.CanManageCosts)]
     public async Task<IActionResult> Create(ProjectCostItem item, CancellationToken cancellationToken)
     {
+        item.Visibility = User.NormalizeRecordVisibility(item.Visibility);
+        await ValidateCostRelationsAsync(item, cancellationToken);
+
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(item.ProjectId, cancellationToken);
@@ -136,8 +164,13 @@ public class CostsController : Controller
     [Authorize(Policy = AppPolicies.CanManageCosts)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
-        var item = await _context.ProjectCostItems.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (item is null)
+        var item = await _context.ProjectCostItems
+            .Include(x => x.Project)
+            .Include(x => x.PurchaseOrder)
+            .AsNoTracking()
+            .ApplyRecordVisibility(User)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null || !item.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -155,6 +188,9 @@ public class CostsController : Controller
         {
             return BadRequest();
         }
+
+        item.Visibility = User.NormalizeRecordVisibility(item.Visibility);
+        await ValidateCostRelationsAsync(item, cancellationToken);
 
         if (!ModelState.IsValid)
         {
@@ -179,8 +215,12 @@ public class CostsController : Controller
     [Authorize(Policy = AppPolicies.CanManageCosts)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var item = await _context.ProjectCostItems.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (item is null)
+        var item = await _context.ProjectCostItems
+            .Include(x => x.Project)
+            .Include(x => x.PurchaseOrder)
+            .ApplyRecordVisibility(User)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null || !item.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -205,7 +245,13 @@ public class CostsController : Controller
         var selectedIds = ids.Distinct().ToList();
         if (selectedIds.Count > 0)
         {
-            _context.ProjectCostItems.RemoveRange(_context.ProjectCostItems.Where(x => selectedIds.Contains(x.Id)));
+            var visibleItems = await _context.ProjectCostItems
+                .Include(x => x.Project)
+                .Include(x => x.PurchaseOrder)
+                .ApplyRecordVisibility(User)
+                .Where(x => selectedIds.Contains(x.Id))
+                .ToListAsync(cancellationToken);
+            _context.ProjectCostItems.RemoveRange(visibleItems);
             await _context.SaveChangesAsync(cancellationToken);
         }
 
@@ -227,11 +273,12 @@ public class CostsController : Controller
 
     private async Task FillLookupsAsync(Guid? projectId, CancellationToken cancellationToken)
     {
-        ViewBag.Projects = await _context.Projects.AsNoTracking().OrderBy(x => x.Code).ToListAsync(cancellationToken);
+        ViewBag.Projects = await _context.Projects.AsNoTracking().ApplyRecordVisibility(User).OrderBy(x => x.Code).ToListAsync(cancellationToken);
 
         var ordersQuery = _context.PurchaseOrders
             .Include(x => x.Project)
-            .AsNoTracking();
+            .AsNoTracking()
+            .ApplyRecordVisibility(User);
 
         if (projectId.HasValue && projectId.Value != Guid.Empty)
         {
@@ -241,5 +288,32 @@ public class CostsController : Controller
         ViewBag.PurchaseOrders = await ordersQuery
             .OrderByDescending(x => x.OrderDate ?? x.CreatedAt)
             .ToListAsync(cancellationToken);
+    }
+
+    private async Task ValidateCostRelationsAsync(ProjectCostItem item, CancellationToken cancellationToken)
+    {
+        if (item.ProjectId.HasValue)
+        {
+            var canUseProject = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == item.ProjectId.Value, cancellationToken);
+            if (!canUseProject)
+            {
+                ModelState.AddModelError(nameof(item.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+            }
+        }
+
+        if (item.PurchaseOrderId.HasValue)
+        {
+            var canUseOrder = await _context.PurchaseOrders
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == item.PurchaseOrderId.Value, cancellationToken);
+            if (!canUseOrder)
+            {
+                ModelState.AddModelError(nameof(item.PurchaseOrderId), "SeÃ§ilen sipariÅŸ iÃ§in yetkiniz bulunmuyor.");
+            }
+        }
     }
 }

@@ -88,6 +88,7 @@ public class ProjectPlanningTaskFormViewModel : IValidatableObject
     public DateTime? DueDate { get; set; }
     public WorkTaskStatus Status { get; set; } = WorkTaskStatus.Todo;
     public ProjectPriority Priority { get; set; } = ProjectPriority.Normal;
+    public RecordVisibility Visibility { get; set; } = RecordVisibility.General;
     public List<string> AssignedUserIds { get; set; } = [];
 
     [Range(0, 100, ErrorMessage = "İlerleme yüzdesi 0 ile 100 arasında olmalıdır.")]

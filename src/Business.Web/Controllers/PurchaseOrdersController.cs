@@ -59,7 +59,8 @@ public class PurchaseOrdersController : Controller
             .Include(x => x.Project)
             .Include(x => x.Supplier)
             .Include(x => x.Material)
-            .AsNoTracking();
+            .AsNoTracking()
+            .ApplyRecordVisibility(User);
 
         if (projectId.HasValue)
         {
@@ -156,7 +157,7 @@ public class PurchaseOrdersController : Controller
         await FillLookupsAsync(cancellationToken);
         if (projectId.HasValue)
         {
-            var project = await _context.Projects.AsNoTracking().FirstOrDefaultAsync(x => x.Id == projectId.Value, cancellationToken);
+            var project = await _context.Projects.AsNoTracking().ApplyRecordVisibility(User).FirstOrDefaultAsync(x => x.Id == projectId.Value, cancellationToken);
             if (project is not null)
             {
                 ViewBag.Breadcrumbs = new Dictionary<string, string?>
@@ -174,7 +175,7 @@ public class PurchaseOrdersController : Controller
     public async Task<IActionResult> Details(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var order = await _purchaseOrderService.GetDetailsAsync(id, cancellationToken);
-        if (order is null)
+        if (order is null || !order.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -219,6 +220,7 @@ public class PurchaseOrdersController : Controller
     {
         var sourceOrder = await _context.PurchaseOrders
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (sourceOrder is null)
@@ -235,6 +237,7 @@ public class PurchaseOrdersController : Controller
             SupplierId = sourceOrder.SupplierId,
             MaterialId = sourceOrder.MaterialId,
             OrderNumber = orderNumber,
+            Visibility = sourceOrder.Visibility,
             Scope = sourceOrder.Scope,
             TrackingState = 0,
             Content = sourceOrder.Content,
@@ -270,6 +273,18 @@ public class PurchaseOrdersController : Controller
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
     public async Task<IActionResult> Create(Guid? projectId, CancellationToken cancellationToken)
     {
+        if (projectId.HasValue)
+        {
+            var canUseProject = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == projectId.Value, cancellationToken);
+            if (!canUseProject)
+            {
+                return NotFound();
+            }
+        }
+
         await FillLookupsAsync(cancellationToken);
         return View(new PurchaseOrder
         {
@@ -293,6 +308,18 @@ public class PurchaseOrdersController : Controller
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
     public async Task<IActionResult> QuickCreate(QuickPurchaseOrderViewModel model, CancellationToken cancellationToken)
     {
+        if (model.ProjectId.HasValue)
+        {
+            var canUseProject = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == model.ProjectId.Value, cancellationToken);
+            if (!canUseProject)
+            {
+                ModelState.AddModelError(nameof(model.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+            }
+        }
+
         var validLines = model.Lines
             .Where(x => !string.IsNullOrWhiteSpace(x.Content))
             .ToList();
@@ -325,6 +352,7 @@ public class PurchaseOrdersController : Controller
                 SupplierId = model.SupplierId,
                 MaterialId = line.MaterialId,
                 OrderNumber = orderNumber,
+                Visibility = User.NormalizeRecordVisibility(model.Visibility),
                 Scope = model.ProjectId.HasValue ? PurchaseOrderScope.Project : model.Scope,
                 TrackingState = 0,
                 Content = line.Content!.Trim(),
@@ -368,6 +396,19 @@ public class PurchaseOrdersController : Controller
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
     public async Task<IActionResult> Create(PurchaseOrder order, CancellationToken cancellationToken)
     {
+        order.Visibility = User.NormalizeRecordVisibility(order.Visibility);
+        if (order.ProjectId.HasValue)
+        {
+            var canUseProject = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == order.ProjectId.Value, cancellationToken);
+            if (!canUseProject)
+            {
+                ModelState.AddModelError(nameof(order.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+            }
+        }
+
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken);
@@ -390,8 +431,11 @@ public class PurchaseOrdersController : Controller
     [Authorize(Policy = AppPolicies.CanUpdatePurchasing)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
-        var order = await _purchaseOrderService.GetByIdAsync(id, cancellationToken);
-        if (order is null)
+        var order = await _context.PurchaseOrders
+            .Include(x => x.Project)
+            .ApplyRecordVisibility(User)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (order is null || !order.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -410,6 +454,19 @@ public class PurchaseOrdersController : Controller
             return BadRequest();
         }
 
+        order.Visibility = User.NormalizeRecordVisibility(order.Visibility);
+        if (order.ProjectId.HasValue)
+        {
+            var canUseProject = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == order.ProjectId.Value, cancellationToken);
+            if (!canUseProject)
+            {
+                ModelState.AddModelError(nameof(order.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+            }
+        }
+
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken);
@@ -418,6 +475,7 @@ public class PurchaseOrdersController : Controller
 
         var oldStatus = await _context.PurchaseOrders
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x => x.Id == id)
             .Select(x => (PurchaseOrderStatus?)x.Status)
             .FirstOrDefaultAsync(cancellationToken);
@@ -431,6 +489,10 @@ public class PurchaseOrdersController : Controller
     public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var order = await _purchaseOrderService.GetDetailsAsync(id, cancellationToken);
+        if (order is not null && !order.IsVisibleTo(User))
+        {
+            return NotFound();
+        }
         ViewBag.ReturnUrl = returnUrl;
         return order is null ? NotFound() : View(order);
     }
@@ -482,8 +544,11 @@ public class PurchaseOrdersController : Controller
     [Authorize(Policy = AppPolicies.CanChangePurchasingStatus)]
     public async Task<IActionResult> UpdateStatus(Guid id, PurchaseOrderStatus status, string? returnUrl, CancellationToken cancellationToken)
     {
-        var order = await _context.PurchaseOrders.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (order is null)
+        var order = await _context.PurchaseOrders
+            .Include(x => x.Project)
+            .ApplyRecordVisibility(User)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (order is null || !order.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -501,7 +566,11 @@ public class PurchaseOrdersController : Controller
 
     private async Task FillLookupsAsync(CancellationToken cancellationToken)
     {
-        ViewBag.Projects = await _lookupService.GetProjectsAsync(cancellationToken);
+        ViewBag.Projects = await _context.Projects
+            .AsNoTracking()
+            .ApplyRecordVisibility(User)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
         ViewBag.Suppliers = await _lookupService.GetSuppliersAsync(cancellationToken);
         ViewBag.Materials = await _lookupService.GetMaterialsAsync(cancellationToken);
         ViewBag.Users = await _userManager.Users
@@ -531,10 +600,23 @@ public class PurchaseOrdersController : Controller
 
     private async Task<QuickPurchaseOrderViewModel> BuildQuickCreateModelAsync(Guid? projectId, Guid? templateId, CancellationToken cancellationToken)
     {
+        if (projectId.HasValue)
+        {
+            var canUseProject = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == projectId.Value, cancellationToken);
+            if (!canUseProject)
+            {
+                projectId = null;
+            }
+        }
+
         var model = new QuickPurchaseOrderViewModel
         {
             TemplateId = templateId,
             ProjectId = projectId,
+            Visibility = RecordVisibility.General,
             Scope = projectId.HasValue ? PurchaseOrderScope.Project : PurchaseOrderScope.General,
             OrderDate = DateTime.Today,
             Currency = "TRY"

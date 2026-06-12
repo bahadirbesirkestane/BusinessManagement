@@ -1,7 +1,7 @@
 @model PurchaseOrder
 
 <section class="panel-block form-panel">
-    <div class="panel-heading"><div><p class="section-kicker">Satın alma</p><h2>@ViewData["Title"]</h2></div></div>
+    <div class="panel-heading"><div><p class="section-kicker">SatÄ±n alma</p><h2>@ViewData["Title"]</h2></div></div>
     <form method="post" class="app-form">
         <input type="hidden" asp-for="Id" />
         <input type="hidden" asp-for="RequestedBy" />
@@ -10,11 +10,15 @@
         <div class="form-grid">
             <div class="mb-3"><label asp-for="OrderNumber" class="form-label">Sipariş no</label><input asp-for="OrderNumber" class="form-control" /></div>
             <div class="mb-3"><label asp-for="Scope" class="form-label">Kapsam</label><select asp-for="Scope" asp-items="Html.GetEnumSelectList<PurchaseOrderScope>()" class="form-select"></select></div>
-            <div class="mb-3"><label asp-for="ProjectId" class="form-label">Proje</label><select asp-for="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya seç"><option value="">Genel</option>@foreach (var project in ViewBag.Projects){<option value="@project.Id">@project.Code - @project.Name</option>}</select></div>
+            <div class="mb-3"><label asp-for="ProjectId" class="form-label">Proje</label><select asp-for="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya seÃ§"><option value="">Genel</option>@foreach (var project in ViewBag.Projects){<option value="@project.Id">@project.Code - @project.Name</option>}</select></div>
             <div class="mb-3"><label asp-for="SupplierId" class="form-label">Tedarikçi</label><select asp-for="SupplierId" class="form-select" data-searchable-select data-search-placeholder="Tedarikçi ara veya seç"><option value="">Seçilmedi</option>@foreach (var supplier in ViewBag.Suppliers){<option value="@supplier.Id">@supplier.Name</option>}</select></div>
             <div class="mb-3"><label asp-for="MaterialId" class="form-label">Malzeme</label><select asp-for="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç"><option value="">Seçilmedi</option>@foreach (var material in ViewBag.Materials){<option value="@material.Id">@material.Name</option>}</select></div>
             <div class="mb-3"><label asp-for="Status" class="form-label">Durum</label><select asp-for="Status" asp-items="Html.GetEnumSelectList<PurchaseOrderStatus>()" class="form-select"></select></div>
-            <div class="mb-3 wide"><label asp-for="Content" class="form-label">Sipariş içeriği</label><input asp-for="Content" class="form-control" /></div>
+            @if (User.IsInRole(AppRoles.Admin))
+            {
+                <div class="mb-3"><label asp-for="Visibility" class="form-label">Görünürlük</label><select asp-for="Visibility" asp-items="Html.GetEnumSelectList<RecordVisibility>()" class="form-select"></select></div>
+            }
+            <div class="mb-3 wide"><label asp-for="Content" class="form-label">Sipariş içerği</label><input asp-for="Content" class="form-control" /></div>
             <div class="mb-3"><label asp-for="QuantityText" class="form-label">Adet / miktar</label><input asp-for="QuantityText" class="form-control" /></div>
             <div class="mb-3"><label asp-for="Quality" class="form-label">Kalite</label><input asp-for="Quality" class="form-control" /></div>
             <div class="mb-3"><label asp-for="OrderDate" class="form-label">Sipariş tarihi</label><input asp-for="OrderDate" type="date" class="form-control" /></div>

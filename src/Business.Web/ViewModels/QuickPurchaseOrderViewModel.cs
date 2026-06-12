@@ -8,6 +8,7 @@ public class QuickPurchaseOrderViewModel
     public Guid? TemplateId { get; set; }
     public Guid? ProjectId { get; set; }
     public Guid? SupplierId { get; set; }
+    public RecordVisibility Visibility { get; set; } = RecordVisibility.General;
     public PurchaseOrderScope Scope { get; set; } = PurchaseOrderScope.General;
     public PurchaseOrderStatus Status { get; set; } = PurchaseOrderStatus.Requested;
     public DateTime OrderDate { get; set; } = DateTime.Today;

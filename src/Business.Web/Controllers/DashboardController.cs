@@ -37,13 +37,43 @@ public class DashboardController : Controller
     {
         var model = new DashboardViewModel
         {
-            ActiveProjectCount = await _projectService.GetActiveCountAsync(cancellationToken),
-            OpenOrderCount = await _purchaseOrderService.GetOpenCountAsync(cancellationToken),
-            PendingMaterialRequestCount = await _materialRequestService.GetPendingCountAsync(cancellationToken),
+            ActiveProjectCount = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .CountAsync(x => x.Status != ProjectStatus.Completed && x.Status != ProjectStatus.Cancelled, cancellationToken),
+            OpenOrderCount = await _context.PurchaseOrders
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .CountAsync(x => x.Status != PurchaseOrderStatus.Delivered && x.Status != PurchaseOrderStatus.Cancelled, cancellationToken),
+            PendingMaterialRequestCount = await _context.MaterialRequests
+                .AsNoTracking()
+                .ApplyProjectRecordVisibility(User)
+                .CountAsync(x => x.Status == MaterialRequestStatus.Requested, cancellationToken),
             SupplierCount = await _supplierService.GetCountAsync(cancellationToken),
-            RecentProjects = await _projectService.GetRecentAsync(cancellationToken: cancellationToken),
-            RecentOrders = await _purchaseOrderService.GetRecentAsync(cancellationToken: cancellationToken),
-            MaterialRequests = await _materialRequestService.GetRecentAsync(cancellationToken: cancellationToken)
+            RecentProjects = await _context.Projects
+                .Include(x => x.Customer)
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(6)
+                .ToListAsync(cancellationToken),
+            RecentOrders = await _context.PurchaseOrders
+                .Include(x => x.Project)
+                .Include(x => x.Supplier)
+                .Include(x => x.Material)
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(6)
+                .ToListAsync(cancellationToken),
+            MaterialRequests = await _context.MaterialRequests
+                .Include(x => x.Project)
+                .Include(x => x.Material)
+                .AsNoTracking()
+                .ApplyProjectRecordVisibility(User)
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(6)
+                .ToListAsync(cancellationToken)
         };
 
         return View(model);
@@ -70,6 +100,7 @@ public class DashboardController : Controller
         items.AddRange(await _context.ProjectTasks
             .Include(x => x.Project)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x =>
                 x.Priority == ProjectPriority.Critical &&
                 x.Status != WorkTaskStatus.Done &&
@@ -92,6 +123,7 @@ public class DashboardController : Controller
         items.AddRange(await _context.PurchaseOrders
             .Include(x => x.Project)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x =>
                 x.ExpectedArrivalDate.HasValue &&
                 x.ExpectedArrivalDate.Value.Date <= today.AddDays(3) &&
@@ -143,6 +175,7 @@ public class DashboardController : Controller
         var taskQuery = _context.ProjectTasks
             .Include(x => x.Project)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x =>
                 x.DueDate.HasValue &&
                 x.Status != WorkTaskStatus.Done &&
@@ -171,6 +204,7 @@ public class DashboardController : Controller
         var orderQuery = _context.PurchaseOrders
             .Include(x => x.Project)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x =>
                 x.ExpectedArrivalDate.HasValue &&
                 x.Status != PurchaseOrderStatus.Delivered &&
@@ -199,6 +233,7 @@ public class DashboardController : Controller
         var materialQuery = _context.MaterialRequests
             .Include(x => x.Project)
             .AsNoTracking()
+            .ApplyProjectRecordVisibility(User)
             .Where(x =>
                 x.Status != MaterialRequestStatus.Fulfilled &&
                 x.Status != MaterialRequestStatus.Cancelled);

@@ -3,7 +3,7 @@
 <section class="panel-block form-panel">
     <div class="panel-heading">
         <div>
-            <p class="section-kicker">Proje kartı</p>
+            <p class="section-kicker">Proje kartÄ±</p>
             <h2>@ViewData["Title"]</h2>
         </div>
     </div>
@@ -12,11 +12,15 @@
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
         <div class="form-grid">
             <div class="mb-3"><label asp-for="Code" class="form-label">Proje kodu</label><input asp-for="Code" class="form-control" /><span asp-validation-for="Code" class="text-danger"></span></div>
-            <div class="mb-3"><label asp-for="CustomerId" class="form-label">Müşteri</label><select asp-for="CustomerId" class="form-select" data-searchable-select data-search-placeholder="Müşteri ara veya seç"><option value="">Seçilmedi</option>@foreach (var customer in ViewBag.Customers){<option value="@customer.Id">@customer.Name</option>}</select></div>
+            <div class="mb-3"><label asp-for="CustomerId" class="form-label">Müşteri</label><select asp-for="CustomerId" class="form-select" data-searchable-select data-search-placeholder="MÃ¼ÅŸteri ara veya seÃ§"><option value="">SeÃ§ilmedi</option>@foreach (var customer in ViewBag.Customers){<option value="@customer.Id">@customer.Name</option>}</select></div>
             <div class="mb-3 wide"><label asp-for="Name" class="form-label">Proje adı</label><input asp-for="Name" class="form-control" /><span asp-validation-for="Name" class="text-danger"></span></div>
             <div class="mb-3"><label asp-for="CustomerName" class="form-label">Excel müşteri/metin</label><input asp-for="CustomerName" class="form-control" /></div>
             <div class="mb-3"><label asp-for="Status" class="form-label">Durum</label><select asp-for="Status" asp-items="Html.GetEnumSelectList<ProjectStatus>()" class="form-select"></select></div>
             <div class="mb-3"><label asp-for="Priority" class="form-label">Öncelik</label><select asp-for="Priority" asp-items="Html.GetEnumSelectList<ProjectPriority>()" class="form-select"></select></div>
+            @if (User.IsInRole(AppRoles.Admin))
+            {
+                <div class="mb-3"><label asp-for="Visibility" class="form-label">Görünürlük</label><select asp-for="Visibility" asp-items="Html.GetEnumSelectList<RecordVisibility>()" class="form-select"></select></div>
+            }
             <div class="mb-3"><label asp-for="StartDate" class="form-label">Başlangıç</label><input asp-for="StartDate" type="date" class="form-control" /></div>
             <div class="mb-3"><label asp-for="TargetEndDate" class="form-label">Hedef bitiş</label><input asp-for="TargetEndDate" type="date" class="form-control" /></div>
             <div class="mb-3"><label asp-for="Budget" class="form-label">Bütçe</label><input asp-for="Budget" class="form-control" /></div>

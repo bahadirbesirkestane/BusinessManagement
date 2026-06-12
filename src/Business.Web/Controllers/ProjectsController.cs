@@ -45,7 +45,8 @@ public class ProjectsController : Controller
     {
         var query = _context.Projects
             .Include(x => x.Customer)
-            .AsNoTracking();
+            .AsNoTracking()
+            .ApplyRecordVisibility(User);
 
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -113,6 +114,7 @@ public class ProjectsController : Controller
         var projects = await _context.Projects
             .Include(x => x.Customer)
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x =>
                 (x.StartDate.HasValue && x.StartDate.Value.Date <= monthEnd) ||
                 (x.TargetEndDate.HasValue && x.TargetEndDate.Value.Date >= monthStart && x.TargetEndDate.Value.Date <= monthEnd))
@@ -134,10 +136,15 @@ public class ProjectsController : Controller
     public async Task<IActionResult> Details(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var project = await _projectService.GetDetailsAsync(id, cancellationToken);
-        if (project is null)
+        if (project is null || !project.IsVisibleTo(User))
         {
             return NotFound();
         }
+
+        project.PurchaseOrders = project.PurchaseOrders
+            .Where(x => x.IsVisibleTo(User))
+            .OrderByDescending(x => x.CreatedAt)
+            .ToList();
 
         ViewBag.ReturnUrl = !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null;
         ViewBag.Breadcrumbs = new Dictionary<string, string?>
@@ -174,6 +181,8 @@ public class ProjectsController : Controller
     [Authorize(Policy = AppPolicies.CanCreateProjects)]
     public async Task<IActionResult> Create(Project project, CancellationToken cancellationToken)
     {
+        project.Visibility = User.NormalizeRecordVisibility(project.Visibility);
+
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken);
@@ -200,7 +209,7 @@ public class ProjectsController : Controller
     public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
         var project = await _projectService.GetByIdAsync(id, cancellationToken);
-        if (project is null)
+        if (project is null || !project.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -218,6 +227,8 @@ public class ProjectsController : Controller
         {
             return BadRequest();
         }
+
+        project.Visibility = User.NormalizeRecordVisibility(project.Visibility);
 
         if (!ModelState.IsValid)
         {
@@ -253,7 +264,7 @@ public class ProjectsController : Controller
     public async Task<IActionResult> Updates(Guid id, CancellationToken cancellationToken)
     {
         var project = await _projectService.GetDetailsAsync(id, cancellationToken);
-        if (project is null)
+        if (project is null || !project.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -283,7 +294,7 @@ public class ProjectsController : Controller
     public async Task<IActionResult> UpdateStatus(Guid id, ProjectStatus status, string? returnUrl, CancellationToken cancellationToken)
     {
         var project = await _projectService.GetByIdAsync(id, cancellationToken);
-        if (project is null)
+        if (project is null || !project.IsVisibleTo(User))
         {
             return NotFound();
         }
@@ -303,7 +314,7 @@ public class ProjectsController : Controller
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var project = await _projectService.GetDetailsAsync(id, cancellationToken);
-        return project is null ? NotFound() : View(project);
+        return project is null || !project.IsVisibleTo(User) ? NotFound() : View(project);
     }
 
     [HttpPost, ActionName("Delete")]
@@ -362,7 +373,10 @@ public class ProjectsController : Controller
     {
         if (User.IsInRole(AppRoles.Admin) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
         {
-            return project.Tasks.OrderByDescending(x => x.CreatedAt).ToList();
+            return project.Tasks
+                .Where(x => x.IsVisibleTo(User))
+                .OrderByDescending(x => x.CreatedAt)
+                .ToList();
         }
 
         var userId = _userManager.GetUserId(User);
@@ -373,9 +387,10 @@ public class ProjectsController : Controller
 
         return project.Tasks
             .Where(x =>
-                x.Assignments.Any(assignment => assignment.UserId == userId) ||
-                x.AssignedToUserId == userId ||
-                x.ResponsibleUserId == userId)
+                x.IsVisibleTo(User) &&
+                (x.Assignments.Any(assignment => assignment.UserId == userId) ||
+                 x.AssignedToUserId == userId ||
+                 x.ResponsibleUserId == userId))
             .OrderByDescending(x => x.CreatedAt)
             .ToList();
     }

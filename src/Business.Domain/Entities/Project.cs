@@ -22,6 +22,7 @@ public class Project : BaseEntity, IValidatableObject
 
     [StringLength(2000, ErrorMessage = "Açıklama en fazla 2000 karakter olabilir.")]
     public string? Description { get; set; }
+    public RecordVisibility Visibility { get; set; } = RecordVisibility.General;
     public ProjectStatus Status { get; set; } = ProjectStatus.Planned;
     public ProjectPriority Priority { get; set; } = ProjectPriority.Normal;
     public DateTime? StartDate { get; set; }

@@ -61,6 +61,7 @@ public class ProjectPlanningController : Controller
 
         var project = await _context.Projects
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .FirstOrDefaultAsync(x => x.Id == taskForm.ProjectId && x.Status != ProjectStatus.Cancelled, cancellationToken);
 
         if (project is null)
@@ -73,6 +74,7 @@ public class ProjectPlanningController : Controller
         {
             parentTask = await _context.ProjectTasks
                 .AsNoTracking()
+                .ApplyRecordVisibility(User)
                 .FirstOrDefaultAsync(x => x.Id == taskForm.ParentTaskId.Value && x.ProjectId == taskForm.ProjectId, cancellationToken);
 
             if (parentTask is null)
@@ -97,6 +99,7 @@ public class ProjectPlanningController : Controller
             ParentTaskId = taskForm.ParentTaskId,
             Title = taskForm.Title.Trim(),
             Description = string.IsNullOrWhiteSpace(taskForm.Description) ? null : taskForm.Description.Trim(),
+            Visibility = User.NormalizeRecordVisibility(taskForm.Visibility),
             StartDate = taskForm.StartDate,
             DueDate = taskForm.DueDate,
             Status = taskForm.Status,
@@ -131,7 +134,9 @@ public class ProjectPlanningController : Controller
         }
 
         var task = taskForm.TaskId.HasValue
-            ? await _context.ProjectTasks.FirstOrDefaultAsync(x => x.Id == taskForm.TaskId.Value && x.ProjectId == taskForm.ProjectId, cancellationToken)
+            ? await _context.ProjectTasks
+                .ApplyRecordVisibility(User)
+                .FirstOrDefaultAsync(x => x.Id == taskForm.TaskId.Value && x.ProjectId == taskForm.ProjectId, cancellationToken)
             : null;
 
         if (task is null)
@@ -141,6 +146,7 @@ public class ProjectPlanningController : Controller
 
         var projectExists = await _context.Projects
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .AnyAsync(x => x.Id == taskForm.ProjectId && x.Status != ProjectStatus.Cancelled, cancellationToken);
 
         if (!projectExists)
@@ -156,6 +162,7 @@ public class ProjectPlanningController : Controller
 
         task.Title = taskForm.Title.Trim();
         task.Description = string.IsNullOrWhiteSpace(taskForm.Description) ? null : taskForm.Description.Trim();
+        task.Visibility = User.NormalizeRecordVisibility(taskForm.Visibility);
         task.StartDate = taskForm.StartDate;
         task.DueDate = taskForm.DueDate;
         task.Status = taskForm.Status;
@@ -179,6 +186,7 @@ public class ProjectPlanningController : Controller
     {
         var projects = await _context.Projects
             .AsNoTracking()
+            .ApplyRecordVisibility(User)
             .Where(x => x.Status != ProjectStatus.Cancelled)
             .OrderBy(x => x.Code)
             .Select(x => new ProjectPlanningProjectOptionViewModel
@@ -197,6 +205,7 @@ public class ProjectPlanningController : Controller
         {
             selectedProjectStatus = await _context.Projects
                 .AsNoTracking()
+                .ApplyRecordVisibility(User)
                 .Where(x => x.Id == projectId.Value)
                 .Select(x => (ProjectStatus?)x.Status)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -205,6 +214,7 @@ public class ProjectPlanningController : Controller
                 .Include(x => x.Assignments)
                 .Include(x => x.Updates)
                 .AsNoTracking()
+                .ApplyRecordVisibility(User)
                 .Where(x => x.ProjectId == projectId.Value)
                 .OrderBy(x => x.SortOrder)
                 .ThenBy(x => x.WbsCode)
