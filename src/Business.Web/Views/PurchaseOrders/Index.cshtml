@@ -1,6 +1,7 @@
 @model IReadOnlyList<Business.Domain.Entities.PurchaseOrder>
 @{
     ViewData["Title"] = "Satın Alma";
+    var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
 }
 
 <section class="panel-block">
@@ -10,7 +11,7 @@
             <h2>Genel ve proje siparişleri</h2>
             <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
-        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+        @if (canCreateOrder)
         {
             <div class="toolbar-actions">
                 <a class="btn btn-outline-secondary btn-sm" asp-controller="PurchaseOrderTemplates" asp-action="Index">Şablonlar</a>
@@ -58,13 +59,13 @@
             }
         </select>
         <select name="requestedByUserId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Talep eden ara veya seç">
-            <option value="">Siparis veren</option>
+            <option value="">Sipariş veren</option>
             @foreach (var user in ViewBag.Users)
             {
                 <option value="@user.Id" selected="@(ViewBag.FilterRequestedByUserId == user.Id)">@user.FullName</option>
             }
         </select>
-        <input name="requestedBy" value="@ViewBag.FilterRequestedBy" class="form-control form-control-sm" placeholder="Veren kisi ara" />
+        <input name="requestedBy" value="@ViewBag.FilterRequestedBy" class="form-control form-control-sm" placeholder="Veren kişi ara" />
         <input name="dateFrom" value="@ViewBag.FilterDateFrom" type="date" class="form-control form-control-sm" title="Başlangıç tarihi" />
         <input name="dateTo" value="@ViewBag.FilterDateTo" type="date" class="form-control form-control-sm" title="Bitiş tarihi" />
         <select name="sort" class="form-select form-select-sm">
@@ -73,7 +74,7 @@
             <option value="content" selected="@(ViewBag.Sort == "content")">İçerik</option>
             <option value="project" selected="@(ViewBag.Sort == "project")">Proje</option>
             <option value="supplier" selected="@(ViewBag.Sort == "supplier")">Tedarikçi</option>
-            <option value="requester" selected="@(ViewBag.Sort == "requester")">Siparis veren</option>
+            <option value="requester" selected="@(ViewBag.Sort == "requester")">Sipariş veren</option>
             <option value="status" selected="@(ViewBag.Sort == "status")">Durum</option>
             <option value="date" selected="@(ViewBag.Sort == "date")">Sipariş tarihi</option>
             <option value="arrival" selected="@(ViewBag.Sort == "arrival")">Varış tarihi</option>
@@ -85,87 +86,132 @@
 
     @if (User.IsInRole(AppRoles.Admin))
     {
-        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkDeleteForm" hidden>
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
             <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
-            <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+            <div class="bulk-bar-actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkDeleteForm">Seçimi temizle</button>
+                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+            </div>
         </form>
     }
 
-    <div class="table-responsive">
-        <table class="table app-table align-middle">
-            <thead>
-                <tr>
-                    <th>Sipariş</th>
-                    @if (User.IsInRole(AppRoles.Admin))
-                    {
-                        <th class="bulk-check-cell">
-                            <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm siparişleri seç" />
-                        </th>
-                    }
-                    <th>Proje</th>
-                    <th>Adet / miktar</th>
-                    <th>Kalite</th>
-                    <th>Veren</th>
-                    <th>Tedarikçi</th>
-                    <th>Tarih</th>
-                    <th>Durum</th>
-                    <th>Birim fiyat</th>
-                    <th>Tutar</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var order in Model)
-                {
-                    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
-                    <tr class="status-row status-@order.Status.ToString().ToLowerInvariant()" data-row-link="@Url.Action("Details", new { id = order.Id, returnUrl })">
-                        <td><strong>@order.Content</strong><small class="d-block text-muted">@order.Notes</small></td>
-                        @if (User.IsInRole(AppRoles.Admin))
-                        {
-                            <td><input type="checkbox" name="ids" value="@order.Id" form="bulkDeleteForm" /></td>
-                        }
-                        <td>@(order.Project?.Code ?? "Genel")</td>
-                        <td>@(order.QuantityText ?? order.Quantity?.ToString("0.###") ?? "-")</td>
-                        <td>@(order.Quality ?? "-")</td>
-                        <td>@(order.RequestedBy ?? "-")</td>
-                        <td>@(order.Supplier?.Name ?? "-")</td>
-                        <td>@(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-")</td>
-                        <td>
-                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
-                            {
-                                <form asp-action="UpdateStatus" method="post" class="inline-status-form">
-                                    <input type="hidden" name="id" value="@order.Id" />
-                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-                                    <select name="status" class="status-select status-@order.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Sipariş durumu">
-                                        @foreach (PurchaseOrderStatus status in Enum.GetValues<PurchaseOrderStatus>())
-                                        {
-                                            <option value="@status" selected="@(order.Status == status)">@status.ToDisplayName()</option>
-                                        }
-                                    </select>
-                                </form>
-                            }
-                            else
-                            {
-                                <span class="status-pill status-@order.Status.ToString().ToLowerInvariant()">@order.Status.ToDisplayName()</span>
-                            }
-                        </td>
-                        <td>@(order.UnitPriceText ?? order.UnitPrice?.ToString("N2") ?? "-")</td>
-                        <td>@((order.OrderTotal ?? ((order.UnitPrice ?? 0) * (order.Quantity ?? 0))).ToString("N2")) @order.Currency</td>
-                        <td class="text-end">
-                            <a asp-action="Details" asp-route-id="@order.Id" asp-route-returnUrl="@returnUrl">Detay</a>
-                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
-                            {
-                                <span> · </span><a asp-action="Edit" asp-route-id="@order.Id">Düzenle</a>
-                            }
+    @if (!Model.Any())
+    {
+        <div class="empty-note empty-note-empty-state">
+            <div>
+                <strong>Henüz sipariş yok.</strong>
+                <span>İlk siparişi ekleyin veya filtreleri temizleyerek diğer kayıtları görüntüleyin.</span>
+            </div>
+            @if (canCreateOrder)
+            {
+                <a class="btn btn-primary btn-sm" asp-action="Create">İlk siparişi oluştur</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table app-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Sipariş</th>
                             @if (User.IsInRole(AppRoles.Admin))
                             {
-                                <span> · </span><a class="text-danger" asp-action="Delete" asp-route-id="@order.Id" asp-route-returnUrl="@($"{Context.Request.Path}{Context.Request.QueryString}")">Sil</a>
+                                <th class="bulk-check-cell">
+                                    <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm siparişleri seç" />
+                                </th>
                             }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+                            <th>Proje</th>
+                            <th>Adet / miktar</th>
+                            <th>Kalite</th>
+                            <th>Veren</th>
+                            <th>Tedarikçi</th>
+                            <th>Tarih</th>
+                            <th>Durum</th>
+                            <th>Birim fiyat</th>
+                            <th>Tutar</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var order in Model)
+                        {
+                            var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+                            var previewDescription = !string.IsNullOrWhiteSpace(order.Notes)
+                                ? order.Notes
+                                : "Bu sipariş için ek not girilmemiş. Detay sayfasında tekrar sipariş verme ve maliyet ilişkilerini inceleyebilirsiniz.";
+                            <tr class="status-row status-@order.Status.ToString().ToLowerInvariant()"
+                                data-row-link="@Url.Action("Details", new { id = order.Id, returnUrl })"
+                                data-preview-group="orders-list"
+                                data-preview-title="@order.OrderNumber - @order.Content"
+                                data-preview-subtitle="Tedarikçi: @(order.Supplier?.Name ?? "Belirtilmedi") | Proje: @(order.Project?.Code ?? "Genel")"
+                                data-preview-meta="Sipariş tarihi: @(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-") | Beklenen varış: @(order.ExpectedArrivalDate?.ToString("dd.MM.yyyy") ?? "-")"
+                                data-preview-description="@previewDescription"
+                                data-preview-status="@order.Status.ToDisplayName()">
+                                <td><strong>@order.Content</strong><small class="d-block text-muted">@order.Notes</small></td>
+                                @if (User.IsInRole(AppRoles.Admin))
+                                {
+                                    <td><input type="checkbox" name="ids" value="@order.Id" form="bulkDeleteForm" /></td>
+                                }
+                                <td>@(order.Project?.Code ?? "Genel")</td>
+                                <td>@(order.QuantityText ?? order.Quantity?.ToString("0.###") ?? "-")</td>
+                                <td>@(order.Quality ?? "-")</td>
+                                <td>@(order.RequestedBy ?? "-")</td>
+                                <td>@(order.Supplier?.Name ?? "-")</td>
+                                <td>@(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-")</td>
+                                <td>
+                                    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+                                    {
+                                        <form asp-action="UpdateStatus" method="post" class="inline-status-form">
+                                            <input type="hidden" name="id" value="@order.Id" />
+                                            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                            <select name="status" class="status-select status-@order.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Sipariş durumu">
+                                                @foreach (PurchaseOrderStatus status in Enum.GetValues<PurchaseOrderStatus>())
+                                                {
+                                                    <option value="@status" selected="@(order.Status == status)">@status.ToDisplayName()</option>
+                                                }
+                                            </select>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-pill status-@order.Status.ToString().ToLowerInvariant()">@order.Status.ToDisplayName()</span>
+                                    }
+                                </td>
+                                <td>@(order.UnitPriceText ?? order.UnitPrice?.ToString("N2") ?? "-")</td>
+                                <td>@((order.OrderTotal ?? ((order.UnitPrice ?? 0) * (order.Quantity ?? 0))).ToString("N2")) @order.Currency</td>
+                                <td class="text-end action-cell">
+                                    <div class="action-shell">
+                                        <button class="preview-trigger" type="button" data-preview-trigger title="Hızlı önizleme" aria-label="Hızlı önizleme">i</button>
+                                        <details class="action-menu">
+                                            <summary aria-label="Sipariş işlemleri">...</summary>
+                                            <div class="action-menu-list">
+                                                <a asp-action="Details" asp-route-id="@order.Id" asp-route-returnUrl="@returnUrl">Detay</a>
+                                                @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+                                                {
+                                                    <a asp-action="Edit" asp-route-id="@order.Id">Düzenle</a>
+                                                }
+                                                @if (User.IsInRole(AppRoles.Admin))
+                                                {
+                                                    <a class="text-danger" asp-action="Delete" asp-route-id="@order.Id" asp-route-returnUrl="@($"{Context.Request.Path}{Context.Request.QueryString}")">Sil</a>
+                                                }
+                                            </div>
+                                        </details>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+        </div>
+    }
 </section>
+
+<div class="compact-preview-popover" data-compact-preview hidden>
+    <span class="list-preview-status" data-preview-status></span>
+    <h3 data-preview-title></h3>
+    <p class="list-preview-subtitle" data-preview-subtitle></p>
+    <p class="list-preview-meta" data-preview-meta></p>
+    <p class="list-preview-description" data-preview-description></p>
+</div>

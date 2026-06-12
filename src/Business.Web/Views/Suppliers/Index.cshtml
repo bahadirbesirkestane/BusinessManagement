@@ -1,6 +1,7 @@
 @model IReadOnlyList<Supplier>
 @{
     ViewData["Title"] = "Tedarikçiler";
+    var canManageSuppliers = User.HasClaim(AppClaimTypes.Permission, AppPermissions.SuppliersManage);
 }
 
 <section class="panel-block">
@@ -10,7 +11,7 @@
             <h2>Tedarikçi listesi</h2>
             <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
-        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.SuppliersManage))
+        @if (canManageSuppliers)
         {
             <a class="btn btn-primary btn-sm" asp-action="Create">Yeni tedarikçi</a>
         }
@@ -25,45 +26,100 @@
         <a class="icon-filter-button clear" asp-action="Index" title="Temizle" aria-label="Temizle">×</a>
     </form>
 
-    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.SuppliersManage))
+    @if (canManageSuppliers)
     {
-        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
-            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkDeleteForm" hidden>
+            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <div class="bulk-bar-actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkDeleteForm">Seçimi temizle</button>
+                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+            </div>
         </form>
     }
 
-    <div class="table-responsive">
-        <table class="table app-table align-middle">
-            <thead>
-                <tr>
-                    <th></th>
-                    <th>Ad</th>
-                    <th>Tür</th>
-                    <th>İletişim</th>
-                    <th>Vade</th>
-                    <th>Güvenilirlik</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var supplier in Model)
-                {
-                    <tr>
-                        <td>
-                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.SuppliersManage))
+    @if (!Model.Any())
+    {
+        <div class="empty-note empty-note-empty-state">
+            <div>
+                <strong>Henüz tedarikçi yok.</strong>
+                <span>Tedarik zincirini başlatmak için ilk tedarikçiyi ekleyin veya arama filtresini temizleyin.</span>
+            </div>
+            @if (canManageSuppliers)
+            {
+                <a class="btn btn-primary btn-sm" asp-action="Create">İlk tedarikçiyi ekle</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table app-table align-middle">
+                    <thead>
+                        <tr>
+                            @if (canManageSuppliers)
                             {
-                                <input type="checkbox" name="ids" value="@supplier.Id" form="bulkDeleteForm" />
+                                <th class="bulk-check-cell">
+                                    <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm tedarikçileri seç" />
+                                </th>
                             }
-                        </td>
-                        <td><strong>@supplier.Name</strong><small class="d-block text-muted">@supplier.Notes</small></td>
-                        <td>@(supplier.Type ?? "-")</td>
-                        <td>@(supplier.Phone ?? supplier.Email ?? "-")</td>
-                        <td>@(supplier.PaymentTerm ?? "-")</td>
-                        <td><span class="status-pill">@supplier.Reliability.ToDisplayName()</span></td>
-                        <td class="text-end"><a asp-action="Details" asp-route-id="@supplier.Id">Detay</a> · <a asp-action="Edit" asp-route-id="@supplier.Id">Düzenle</a></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+                            <th>Ad</th>
+                            <th>Tür</th>
+                            <th>İletişim</th>
+                            <th>Vade</th>
+                            <th>Güvenilirlik</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var supplier in Model)
+                        {
+                            var previewDescription = !string.IsNullOrWhiteSpace(supplier.Notes)
+                                ? supplier.Notes
+                                : "Bu tedarikçi için not girilmemiş. Detay sayfasında sipariş geçmişini inceleyebilirsiniz.";
+                            <tr data-row-link="@Url.Action("Details", new { id = supplier.Id })"
+                                data-preview-group="suppliers-list"
+                                data-preview-title="@supplier.Name"
+                                data-preview-subtitle="İletişim: @(supplier.Phone ?? supplier.Email ?? "Belirtilmedi")"
+                                data-preview-meta="Vade: @(supplier.PaymentTerm ?? "-") | Güvenilirlik: @supplier.Reliability.ToDisplayName()"
+                                data-preview-description="@previewDescription"
+                                data-preview-status="@supplier.Reliability.ToDisplayName()">
+                                @if (canManageSuppliers)
+                                {
+                                    <td><input type="checkbox" name="ids" value="@supplier.Id" form="bulkDeleteForm" /></td>
+                                }
+                                <td><strong>@supplier.Name</strong><small class="d-block text-muted">@supplier.Notes</small></td>
+                                <td>@(supplier.Type ?? "-")</td>
+                                <td>@(supplier.Phone ?? supplier.Email ?? "-")</td>
+                                <td>@(supplier.PaymentTerm ?? "-")</td>
+                                <td><span class="status-pill">@supplier.Reliability.ToDisplayName()</span></td>
+                                <td class="text-end action-cell">
+                                    <div class="action-shell">
+                                        <button class="preview-trigger" type="button" data-preview-trigger title="Hızlı önizleme" aria-label="Hızlı önizleme">i</button>
+                                        <details class="action-menu">
+                                            <summary aria-label="Tedarikçi işlemleri">...</summary>
+                                            <div class="action-menu-list">
+                                                <a asp-action="Details" asp-route-id="@supplier.Id">Detay</a>
+                                                @if (canManageSuppliers)
+                                                {
+                                                    <a asp-action="Edit" asp-route-id="@supplier.Id">Düzenle</a>
+                                                    <a class="text-danger" asp-action="Delete" asp-route-id="@supplier.Id">Sil</a>
+                                                }
+                                            </div>
+                                        </details>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+        </div>
+    }
 </section>
+
+<div class="compact-preview-popover" data-compact-preview hidden>
+    <span class="list-preview-status" data-preview-status></span>
+    <h3 data-preview-title></h3>
+    <p class="list-preview-subtitle" data-preview-subtitle></p>
+    <p class="list-preview-meta" data-preview-meta></p>
+    <p class="list-preview-description" data-preview-description></p>
+</div>

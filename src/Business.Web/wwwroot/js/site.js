@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', function () {
     initSearchableSelects();
     initRowLinks();
     initBulkSelection();
+    initCompactPreview();
+    initActionMenus();
     initFilterSummaries();
     initSideNav();
 });
@@ -151,7 +153,7 @@ function initSearchableSelects() {
 function initRowLinks() {
     document.querySelectorAll('[data-row-link]').forEach(function (row) {
         row.addEventListener('click', function (event) {
-            if (event.target.closest('a, button, input, select, textarea, label, form')) {
+            if (event.target.closest('a, button, input, select, textarea, label, form, summary, details')) {
                 return;
             }
 
@@ -165,6 +167,8 @@ function initBulkSelection() {
         var formId = counter.dataset.bulkCount;
         var submitButton = document.querySelector('[data-bulk-submit="' + formId + '"]');
         var selectAll = document.querySelector('[data-bulk-toggle="' + formId + '"]');
+        var clearButton = document.querySelector('[data-bulk-clear="' + formId + '"]');
+        var panel = document.querySelector('[data-bulk-panel="' + formId + '"]');
         var checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"][form="' + formId + '"]'));
 
         function updateCount() {
@@ -177,6 +181,15 @@ function initBulkSelection() {
 
             if (submitButton) {
                 submitButton.disabled = selectedCount === 0;
+            }
+
+            if (clearButton) {
+                clearButton.disabled = selectedCount === 0;
+            }
+
+            if (panel) {
+                panel.hidden = selectedCount === 0;
+                panel.classList.toggle('is-active', selectedCount > 0);
             }
 
             if (selectAll) {
@@ -196,11 +209,146 @@ function initBulkSelection() {
             });
         }
 
+        if (clearButton) {
+            clearButton.addEventListener('click', function () {
+                checkboxes.forEach(function (checkbox) {
+                    checkbox.checked = false;
+                });
+
+                if (selectAll) {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = false;
+                }
+
+                updateCount();
+            });
+        }
+
         checkboxes.forEach(function (checkbox) {
             checkbox.addEventListener('change', updateCount);
         });
 
         updateCount();
+    });
+}
+
+function initCompactPreview() {
+    var popover = document.querySelector('[data-compact-preview]');
+    if (!popover) {
+        return;
+    }
+
+    var title = popover.querySelector('[data-preview-title]');
+    var subtitle = popover.querySelector('[data-preview-subtitle]');
+    var meta = popover.querySelector('[data-preview-meta]');
+    var description = popover.querySelector('[data-preview-description]');
+    var status = popover.querySelector('[data-preview-status]');
+    var activeTrigger = null;
+
+    function closePopover() {
+        popover.hidden = true;
+        if (activeTrigger) {
+            activeTrigger.classList.remove('is-active');
+        }
+        activeTrigger = null;
+    }
+
+    function positionPopover(trigger) {
+        var rect = trigger.getBoundingClientRect();
+        var margin = 14;
+        var top = rect.bottom + 8;
+        var left = Math.max(margin, rect.right - popover.offsetWidth);
+
+        if (left + popover.offsetWidth > window.innerWidth - margin) {
+            left = window.innerWidth - popover.offsetWidth - margin;
+        }
+
+        if (top + popover.offsetHeight > window.innerHeight - margin) {
+            top = Math.max(margin, rect.top - popover.offsetHeight - 8);
+        }
+
+        popover.style.top = top + 'px';
+        popover.style.left = left + 'px';
+    }
+
+    document.querySelectorAll('[data-preview-trigger]').forEach(function (trigger) {
+        trigger.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            var row = trigger.closest('[data-preview-title]');
+            if (!row) {
+                return;
+            }
+
+            if (activeTrigger === trigger && !popover.hidden) {
+                closePopover();
+                return;
+            }
+
+            if (title) {
+                title.textContent = row.dataset.previewTitle || 'Kayıt önizleme';
+            }
+
+            if (subtitle) {
+                subtitle.textContent = row.dataset.previewSubtitle || '';
+            }
+
+            if (meta) {
+                meta.textContent = row.dataset.previewMeta || '';
+            }
+
+            if (description) {
+                description.textContent = row.dataset.previewDescription || 'Ek açıklama bulunmuyor.';
+            }
+
+            if (status) {
+                status.textContent = row.dataset.previewStatus || 'Kayıt';
+            }
+
+            if (activeTrigger) {
+                activeTrigger.classList.remove('is-active');
+            }
+
+            activeTrigger = trigger;
+            activeTrigger.classList.add('is-active');
+            popover.hidden = false;
+            positionPopover(trigger);
+        });
+    });
+
+    document.addEventListener('click', function (event) {
+        if (!popover.hidden && !popover.contains(event.target) && !event.target.closest('[data-preview-trigger]')) {
+            closePopover();
+        }
+    });
+
+    window.addEventListener('resize', function () {
+        if (activeTrigger && !popover.hidden) {
+            positionPopover(activeTrigger);
+        }
+    });
+
+    window.addEventListener('scroll', function () {
+        if (activeTrigger && !popover.hidden) {
+            positionPopover(activeTrigger);
+        }
+    }, true);
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            closePopover();
+        }
+    });
+}
+
+function initActionMenus() {
+    document.addEventListener('click', function (event) {
+        document.querySelectorAll('.action-menu[open]').forEach(function (menu) {
+            if (!menu.contains(event.target)) {
+                menu.removeAttribute('open');
+            }
+        });
     });
 }
 

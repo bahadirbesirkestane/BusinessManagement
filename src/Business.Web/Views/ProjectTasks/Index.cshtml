@@ -2,8 +2,7 @@
 @{
     var userNames = (IReadOnlyDictionary<string, string>)(ViewBag.UserNames ?? new Dictionary<string, string>());
     var listAction = ViewBag.AssignedToMe == true ? "AssignedToMe" : "Index";
-}
-@{
+    var canCreateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     ViewData["Title"] = "Görevler";
 }
 
@@ -14,7 +13,7 @@
             <h2>@(ViewBag.TaskListTitle ?? "Tüm Görevler")</h2>
             <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
-        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+        @if (canCreateTask)
         {
             <a class="btn btn-primary" asp-action="Create">Görev Ekle</a>
         }
@@ -82,126 +81,168 @@
         <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
         <a class="icon-filter-button clear" asp-action="@listAction" asp-route-projectId="@ViewBag.ProjectId" title="Temizle" aria-label="Temizle">×</a>
     </form>
+
     @if (User.IsInRole(AppRoles.Admin))
     {
-        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkDeleteForm" hidden>
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
             <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
-            <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+            <div class="bulk-bar-actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkDeleteForm">Seçimi temizle</button>
+                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+            </div>
         </form>
     }
-    <div class="table-responsive">
-        <table class="table app-table align-middle">
-            <thead>
-                <tr>
-                    <th>Görev</th>
-                    <th>Bağlantı</th>
-                    @if (User.IsInRole(AppRoles.Admin))
-                    {
-                        <th class="bulk-check-cell">
-                            <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm görevleri seç" />
-                        </th>
-                    }
-                    <th>Kategori</th>
-                    <th>Sorumlu</th>
-                    <th>Atananlar</th>
-                    <th>Durum</th>
-                    <th>İlerleme</th>
-                    <th>Öncelik</th>
-                    <th>Tarih</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-            @foreach (var task in Model)
+
+    @if (!Model.Any())
+    {
+        <div class="empty-note empty-note-empty-state">
+            <div>
+                <strong>Henüz görev yok.</strong>
+                <span>İlk görevi oluşturun ya da filtreleri temizleyerek farklı kayıtları kontrol edin.</span>
+            </div>
+            @if (canCreateTask)
             {
-                var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
-                <tr class="status-row status-@task.Status.ToString().ToLowerInvariant()" data-row-link="@Url.Action("Details", new { id = task.Id, returnUrl })">
-                    <td><strong>@task.Title</strong></td>
-                    <td>
-                        @(task.Project?.Code
-                            ?? task.Customer?.Name
-                            ?? task.ManualProjectName
-                            ?? task.ManualCustomerName
-                            ?? "Genel")
-                    </td>
-                    @if (User.IsInRole(AppRoles.Admin))
-                    {
-                        <td><input type="checkbox" name="ids" value="@task.Id" form="bulkDeleteForm" /></td>
-                    }
-                    <td>@(task.TaskCategory?.Name ?? "-")</td>
-                    <td>@(!string.IsNullOrWhiteSpace(task.ResponsibleUserId) && userNames.TryGetValue(task.ResponsibleUserId, out var responsibleName) ? responsibleName : "-")</td>
-                    <td>
-                        @{
-                            var assignedNames = task.Assignments
-                                .Select(x => userNames.TryGetValue(x.UserId, out var assignedName) ? assignedName : null)
-                                .Where(x => !string.IsNullOrWhiteSpace(x))
-                                .ToList();
-                        }
-                        @(assignedNames.Any() ? string.Join(", ", assignedNames) : "-")
-                    </td>
-                    <td>
-                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
-                        {
-                            var canComplete = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
-                            <form asp-action="UpdateStatus" method="post" class="inline-status-form">
-                                <input type="hidden" name="id" value="@task.Id" />
-                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-                                <select name="status" class="status-select status-@task.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Görev durumu">
-                                    @foreach (WorkTaskStatus status in Enum.GetValues<WorkTaskStatus>())
-                                    {
-                                        if (status == WorkTaskStatus.Done && !canComplete)
-                                        {
-                                            continue;
-                                        }
-                                        <option value="@status" selected="@(task.Status == status)">@status.ToDisplayName()</option>
-                                    }
-                                </select>
-                            </form>
-                        }
-                        else
-                        {
-                            <span class="status-pill status-@task.Status.ToString().ToLowerInvariant()">@task.Status.ToDisplayName()</span>
-                        }
-                    </td>
-                    <td>
-                        <div class="progress slim-progress">
-                            <div class="progress-bar" style="width:@task.ProgressPercent%"></div>
-                        </div>
-                        <small class="text-muted">%@task.ProgressPercent</small>
-                    </td>
-                    <td><span class="priority-pill priority-@task.Priority.ToString().ToLowerInvariant()">@task.Priority.ToDisplayName()</span></td>
-                    <td>@task.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                    <td class="text-end">
-                        <a asp-action="Details" asp-route-id="@task.Id" asp-route-returnUrl="@returnUrl">Detay</a>
-                        @if (task.Status != WorkTaskStatus.InReview && task.Status != WorkTaskStatus.Done)
-                        {
-                            <form asp-action="SubmitForReview" asp-route-id="@task.Id" method="post" class="inline-form">
-                                <button class="link-button" type="submit">Kontrole gönder</button>
-                            </form>
-                        }
-                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
-                        {
-                            <form asp-action="Complete" asp-route-id="@task.Id" method="post" class="inline-form">
-                                <button class="link-button" type="submit">Tamamlandı</button>
-                            </form>
-                        }
-                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
-                        {
-                            <span class="text-muted">·</span>
-                            <a asp-action="Edit" asp-route-id="@task.Id">Düzenle</a>
-                        }
-                        @if (User.IsInRole(AppRoles.Admin))
-                        {
-                            <form asp-action="Delete" asp-route-id="@task.Id" method="post" class="inline-form">
-                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-                                <button class="link-button text-danger" type="submit">Sil</button>
-                            </form>
-                        }
-                    </td>
-                </tr>
+                <a class="btn btn-primary btn-sm" asp-action="Create">İlk görevi oluştur</a>
             }
-            </tbody>
-        </table>
-    </div>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table app-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Görev</th>
+                            <th>Bağlantı</th>
+                            @if (User.IsInRole(AppRoles.Admin))
+                            {
+                                <th class="bulk-check-cell">
+                                    <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm görevleri seç" />
+                                </th>
+                            }
+                            <th>Kategori</th>
+                            <th>Sorumlu</th>
+                            <th>Atananlar</th>
+                            <th>Durum</th>
+                            <th>İlerleme</th>
+                            <th>Öncelik</th>
+                            <th>Tarih</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var task in Model)
+                    {
+                        var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+                        var assignedNames = task.Assignments
+                            .Select(x => userNames.TryGetValue(x.UserId, out var assignedName) ? assignedName : null)
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .ToList();
+                        var previewDescription = !string.IsNullOrWhiteSpace(task.Description)
+                            ? task.Description
+                            : "Bu görev için açıklama girilmemiş. Detay sayfasından güncellemeleri ve dosyaları inceleyebilirsiniz.";
+                        <tr class="status-row status-@task.Status.ToString().ToLowerInvariant()"
+                            data-row-link="@Url.Action("Details", new { id = task.Id, returnUrl })"
+                            data-preview-group="tasks-list"
+                            data-preview-title="@task.Title"
+                            data-preview-subtitle="Bağlantı: @(task.Project?.Code ?? task.Customer?.Name ?? task.ManualProjectName ?? task.ManualCustomerName ?? "Genel")"
+                            data-preview-meta="Sorumlu: @(!string.IsNullOrWhiteSpace(task.ResponsibleUserId) && userNames.TryGetValue(task.ResponsibleUserId, out var responsibleName) ? responsibleName : "Atanmadı") | İlerleme: %@task.ProgressPercent"
+                            data-preview-description="@previewDescription"
+                            data-preview-status="@task.Status.ToDisplayName()">
+                            <td><strong>@task.Title</strong></td>
+                            <td>
+                                @(task.Project?.Code
+                                    ?? task.Customer?.Name
+                                    ?? task.ManualProjectName
+                                    ?? task.ManualCustomerName
+                                    ?? "Genel")
+                            </td>
+                            @if (User.IsInRole(AppRoles.Admin))
+                            {
+                                <td><input type="checkbox" name="ids" value="@task.Id" form="bulkDeleteForm" /></td>
+                            }
+                            <td>@(task.TaskCategory?.Name ?? "-")</td>
+                            <td>@(!string.IsNullOrWhiteSpace(task.ResponsibleUserId) && userNames.TryGetValue(task.ResponsibleUserId, out var responsibleDisplay) ? responsibleDisplay : "-")</td>
+                            <td>@(assignedNames.Any() ? string.Join(", ", assignedNames) : "-")</td>
+                            <td>
+                                @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                                {
+                                    var canComplete = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+                                    <form asp-action="UpdateStatus" method="post" class="inline-status-form">
+                                        <input type="hidden" name="id" value="@task.Id" />
+                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                        <select name="status" class="status-select status-@task.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Görev durumu">
+                                            @foreach (WorkTaskStatus status in Enum.GetValues<WorkTaskStatus>())
+                                            {
+                                                if (status == WorkTaskStatus.Done && !canComplete)
+                                                {
+                                                    continue;
+                                                }
+                                                <option value="@status" selected="@(task.Status == status)">@status.ToDisplayName()</option>
+                                            }
+                                        </select>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="status-pill status-@task.Status.ToString().ToLowerInvariant()">@task.Status.ToDisplayName()</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="progress slim-progress">
+                                    <div class="progress-bar" style="width:@task.ProgressPercent%"></div>
+                                </div>
+                                <small class="text-muted">%@task.ProgressPercent</small>
+                            </td>
+                            <td><span class="priority-pill priority-@task.Priority.ToString().ToLowerInvariant()">@task.Priority.ToDisplayName()</span></td>
+                            <td>@task.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                            <td class="text-end action-cell">
+                                <div class="action-shell">
+                                    <button class="preview-trigger" type="button" data-preview-trigger title="Hızlı önizleme" aria-label="Hızlı önizleme">i</button>
+                                    <details class="action-menu">
+                                        <summary aria-label="Görev işlemleri">...</summary>
+                                        <div class="action-menu-list">
+                                            <a asp-action="Details" asp-route-id="@task.Id" asp-route-returnUrl="@returnUrl">Detay</a>
+                                            @if (task.Status != WorkTaskStatus.InReview && task.Status != WorkTaskStatus.Done)
+                                            {
+                                                <form asp-action="SubmitForReview" asp-route-id="@task.Id" method="post" class="inline-form">
+                                                    <button class="link-button" type="submit">Kontrole gönder</button>
+                                                </form>
+                                            }
+                                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                                            {
+                                                <form asp-action="Complete" asp-route-id="@task.Id" method="post" class="inline-form">
+                                                    <button class="link-button" type="submit">Tamamlandı yap</button>
+                                                </form>
+                                            }
+                                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@task.Id">Düzenle</a>
+                                            }
+                                            @if (User.IsInRole(AppRoles.Admin))
+                                            {
+                                                <form asp-action="Delete" asp-route-id="@task.Id" method="post" class="inline-form">
+                                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                                    <button class="link-button text-danger" type="submit">Sil</button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </details>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+        </div>
+    }
 </section>
+
+<div class="compact-preview-popover" data-compact-preview hidden>
+    <span class="list-preview-status" data-preview-status></span>
+    <h3 data-preview-title></h3>
+    <p class="list-preview-subtitle" data-preview-subtitle></p>
+    <p class="list-preview-meta" data-preview-meta></p>
+    <p class="list-preview-description" data-preview-description></p>
+</div>
