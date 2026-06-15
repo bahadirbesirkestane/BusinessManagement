@@ -2407,11 +2407,25 @@ a:hover {
   background: var(--accent-soft);
 }
 
+.planning-add-child.is-active {
+  border-color: rgba(37, 99, 235, .42);
+  background: var(--accent-soft);
+}
+
 .planning-task-actions {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   margin-left: auto;
+}
+
+.planning-add-child.is-danger {
+  color: #b42318;
+}
+
+.planning-add-child.is-danger:hover {
+  border-color: rgba(220, 38, 38, .28);
+  background: #fef2f2;
 }
 
 .planning-add-child.is-disabled {
@@ -2793,7 +2807,10 @@ a:hover {
   --planning-task-column: 340px;
   --planning-row-height: 42px;
   overflow: auto;
+  min-height: 420px;
   max-height: 680px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   background: #fff;
 }
 
@@ -3001,6 +3018,7 @@ a:hover {
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 16px 34px rgba(16, 24, 40, .18);
+  pointer-events: none;
 }
 
 .planning-custom-popup.is-hidden {

@@ -177,6 +177,43 @@ public class ProjectPlanningController : Controller
         return RedirectToAction(GetPlanningActionName(returnAction), new { projectId = taskForm.ProjectId });
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteTask(Guid taskId, Guid projectId, string? returnAction, CancellationToken cancellationToken)
+    {
+        if (!CanUpdatePlanningTask())
+        {
+            return Forbid();
+        }
+
+        var task = await _context.ProjectTasks
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .FirstOrDefaultAsync(x => x.Id == taskId && x.ProjectId == projectId, cancellationToken);
+
+        if (task is null)
+        {
+            return RedirectToAction(GetPlanningActionName(returnAction), new { projectId });
+        }
+
+        var hasChildren = await _context.ProjectTasks
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .AnyAsync(x => x.ParentTaskId == taskId, cancellationToken);
+
+        if (hasChildren)
+        {
+            TempData["Error"] = "Alt görevleri olan görev doğrudan silinemez.";
+            return RedirectToAction(GetPlanningActionName(returnAction), new { projectId });
+        }
+
+        _context.ProjectTaskAssignments.RemoveRange(_context.ProjectTaskAssignments.Where(x => x.ProjectTaskId == taskId));
+        _context.RecordComments.RemoveRange(_context.RecordComments.Where(x => x.OwnerType == RecordOwnerType.ProjectTask && x.OwnerId == taskId));
+        _context.RecordFiles.RemoveRange(_context.RecordFiles.Where(x => x.OwnerType == RecordOwnerType.ProjectTask && x.OwnerId == taskId));
+        _context.ProjectTasks.Remove(task);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(GetPlanningActionName(returnAction), new { projectId });
+    }
+
     private async Task<ProjectPlanningIndexViewModel> BuildIndexViewModelAsync(
         Guid? projectId,
         ProjectPlanningTaskFormViewModel taskForm,

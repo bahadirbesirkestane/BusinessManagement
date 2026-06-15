@@ -156,6 +156,12 @@
                 </div>
                 <div id="project_planning_custom_gantt" class="planning-custom-board" data-can-create-task="@canCreateTask.ToString().ToLowerInvariant()" data-can-update-task="@canUpdateTask.ToString().ToLowerInvariant()"></div>
                 <div id="project_planning_custom_popup" class="planning-custom-popup is-hidden" role="tooltip"></div>
+                <form id="planningDeleteTaskForm" asp-action="DeleteTask" method="post" class="d-none">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="taskId" />
+                    <input type="hidden" name="projectId" value="@Model.ProjectId" />
+                    <input type="hidden" name="returnAction" value="Index" />
+                </form>
             </section>
         }
 
@@ -485,10 +491,42 @@
                 return false;
             }
 
+            let activePreviewTaskId = null;
+            let activePreviewButton = null;
+
             function hideCustomPopup() {
                 if (customPopup) {
                     customPopup.classList.add('is-hidden');
                 }
+
+                if (activePreviewButton) {
+                    activePreviewButton.classList.remove('is-active');
+                }
+
+                activePreviewTaskId = null;
+                activePreviewButton = null;
+            }
+
+            function positionCustomPopup(target) {
+                if (!customPopup || !target) {
+                    return;
+                }
+
+                const targetRect = target.getBoundingClientRect();
+                const margin = 14;
+                let top = targetRect.bottom + 8;
+                let left = Math.max(margin, targetRect.right - customPopup.offsetWidth);
+
+                if (left + customPopup.offsetWidth > window.innerWidth - margin) {
+                    left = window.innerWidth - customPopup.offsetWidth - margin;
+                }
+
+                if (top + customPopup.offsetHeight > window.innerHeight - margin) {
+                    top = Math.max(margin, targetRect.top - customPopup.offsetHeight - 8);
+                }
+
+                customPopup.style.left = `${left}px`;
+                customPopup.style.top = `${top}px`;
             }
 
             function showCustomPopup(task, target) {
@@ -510,28 +548,15 @@
                     ${task.latestUpdateDescription ? `<p>${escapePlanningHtml(task.latestUpdateDescription)}</p>` : ''}`;
 
                 customPopup.classList.remove('is-hidden');
-                const targetRect = target.getBoundingClientRect();
-                const popupRect = customPopup.getBoundingClientRect();
-                const margin = 14;
-                let left = targetRect.left + Math.min(32, targetRect.width / 2);
-                let top = targetRect.bottom + 10;
-
-                if (left + popupRect.width > window.innerWidth - margin) {
-                    left = window.innerWidth - popupRect.width - margin;
-                }
-
-                if (top + popupRect.height > window.innerHeight - margin) {
-                    top = targetRect.top - popupRect.height - 10;
-                }
-
-                customPopup.style.left = Math.max(margin, left) + 'px';
-                customPopup.style.top = Math.max(margin, top) + 'px';
+                positionCustomPopup(target);
             }
 
             function renderCustomGantt() {
                 if (!customBoard || projectPlanningTasks.length === 0) {
                     return;
                 }
+
+                hideCustomPopup();
 
                 const datedTasks = projectPlanningTasks
                     .map(function (task) {
@@ -624,6 +649,39 @@
                     </div>
                     ${rows}`;
 
+                customBoard.querySelectorAll('.planning-custom-row').forEach(function (row) {
+                    const taskId = row.dataset.customRowId;
+                    const task = projectPlanningTasks.find(function (candidate) {
+                        return candidate.id === taskId;
+                    });
+                    const actions = row.querySelector('.planning-task-actions');
+                    if (!task || !actions) {
+                        return;
+                    }
+
+                    if (!actions.querySelector('[data-planning-preview-task]')) {
+                        const previewButton = document.createElement('button');
+                        previewButton.type = 'button';
+                        previewButton.className = 'planning-add-child';
+                        previewButton.dataset.planningPreviewTask = task.id;
+                        previewButton.title = 'Görev bilgisini göster';
+                        previewButton.textContent = 'i';
+                        actions.insertBefore(previewButton, actions.firstChild);
+                    }
+
+                    const disabledDeleteButton = actions.querySelector('.planning-add-child.is-disabled');
+                    if (disabledDeleteButton && customBoard.dataset.canUpdateTask === 'true') {
+                        const deleteButton = document.createElement('button');
+                        deleteButton.type = 'button';
+                        deleteButton.className = 'planning-add-child is-danger';
+                        deleteButton.dataset.planningDeleteTask = task.id;
+                        deleteButton.dataset.taskTitle = task.title || '';
+                        deleteButton.title = 'Görevi sil';
+                        deleteButton.textContent = '−';
+                        disabledDeleteButton.replaceWith(deleteButton);
+                    }
+                });
+
                 customBoard.querySelectorAll('[data-custom-tree-toggle]').forEach(function (button) {
                     button.addEventListener('click', function () {
                         const taskId = button.dataset.customTreeToggle;
@@ -636,16 +694,6 @@
                     });
                 });
 
-                customBoard.querySelectorAll('.planning-custom-bar').forEach(function (bar) {
-                    const task = projectPlanningTasks.find(function (candidate) {
-                        return candidate.id === bar.dataset.customTaskId;
-                    });
-
-                    bar.addEventListener('mouseenter', function () {
-                        showCustomPopup(task, bar);
-                    });
-                    bar.addEventListener('mouseleave', hideCustomPopup);
-                });
             }
 
             function renderCustomGanttSafely() {
@@ -723,6 +771,51 @@
 
             window.addEventListener('load', function () {
                 renderCustomGanttSafely();
+
+                const deleteTaskForm = document.getElementById('planningDeleteTaskForm');
+
+                document.addEventListener('click', function (event) {
+                    const previewButton = event.target.closest('[data-planning-preview-task]');
+                    if (previewButton) {
+                        const task = projectPlanningTasks.find(function (candidate) {
+                            return candidate.id === previewButton.dataset.planningPreviewTask;
+                        });
+
+                        if (!task) {
+                            return;
+                        }
+
+                        if (activePreviewTaskId === task.id && customPopup && !customPopup.classList.contains('is-hidden')) {
+                            hideCustomPopup();
+                            return;
+                        }
+
+                        if (activePreviewButton) {
+                            activePreviewButton.classList.remove('is-active');
+                        }
+
+                        activePreviewTaskId = task.id;
+                        activePreviewButton = previewButton;
+                        activePreviewButton.classList.add('is-active');
+                        showCustomPopup(task, previewButton);
+                        return;
+                    }
+
+                    const deleteButton = event.target.closest('[data-planning-delete-task]');
+                    if (deleteButton && deleteTaskForm) {
+                        const taskTitle = deleteButton.dataset.taskTitle || 'Bu görev';
+                        const taskIdField = deleteTaskForm.querySelector('[name="taskId"]');
+                        if (taskIdField && confirm(`"${taskTitle}" görevini silmek istiyor musunuz?`)) {
+                            taskIdField.value = deleteButton.dataset.planningDeleteTask || '';
+                            deleteTaskForm.submit();
+                        }
+                        return;
+                    }
+
+                    if (!event.target.closest('#project_planning_custom_popup')) {
+                        hideCustomPopup();
+                    }
+                });
 
                 customModeButtons.forEach(function (button) {
                     button.addEventListener('click', function () {
