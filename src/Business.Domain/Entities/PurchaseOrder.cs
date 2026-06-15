@@ -37,6 +37,8 @@ public class PurchaseOrder : BaseEntity, IValidatableObject
     [StringLength(120, ErrorMessage = "Kalite en fazla 120 karakter olabilir.")]
     public string? Quality { get; set; }
     public PurchaseOrderStatus Status { get; set; } = PurchaseOrderStatus.Requested;
+    public bool IsArchived { get; set; }
+    public DateTime? ArchivedAt { get; set; }
     public DateTime? OrderDate { get; set; }
     public DateTime? ExpectedArrivalDate { get; set; }
     public DateTime? ArrivalDate { get; set; }

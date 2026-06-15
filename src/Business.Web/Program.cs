@@ -37,6 +37,11 @@ if (app.Configuration.GetValue("DatabaseMigration:ApplyOnStartup", false))
 await IdentitySeeder.SeedIdentityAsync(app.Services, builder.Configuration);
 await DemoDataSeeder.SeedDemoDataAsync(app.Services, builder.Configuration);
 
+if (await LoadTestDataSeeder.TryHandleCommandAsync(app.Services, app.Configuration, app.Environment, args))
+{
+    return;
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

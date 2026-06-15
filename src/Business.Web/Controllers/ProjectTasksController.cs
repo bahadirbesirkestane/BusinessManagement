@@ -4,6 +4,7 @@ using Business.Domain.Enums;
 using Business.Infrastructure.Data;
 using Business.Infrastructure.Identity;
 using Business.Web.Extensions;
+using Business.Web.Services;
 using Business.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -33,7 +34,7 @@ public class ProjectTasksController : Controller
         _projectTimelineService = projectTimelineService;
     }
 
-    public async Task<IActionResult> Index(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, bool archivedOnly = false, CancellationToken cancellationToken = default)
     {
         take = Math.Max(DefaultListTake, take);
 
@@ -49,11 +50,12 @@ public class ProjectTasksController : Controller
         ViewBag.Load = load;
         ViewBag.CurrentTake = take;
         ViewBag.ShowAll = showAll;
-        ViewBag.ListAction = nameof(Index);
-        ViewBag.TaskListTitle = "Tüm görevler";
+        ViewBag.ListAction = archivedOnly ? nameof(Archived) : nameof(Index);
+        ViewBag.TaskListTitle = archivedOnly ? "Arşiv görevler" : "Tüm görevler";
+        ViewBag.IsArchiveList = archivedOnly;
         await FillFilterLookupsAsync(cancellationToken);
         ViewBag.StatusOptions = Enum.GetValues<WorkTaskStatus>()
-            .Where(x => x != WorkTaskStatus.Done)
+            .Where(x => archivedOnly || x != WorkTaskStatus.Done)
             .ToList();
 
         if (projectId.HasValue)
@@ -87,7 +89,7 @@ public class ProjectTasksController : Controller
             .Include(x => x.TaskCategory)
             .Include(x => x.Assignments)
             .AsNoTracking()
-            .ApplyRecordVisibility(User);
+            .ApplyRecordVisibility(User, includeArchived: archivedOnly, onlyArchived: archivedOnly);
 
         if (projectId.HasValue)
         {
@@ -111,7 +113,7 @@ public class ProjectTasksController : Controller
         {
             query = query.Where(x => x.Status == status.Value);
         }
-        else
+        else if (!archivedOnly)
         {
             query = query.Where(x => x.Status != WorkTaskStatus.Done);
         }
@@ -182,10 +184,18 @@ public class ProjectTasksController : Controller
 
     public async Task<IActionResult> Completed(Guid? projectId, string? q, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = false, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
-        var result = await Index(projectId, q, WorkTaskStatus.Done, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, cancellationToken);
+        var result = await Index(projectId, q, WorkTaskStatus.Done, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, archivedOnly: false, cancellationToken);
         ViewBag.TaskListTitle = "Tamamlanan görevler";
         ViewBag.ListAction = nameof(Completed);
         ViewBag.StatusOptions = new List<WorkTaskStatus> { WorkTaskStatus.Done };
+        return result is ViewResult viewResult
+            ? View(nameof(Index), viewResult.Model)
+            : result;
+    }
+
+    public async Task<IActionResult> Archived(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = false, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    {
+        var result = await Index(projectId, q, status, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, archivedOnly: true, cancellationToken);
         return result is ViewResult viewResult
             ? View(nameof(Index), viewResult.Model)
             : result;
@@ -516,6 +526,121 @@ public class ProjectTasksController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanUpdateTasks)]
+    public async Task<IActionResult> Archive(Guid id, bool archived = true, string? returnUrl = null, CancellationToken cancellationToken = default)
+    {
+        var task = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        SetTaskArchiveState(task, archived);
+        await _context.SaveChangesAsync(cancellationToken);
+        await _projectTimelineService.AddForTaskAsync(task.Id, archived ? "Görev arşivlendi" : "Görev arşivden çıkarıldı", task.Title, cancellationToken);
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanUpdateTasks)]
+    public async Task<IActionResult> BulkArchive(Guid[] ids, bool archived = true, string? returnUrl = null, CancellationToken cancellationToken = default)
+    {
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
+        var tasks = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .Where(x => selectedIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        foreach (var task in tasks)
+        {
+            SetTaskArchiveState(task, archived);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanChangeTaskStatus)]
+    public async Task<IActionResult> BulkUpdateStatus(Guid[] ids, WorkTaskStatus status, string? returnUrl = null, CancellationToken cancellationToken = default)
+    {
+        if (status == WorkTaskStatus.Done && !(User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager)))
+        {
+            return Forbid();
+        }
+
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
+        var tasks = await _context.ProjectTasks
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .Where(x => selectedIds.Contains(x.Id) && !x.IsArchived)
+            .ToListAsync(cancellationToken);
+
+        foreach (var task in tasks)
+        {
+            task.Status = status;
+            task.SubmittedForReviewAt = status == WorkTaskStatus.InReview ? DateTime.UtcNow : null;
+            task.CompletedAt = status == WorkTaskStatus.Done ? DateTime.UtcNow : null;
+            task.ProgressPercent = status == WorkTaskStatus.Done ? 100 : task.ProgressPercent;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return RedirectToLocal(returnUrl);
+    }
+
+    [Authorize(Policy = AppPolicies.CanViewTasks)]
+    public async Task<IActionResult> DownloadArchive(CancellationToken cancellationToken)
+    {
+        var userNames = await _userManager.Users
+            .AsNoTracking()
+            .ToDictionaryAsync(x => x.Id, x => x.FullName ?? x.Email ?? x.UserName ?? x.Id, cancellationToken);
+        var tasks = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .Include(x => x.Customer)
+            .Include(x => x.TaskCategory)
+            .AsNoTracking()
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: true)
+            .OrderByDescending(x => x.ArchivedAt ?? x.UpdatedAt ?? x.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        var rows = tasks.Select(x => (IReadOnlyList<object?>)
+        [
+            x.Title,
+            x.Project != null ? $"{x.Project.Code} - {x.Project.Name}" : x.ManualProjectName,
+            x.Customer != null ? x.Customer.Name : x.ManualCustomerName,
+            x.TaskCategory?.Name,
+            x.Status.ToDisplayName(),
+            x.Priority.ToDisplayName(),
+            userNames.GetValueOrDefault(x.ResponsibleUserId ?? string.Empty, string.Empty),
+            x.ProgressPercent,
+            x.DueDate,
+            x.CompletedAt,
+            x.ArchivedAt,
+            x.Description
+        ]).ToList();
+
+        return ExcelFile(
+            [new ExcelSheet("Arşiv Görevler", ["Görev", "Proje", "Müşteri", "Kategori", "Durum", "Öncelik", "Sorumlu", "İlerleme", "Termin", "Tamamlanma", "Arşiv Tarihi", "Açıklama"], rows)],
+            $"arsiv-gorevler-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
@@ -737,5 +862,17 @@ public class ProjectTasksController : Controller
         return await _userManager.Users
             .Where(x => userIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.FullName ?? x.Email ?? x.UserName ?? x.Id, cancellationToken);
+    }
+
+    private static void SetTaskArchiveState(ProjectTask task, bool archived)
+    {
+        task.IsArchived = archived;
+        task.ArchivedAt = archived ? DateTime.UtcNow : null;
+    }
+
+    private FileContentResult ExcelFile(IReadOnlyList<ExcelSheet> sheets, string fileName)
+    {
+        var bytes = ExcelWorkbookBuilder.Build(sheets);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 }

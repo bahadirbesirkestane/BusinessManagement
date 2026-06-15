@@ -33,6 +33,8 @@ public class ProjectTask : BaseEntity, IValidatableObject
     public RecordVisibility Visibility { get; set; } = RecordVisibility.General;
     public WorkTaskStatus Status { get; set; } = WorkTaskStatus.Todo;
     public ProjectPriority Priority { get; set; } = ProjectPriority.Normal;
+    public bool IsArchived { get; set; }
+    public DateTime? ArchivedAt { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? DueDate { get; set; }
     public DateTime? CompletedAt { get; set; }

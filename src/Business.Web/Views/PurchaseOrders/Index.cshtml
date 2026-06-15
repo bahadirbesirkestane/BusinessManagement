@@ -2,9 +2,13 @@
 @{
     ViewData["Title"] = "Satın Alma";
     var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
+    var canUpdateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
+    var canChangeOrderStatus = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
+    var canUseBulkActions = canUpdateOrder || canChangeOrderStatus || User.IsInRole(AppRoles.Admin);
     var isDeferredLoad = ViewBag.IsDeferredLoad == true;
     var hasMore = ViewBag.HasMore == true;
     var listAction = (string)(ViewBag.ListAction ?? "Index");
+    var isArchiveList = ViewBag.IsArchiveList == true;
     var requiresManualLoad = !string.Equals(listAction, "Index", StringComparison.OrdinalIgnoreCase);
     var currentTake = (int)(ViewBag.CurrentTake ?? 50);
     var nextTake = (int)(ViewBag.NextTake ?? (currentTake + 50));
@@ -50,14 +54,23 @@
             <h2>@(ViewBag.OrderListTitle ?? "Genel ve proje siparişleri")</h2>
             <p class="record-count">@(isDeferredLoad ? "Liste henüz yüklenmedi." : $"Gösterilen kayıt sayısı: {Model.Count}")</p>
         </div>
-        @if (canCreateOrder)
-        {
-            <div class="toolbar-actions">
+        <div class="toolbar-actions">
+            @if (isArchiveList)
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-projectId="@ViewBag.ProjectId">Aktif liste</a>
+                <a class="btn btn-outline-primary btn-sm" asp-action="DownloadArchive">Arşivi indir</a>
+            }
+            else
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Archived" asp-route-projectId="@ViewBag.ProjectId">Arşiv</a>
+            }
+            @if (canCreateOrder)
+            {
                 <a class="btn btn-outline-secondary btn-sm" asp-controller="PurchaseOrderTemplates" asp-action="Index">Şablonlar</a>
                 <a class="btn btn-outline-primary btn-sm" asp-action="QuickCreate" asp-route-projectId="@ViewBag.ProjectId">Hızlı sipariş</a>
                 <a class="btn btn-primary btn-sm" asp-action="Create">Yeni sipariş</a>
-            </div>
-        }
+            }
+        </div>
     </div>
 
     <form id="ordersFilterForm" asp-action="@listAction" method="get" class="list-filter-bar list-filter-bar-wide">
@@ -128,14 +141,34 @@
         <a class="icon-filter-button clear" asp-action="@listAction" asp-route-projectId="@ViewBag.ProjectId" title="Temizle" aria-label="Temizle">×</a>
     </form>
 
-    @if (User.IsInRole(AppRoles.Admin))
+    @if (canUseBulkActions)
     {
-        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkDeleteForm" hidden>
+        <form id="bulkActionForm" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkActionForm" hidden>
+            @Html.AntiForgeryToken()
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <span class="bulk-selection-count" data-bulk-count="bulkActionForm">0 kayıt seçildi</span>
             <div class="bulk-bar-actions">
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkDeleteForm">Seçimi temizle</button>
-                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkActionForm">Seçimi temizle</button>
+                @if (canUpdateOrder)
+                {
+                    <button class="btn btn-outline-primary btn-sm" type="submit" formaction="@Url.Action("BulkArchive")" name="archived" value="@(isArchiveList ? "false" : "true")">
+                        @(isArchiveList ? "Seçilenleri aktife al" : "Seçilenleri arşivle")
+                    </button>
+                }
+                @if (canChangeOrderStatus && !isArchiveList)
+                {
+                    <select class="form-select form-select-sm" name="status" aria-label="Toplu sipariş durumu">
+                        @foreach (PurchaseOrderStatus status in Enum.GetValues<PurchaseOrderStatus>())
+                        {
+                            <option value="@status">@status.ToDisplayName()</option>
+                        }
+                    </select>
+                    <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("BulkUpdateStatus")">Durumu uygula</button>
+                }
+                @if (User.IsInRole(AppRoles.Admin))
+                {
+                    <button class="btn btn-outline-danger btn-sm" type="submit" formaction="@Url.Action("BulkDelete")" data-bulk-submit="bulkActionForm">Seçilenleri sil</button>
+                }
             </div>
         </form>
     }
@@ -158,7 +191,7 @@
         <div class="empty-note empty-note-empty-state">
             <div>
                 <strong>Uygun sipariş bulunamadı.</strong>
-                <span>Filtreleri temizleyin ya da teslim edilen siparişler için ayrı sayfayı açın.</span>
+                <span>@(isArchiveList ? "Arşivde gösterilecek sipariş yok." : "Filtreleri temizleyin ya da teslim edilen siparişler için ayrı sayfayı açın.")</span>
             </div>
             @if (canCreateOrder)
             {
@@ -173,10 +206,10 @@
                 <thead>
                     <tr>
                         <th>Sipariş</th>
-                        @if (User.IsInRole(AppRoles.Admin))
+                        @if (canUseBulkActions)
                         {
                             <th class="bulk-check-cell">
-                                <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm siparişleri seç" />
+                                <input type="checkbox" data-bulk-toggle="bulkActionForm" aria-label="Tüm siparişleri seç" />
                             </th>
                         }
                         <th>Proje</th>
@@ -207,9 +240,9 @@
                             data-preview-description="@previewDescription"
                             data-preview-status="@order.Status.ToDisplayName()">
                             <td><strong>@order.Content</strong><small class="d-block text-muted table-note-clamp">@order.Notes</small></td>
-                            @if (User.IsInRole(AppRoles.Admin))
+                            @if (canUseBulkActions)
                             {
-                                <td><input type="checkbox" name="ids" value="@order.Id" form="bulkDeleteForm" /></td>
+                                <td><input type="checkbox" name="ids" value="@order.Id" form="bulkActionForm" /></td>
                             }
                             <td>@(order.Project?.Code ?? "Genel")</td>
                             <td>@(order.QuantityText ?? order.Quantity?.ToString("0.###") ?? "-")</td>
@@ -218,7 +251,7 @@
                             <td>@(order.Supplier?.Name ?? "-")</td>
                             <td>@(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-")</td>
                             <td>
-                                @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+                                @if (canChangeOrderStatus && !isArchiveList)
                                 {
                                     <form asp-action="UpdateStatus" method="post" class="inline-status-form">
                                         <input type="hidden" name="id" value="@order.Id" />
@@ -245,9 +278,21 @@
                                         <summary aria-label="Sipariş işlemleri">...</summary>
                                         <div class="action-menu-list">
                                             <a asp-action="Details" asp-route-id="@order.Id" asp-route-returnUrl="@returnUrl">Detay</a>
-                                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+                                            @if (canUpdateOrder)
                                             {
                                                 <a asp-action="Edit" asp-route-id="@order.Id">Düzenle</a>
+                                                <form asp-action="Archive" asp-route-id="@order.Id" method="post" class="inline-form">
+                                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                    <input type="hidden" name="archived" value="@(isArchiveList ? "false" : "true")" />
+                                                    <button class="link-button" type="submit">@(isArchiveList ? "Aktife al" : "Arşivle")</button>
+                                                </form>
+                                            }
+                                            @if (!isArchiveList && canCreateOrder)
+                                            {
+                                                <form asp-action="Repeat" asp-route-id="@order.Id" method="post" class="inline-form">
+                                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                    <button class="link-button" type="submit">Siparişi tekrarla</button>
+                                                </form>
                                             }
                                             @if (User.IsInRole(AppRoles.Admin))
                                             {

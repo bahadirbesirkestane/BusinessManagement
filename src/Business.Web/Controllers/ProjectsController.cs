@@ -4,6 +4,7 @@ using Business.Domain.Enums;
 using Business.Infrastructure.Data;
 using Business.Infrastructure.Identity;
 using Business.Web.Extensions;
+using Business.Web.Services;
 using Business.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -42,7 +43,7 @@ public class ProjectsController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, bool archivedOnly = false, CancellationToken cancellationToken = default)
     {
         take = Math.Max(DefaultListTake, take);
 
@@ -54,11 +55,12 @@ public class ProjectsController : Controller
         ViewBag.Load = load;
         ViewBag.CurrentTake = take;
         ViewBag.ShowAll = showAll;
-        ViewBag.ListAction = nameof(Index);
-        ViewBag.ProjectListTitle = "Tüm projeler";
+        ViewBag.ListAction = archivedOnly ? nameof(Archived) : nameof(Index);
+        ViewBag.ProjectListTitle = archivedOnly ? "Arşiv projeler" : "Tüm projeler";
+        ViewBag.IsArchiveList = archivedOnly;
         ViewBag.Customers = await _context.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         ViewBag.StatusOptions = Enum.GetValues<ProjectStatus>()
-            .Where(x => x != ProjectStatus.Completed)
+            .Where(x => archivedOnly || x != ProjectStatus.Completed)
             .ToList();
 
         if (!load)
@@ -74,7 +76,7 @@ public class ProjectsController : Controller
         var query = _context.Projects
             .Include(x => x.Customer)
             .AsNoTracking()
-            .ApplyRecordVisibility(User);
+            .ApplyRecordVisibility(User, includeArchived: archivedOnly, onlyArchived: archivedOnly);
 
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -91,7 +93,7 @@ public class ProjectsController : Controller
         {
             query = query.Where(x => x.Status == status.Value);
         }
-        else
+        else if (!archivedOnly)
         {
             query = query.Where(x => x.Status != ProjectStatus.Completed);
         }
@@ -142,12 +144,20 @@ public class ProjectsController : Controller
 
     public async Task<IActionResult> Completed(string? q, ProjectPriority? priority, Guid? customerId, string? sort, bool load = false, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
-        var result = await Index(q, ProjectStatus.Completed, priority, customerId, sort, load, take, showAll, cancellationToken);
+        var result = await Index(q, ProjectStatus.Completed, priority, customerId, sort, load, take, showAll, archivedOnly: false, cancellationToken);
         ViewBag.ProjectListTitle = "Tamamlanan projeler";
         ViewBag.ListAction = nameof(Completed);
         ViewBag.StatusOptions = new List<ProjectStatus> { ProjectStatus.Completed };
         return result is ViewResult viewResult
             ? View("Index", viewResult.Model)
+            : result;
+    }
+
+    public async Task<IActionResult> Archived(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, bool load = false, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    {
+        var result = await Index(q, status, priority, customerId, sort, load, take, showAll, archivedOnly: true, cancellationToken);
+        return result is ViewResult viewResult
+            ? View(nameof(Index), viewResult.Model)
             : result;
     }
 
@@ -358,6 +368,109 @@ public class ProjectsController : Controller
         return RedirectToLocal(returnUrl);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanUpdateProjects)]
+    public async Task<IActionResult> Archive(Guid id, bool archived = true, string? returnUrl = null, CancellationToken cancellationToken = default)
+    {
+        var project = await _context.Projects
+            .Include(x => x.Tasks)
+            .Include(x => x.PurchaseOrders)
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (project is null)
+        {
+            return NotFound();
+        }
+
+        SetProjectArchiveState(project, archived);
+        await _context.SaveChangesAsync(cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, archived ? "Proje arşivlendi" : "Proje arşivden çıkarıldı", project.Name, cancellationToken);
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanUpdateProjects)]
+    public async Task<IActionResult> BulkArchive(Guid[] ids, bool archived = true, string? returnUrl = null, CancellationToken cancellationToken = default)
+    {
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
+        var projects = await _context.Projects
+            .Include(x => x.Tasks)
+            .Include(x => x.PurchaseOrders)
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .Where(x => selectedIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        foreach (var project in projects)
+        {
+            SetProjectArchiveState(project, archived);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanChangeProjectStatus)]
+    public async Task<IActionResult> BulkUpdateStatus(Guid[] ids, ProjectStatus status, string? returnUrl = null, CancellationToken cancellationToken = default)
+    {
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
+        var projects = await _context.Projects
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .Where(x => selectedIds.Contains(x.Id) && !x.IsArchived)
+            .ToListAsync(cancellationToken);
+
+        foreach (var project in projects)
+        {
+            project.Status = status;
+            project.CompletedAt = status == ProjectStatus.Completed ? DateTime.UtcNow : null;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return RedirectToLocal(returnUrl);
+    }
+
+    [Authorize(Policy = AppPolicies.CanViewProjects)]
+    public async Task<IActionResult> DownloadArchive(CancellationToken cancellationToken)
+    {
+        var rows = await _context.Projects
+            .Include(x => x.Customer)
+            .AsNoTracking()
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: true)
+            .OrderByDescending(x => x.ArchivedAt ?? x.UpdatedAt ?? x.CreatedAt)
+            .Select(x => (IReadOnlyList<object?>)new object?[]
+            {
+                x.Code,
+                x.Name,
+                x.Customer != null ? x.Customer.Name : x.CustomerName,
+                x.Status.ToDisplayName(),
+                x.Priority.ToDisplayName(),
+                x.StartDate,
+                x.TargetEndDate,
+                x.CompletedAt,
+                x.ArchivedAt,
+                x.Description,
+                x.Notes
+            })
+            .ToListAsync(cancellationToken);
+
+        return ExcelFile(
+            [new ExcelSheet("Arşiv Projeler", ["Kod", "Proje", "Müşteri", "Durum", "Öncelik", "Başlangıç", "Hedef", "Tamamlanma", "Arşiv Tarihi", "Açıklama", "Not"], rows)],
+            $"arsiv-projeler-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
+    }
+
     [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
@@ -378,7 +491,7 @@ public class ProjectsController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = AppRoles.Admin)]
-    public async Task<IActionResult> BulkDelete(Guid[] ids, CancellationToken cancellationToken)
+    public async Task<IActionResult> BulkDelete(Guid[] ids, string? returnUrl, CancellationToken cancellationToken)
     {
         foreach (var id in ids.Distinct())
         {
@@ -386,7 +499,7 @@ public class ProjectsController : Controller
             await _projectService.DeleteAsync(id, cancellationToken);
         }
 
-        return RedirectToAction(nameof(Index));
+        return RedirectToLocal(returnUrl);
     }
 
     private async Task FillLookupsAsync(CancellationToken cancellationToken)
@@ -499,5 +612,30 @@ public class ProjectsController : Controller
     {
         _context.RecordComments.RemoveRange(_context.RecordComments.Where(x => x.OwnerType == ownerType && x.OwnerId == ownerId));
         _context.RecordFiles.RemoveRange(_context.RecordFiles.Where(x => x.OwnerType == ownerType && x.OwnerId == ownerId));
+    }
+
+    private static void SetProjectArchiveState(Project project, bool archived)
+    {
+        var archivedAt = archived ? DateTime.UtcNow : (DateTime?)null;
+        project.IsArchived = archived;
+        project.ArchivedAt = archivedAt;
+
+        foreach (var task in project.Tasks)
+        {
+            task.IsArchived = archived;
+            task.ArchivedAt = archivedAt;
+        }
+
+        foreach (var order in project.PurchaseOrders)
+        {
+            order.IsArchived = archived;
+            order.ArchivedAt = archivedAt;
+        }
+    }
+
+    private FileContentResult ExcelFile(IReadOnlyList<ExcelSheet> sheets, string fileName)
+    {
+        var bytes = ExcelWorkbookBuilder.Build(sheets);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 }

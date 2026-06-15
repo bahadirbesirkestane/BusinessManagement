@@ -156,10 +156,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Project>(entity =>
         {
             entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => new { x.IsArchived, x.Status, x.CreatedAt });
             entity.Property(x => x.Code).HasMaxLength(32).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(220).IsRequired();
             entity.Property(x => x.CustomerName).HasMaxLength(180);
             entity.Property(x => x.Visibility).HasDefaultValue(RecordVisibility.General);
+            entity.Property(x => x.IsArchived).HasDefaultValue(false);
             entity.Property(x => x.Currency).HasMaxLength(3);
             entity.Property(x => x.Budget).HasColumnType("decimal(18,2)");
             entity.HasOne(x => x.Customer).WithMany(x => x.Projects).HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
@@ -184,10 +186,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.ManualProjectName).HasMaxLength(220);
             entity.Property(x => x.ManualCustomerName).HasMaxLength(220);
             entity.Property(x => x.Visibility).HasDefaultValue(RecordVisibility.General);
+            entity.Property(x => x.IsArchived).HasDefaultValue(false);
             entity.Property(x => x.AssignedToUserId).HasMaxLength(450);
             entity.Property(x => x.ResponsibleUserId).HasMaxLength(450);
             entity.Property(x => x.WbsCode).HasMaxLength(40);
             entity.HasIndex(x => new { x.ProjectId, x.ParentTaskId, x.SortOrder });
+            entity.HasIndex(x => new { x.IsArchived, x.Status, x.CreatedAt });
             entity.HasOne(x => x.ParentTask).WithMany(x => x.SubTasks).HasForeignKey(x => x.ParentTaskId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.AssignedToUserId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.ResponsibleUserId).OnDelete(DeleteBehavior.NoAction);
@@ -265,9 +269,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<PurchaseOrder>(entity =>
         {
             entity.HasIndex(x => x.OrderNumber).IsUnique();
+            entity.HasIndex(x => new { x.IsArchived, x.Status, x.CreatedAt });
             entity.Property(x => x.OrderNumber).HasMaxLength(40).IsRequired();
             entity.Property(x => x.Content).HasMaxLength(600).IsRequired();
             entity.Property(x => x.Visibility).HasDefaultValue(RecordVisibility.General);
+            entity.Property(x => x.IsArchived).HasDefaultValue(false);
             entity.Property(x => x.Quantity).HasColumnType("decimal(18,3)");
             entity.Property(x => x.QuantityText).HasMaxLength(80);
             entity.Property(x => x.Unit).HasMaxLength(40);

@@ -4,6 +4,7 @@ using Business.Domain.Enums;
 using Business.Infrastructure.Data;
 using Business.Infrastructure.Identity;
 using Business.Web.Extensions;
+using Business.Web.Services;
 using Business.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -57,6 +58,7 @@ public class PurchaseOrdersController : Controller
         bool load = true,
         int take = DefaultListTake,
         bool showAll = false,
+        bool archivedOnly = false,
         CancellationToken cancellationToken = default)
     {
         take = Math.Max(DefaultListTake, take);
@@ -75,11 +77,12 @@ public class PurchaseOrdersController : Controller
         ViewBag.Load = load;
         ViewBag.CurrentTake = take;
         ViewBag.ShowAll = showAll;
-        ViewBag.ListAction = nameof(Index);
-        ViewBag.OrderListTitle = "Genel ve proje siparişleri";
+        ViewBag.ListAction = archivedOnly ? nameof(Archived) : nameof(Index);
+        ViewBag.OrderListTitle = archivedOnly ? "Arşiv siparişler" : "Genel ve proje siparişleri";
+        ViewBag.IsArchiveList = archivedOnly;
         await FillLookupsAsync(cancellationToken);
         ViewBag.StatusOptions = Enum.GetValues<PurchaseOrderStatus>()
-            .Where(x => x != PurchaseOrderStatus.Delivered)
+            .Where(x => archivedOnly || x != PurchaseOrderStatus.Delivered)
             .ToList();
 
         if (projectId.HasValue)
@@ -111,7 +114,7 @@ public class PurchaseOrdersController : Controller
             .Include(x => x.Supplier)
             .Include(x => x.Material)
             .AsNoTracking()
-            .ApplyRecordVisibility(User);
+            .ApplyRecordVisibility(User, includeArchived: archivedOnly, onlyArchived: archivedOnly);
 
         if (projectId.HasValue)
         {
@@ -137,7 +140,7 @@ public class PurchaseOrdersController : Controller
         {
             query = query.Where(x => x.Status == status.Value);
         }
-        else
+        else if (!archivedOnly)
         {
             query = query.Where(x => x.Status != PurchaseOrderStatus.Delivered);
         }
@@ -238,10 +241,33 @@ public class PurchaseOrdersController : Controller
         bool showAll = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await Index(projectId, q, PurchaseOrderStatus.Delivered, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, sort, load, take, showAll, cancellationToken);
+        var result = await Index(projectId, q, PurchaseOrderStatus.Delivered, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, sort, load, take, showAll, archivedOnly: false, cancellationToken);
         ViewBag.OrderListTitle = "Teslim edilen siparişler";
         ViewBag.ListAction = nameof(Delivered);
         ViewBag.StatusOptions = new List<PurchaseOrderStatus> { PurchaseOrderStatus.Delivered };
+        return result is ViewResult viewResult
+            ? View(nameof(Index), viewResult.Model)
+            : result;
+    }
+
+    public async Task<IActionResult> Archived(
+        Guid? projectId,
+        string? q,
+        PurchaseOrderStatus? status,
+        PurchaseOrderScope? scope,
+        Guid? supplierId,
+        Guid? materialId,
+        string? requestedByUserId,
+        string? requestedBy,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        string? sort,
+        bool load = false,
+        int take = DefaultListTake,
+        bool showAll = false,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await Index(projectId, q, status, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, sort, load, take, showAll, archivedOnly: true, cancellationToken);
         return result is ViewResult viewResult
             ? View(nameof(Index), viewResult.Model)
             : result;
@@ -639,6 +665,109 @@ public class PurchaseOrdersController : Controller
         return RedirectToLocal(returnUrl);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanUpdatePurchasing)]
+    public async Task<IActionResult> Archive(Guid id, bool archived = true, string? returnUrl = null, CancellationToken cancellationToken = default)
+    {
+        var order = await _context.PurchaseOrders
+            .Include(x => x.Project)
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (order is null)
+        {
+            return NotFound();
+        }
+
+        SetOrderArchiveState(order, archived);
+        await _context.SaveChangesAsync(cancellationToken);
+        await _projectTimelineService.AddForOrderAsync(order.Id, archived ? "Sipariş arşivlendi" : "Sipariş arşivden çıkarıldı", order.Content, cancellationToken);
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanUpdatePurchasing)]
+    public async Task<IActionResult> BulkArchive(Guid[] ids, bool archived = true, string? returnUrl = null, CancellationToken cancellationToken = default)
+    {
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
+        var orders = await _context.PurchaseOrders
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .Where(x => selectedIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        foreach (var order in orders)
+        {
+            SetOrderArchiveState(order, archived);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanChangePurchasingStatus)]
+    public async Task<IActionResult> BulkUpdateStatus(Guid[] ids, PurchaseOrderStatus status, string? returnUrl = null, CancellationToken cancellationToken = default)
+    {
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
+        var orders = await _context.PurchaseOrders
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .Where(x => selectedIds.Contains(x.Id) && !x.IsArchived)
+            .ToListAsync(cancellationToken);
+
+        foreach (var order in orders)
+        {
+            order.Status = status;
+            order.ArrivalDate = status == PurchaseOrderStatus.Delivered ? DateTime.Today : null;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return RedirectToLocal(returnUrl);
+    }
+
+    [Authorize(Policy = AppPolicies.CanViewPurchasing)]
+    public async Task<IActionResult> DownloadArchive(CancellationToken cancellationToken)
+    {
+        var rows = await _context.PurchaseOrders
+            .Include(x => x.Project)
+            .Include(x => x.Supplier)
+            .Include(x => x.Material)
+            .AsNoTracking()
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: true)
+            .OrderByDescending(x => x.ArchivedAt ?? x.UpdatedAt ?? x.CreatedAt)
+            .Select(x => (IReadOnlyList<object?>)new object?[]
+            {
+                x.OrderNumber,
+                x.Content,
+                x.Project != null ? $"{x.Project.Code} - {x.Project.Name}" : null,
+                x.Supplier != null ? x.Supplier.Name : null,
+                x.Material != null ? x.Material.Name : null,
+                x.Status.ToDisplayName(),
+                x.QuantityText,
+                x.OrderDate,
+                x.ExpectedArrivalDate,
+                x.ArrivalDate,
+                x.ArchivedAt,
+                x.Notes
+            })
+            .ToListAsync(cancellationToken);
+
+        return ExcelFile(
+            [new ExcelSheet("Arşiv Siparişler", ["Sipariş No", "İçerik", "Proje", "Tedarikçi", "Malzeme", "Durum", "Miktar", "Sipariş Tarihi", "Beklenen", "Teslim", "Arşiv Tarihi", "Not"], rows)],
+            $"arsiv-siparisler-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
+    }
+
     private async Task FillLookupsAsync(CancellationToken cancellationToken)
     {
         ViewBag.Projects = await _context.Projects
@@ -762,5 +891,17 @@ public class PurchaseOrdersController : Controller
         }
 
         return orderNumber;
+    }
+
+    private static void SetOrderArchiveState(PurchaseOrder order, bool archived)
+    {
+        order.IsArchived = archived;
+        order.ArchivedAt = archived ? DateTime.UtcNow : null;
+    }
+
+    private FileContentResult ExcelFile(IReadOnlyList<ExcelSheet> sheets, string fileName)
+    {
+        var bytes = ExcelWorkbookBuilder.Build(sheets);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 }

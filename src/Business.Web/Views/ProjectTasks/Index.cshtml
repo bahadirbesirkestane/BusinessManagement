@@ -4,12 +4,17 @@
     var userNames = (IReadOnlyDictionary<string, string>)(ViewBag.UserNames ?? new Dictionary<string, string>());
     var listAction = (string)(ViewBag.ListAction ?? (ViewBag.AssignedToMe == true ? "AssignedToMe" : "Index"));
     var canCreateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canUpdateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canChangeTaskStatus = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canCompleteTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canUseBulkActions = canUpdateTask || canChangeTaskStatus || User.IsInRole(AppRoles.Admin);
     var isDeferredLoad = ViewBag.IsDeferredLoad == true;
     var hasMore = ViewBag.HasMore == true;
     var currentTake = (int)(ViewBag.CurrentTake ?? 50);
     var nextTake = (int)(ViewBag.NextTake ?? (currentTake + 50));
     var requiresManualLoad = !string.Equals(listAction, "Index", StringComparison.OrdinalIgnoreCase) && !string.Equals(listAction, "AssignedToMe", StringComparison.OrdinalIgnoreCase);
     var showAll = ViewBag.ShowAll == true;
+    var isArchiveList = ViewBag.IsArchiveList == true;
     var statusOptions = (IReadOnlyList<WorkTaskStatus>)(ViewBag.StatusOptions ?? Enum.GetValues<WorkTaskStatus>().ToList());
     var moreRoute = new Dictionary<string, string?>();
     var showAllRoute = new Dictionary<string, string?>();
@@ -47,10 +52,21 @@
             <h2>@(ViewBag.TaskListTitle ?? "Tüm görevler")</h2>
             <p class="record-count">@(isDeferredLoad ? "Liste henüz yüklenmedi." : $"Gösterilen kayıt sayısı: {Model.Count}")</p>
         </div>
-        @if (canCreateTask)
-        {
-            <a class="btn btn-primary" asp-action="Create">Görev ekle</a>
-        }
+        <div class="toolbar-actions">
+            @if (isArchiveList)
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-projectId="@ViewBag.ProjectId">Aktif liste</a>
+                <a class="btn btn-outline-primary btn-sm" asp-action="DownloadArchive">Arşivi indir</a>
+            }
+            else if (!string.Equals(listAction, "AssignedToMe", StringComparison.OrdinalIgnoreCase))
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Archived" asp-route-projectId="@ViewBag.ProjectId">Arşiv</a>
+            }
+            @if (canCreateTask)
+            {
+                <a class="btn btn-primary" asp-action="Create">Görev ekle</a>
+            }
+        </div>
     </div>
 
     <form id="tasksFilterForm" asp-action="@listAction" method="get" class="list-filter-bar">
@@ -122,14 +138,38 @@
         <a class="icon-filter-button clear" asp-action="@listAction" asp-route-projectId="@ViewBag.ProjectId" title="Temizle" aria-label="Temizle">×</a>
     </form>
 
-    @if (User.IsInRole(AppRoles.Admin))
+    @if (canUseBulkActions)
     {
-        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkDeleteForm" hidden>
+        <form id="bulkActionForm" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkActionForm" hidden>
+            @Html.AntiForgeryToken()
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <span class="bulk-selection-count" data-bulk-count="bulkActionForm">0 kayıt seçildi</span>
             <div class="bulk-bar-actions">
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkDeleteForm">Seçimi temizle</button>
-                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkActionForm">Seçimi temizle</button>
+                @if (canUpdateTask)
+                {
+                    <button class="btn btn-outline-primary btn-sm" type="submit" formaction="@Url.Action("BulkArchive")" name="archived" value="@(isArchiveList ? "false" : "true")">
+                        @(isArchiveList ? "Seçilenleri aktife al" : "Seçilenleri arşivle")
+                    </button>
+                }
+                @if (canChangeTaskStatus && !isArchiveList)
+                {
+                    <select class="form-select form-select-sm" name="status" aria-label="Toplu görev durumu">
+                        @foreach (WorkTaskStatus status in Enum.GetValues<WorkTaskStatus>())
+                        {
+                            if (status == WorkTaskStatus.Done && !canCompleteTask)
+                            {
+                                continue;
+                            }
+                            <option value="@status">@status.ToDisplayName()</option>
+                        }
+                    </select>
+                    <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("BulkUpdateStatus")">Durumu uygula</button>
+                }
+                @if (User.IsInRole(AppRoles.Admin))
+                {
+                    <button class="btn btn-outline-danger btn-sm" type="submit" formaction="@Url.Action("BulkDelete")" data-bulk-submit="bulkActionForm">Seçilenleri sil</button>
+                }
             </div>
         </form>
     }
@@ -152,7 +192,7 @@
         <div class="empty-note empty-note-empty-state">
             <div>
                 <strong>Uygun görev bulunamadı.</strong>
-                <span>Filtreleri temizleyin ya da tamamlanan görevler için ayrı sayfayı açın.</span>
+                <span>@(isArchiveList ? "Arşivde gösterilecek görev yok." : "Filtreleri temizleyin ya da tamamlanan görevler için ayrı sayfayı açın.")</span>
             </div>
             @if (canCreateTask)
             {
@@ -168,10 +208,10 @@
                     <tr>
                         <th>Görev</th>
                         <th>Bağlantı</th>
-                        @if (User.IsInRole(AppRoles.Admin))
+                        @if (canUseBulkActions)
                         {
                             <th class="bulk-check-cell">
-                                <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm görevleri seç" />
+                                <input type="checkbox" data-bulk-toggle="bulkActionForm" aria-label="Tüm görevleri seç" />
                             </th>
                         }
                         <th>Kategori</th>
@@ -205,24 +245,23 @@
                             data-preview-status="@task.Status.ToDisplayName()">
                             <td><strong>@task.Title</strong></td>
                             <td>@(task.Project?.Code ?? task.Customer?.Name ?? task.ManualProjectName ?? task.ManualCustomerName ?? "Genel")</td>
-                            @if (User.IsInRole(AppRoles.Admin))
+                            @if (canUseBulkActions)
                             {
-                                <td><input type="checkbox" name="ids" value="@task.Id" form="bulkDeleteForm" /></td>
+                                <td><input type="checkbox" name="ids" value="@task.Id" form="bulkActionForm" /></td>
                             }
                             <td>@(task.TaskCategory?.Name ?? "-")</td>
                             <td>@(!string.IsNullOrWhiteSpace(task.ResponsibleUserId) && userNames.TryGetValue(task.ResponsibleUserId, out var responsibleDisplay) ? responsibleDisplay : "-")</td>
                             <td>@(assignedNames.Any() ? string.Join(", ", assignedNames) : "-")</td>
                             <td>
-                                @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                                @if (canChangeTaskStatus && !isArchiveList)
                                 {
-                                    var canComplete = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
                                     <form asp-action="UpdateStatus" method="post" class="inline-status-form">
                                         <input type="hidden" name="id" value="@task.Id" />
                                         <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
                                         <select name="status" class="status-select status-@task.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Görev durumu">
                                             @foreach (WorkTaskStatus status in Enum.GetValues<WorkTaskStatus>())
                                             {
-                                                if (status == WorkTaskStatus.Done && !canComplete)
+                                                if (status == WorkTaskStatus.Done && !canCompleteTask)
                                                 {
                                                     continue;
                                                 }
@@ -251,21 +290,26 @@
                                         <summary aria-label="Görev işlemleri">...</summary>
                                         <div class="action-menu-list">
                                             <a asp-action="Details" asp-route-id="@task.Id" asp-route-returnUrl="@returnUrl">Detay</a>
-                                            @if (task.Status != WorkTaskStatus.InReview && task.Status != WorkTaskStatus.Done)
+                                            @if (!isArchiveList && task.Status != WorkTaskStatus.InReview && task.Status != WorkTaskStatus.Done)
                                             {
                                                 <form asp-action="SubmitForReview" asp-route-id="@task.Id" method="post" class="inline-form">
                                                     <button class="link-button" type="submit">Kontrole gönder</button>
                                                 </form>
                                             }
-                                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                                            @if (!isArchiveList && canCompleteTask)
                                             {
                                                 <form asp-action="Complete" asp-route-id="@task.Id" method="post" class="inline-form">
                                                     <button class="link-button" type="submit">Tamamlandı yap</button>
                                                 </form>
                                             }
-                                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                                            @if (canUpdateTask)
                                             {
                                                 <a asp-action="Edit" asp-route-id="@task.Id">Düzenle</a>
+                                                <form asp-action="Archive" asp-route-id="@task.Id" method="post" class="inline-form">
+                                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                    <input type="hidden" name="archived" value="@(isArchiveList ? "false" : "true")" />
+                                                    <button class="link-button" type="submit">@(isArchiveList ? "Aktife al" : "Arşivle")</button>
+                                                </form>
                                             }
                                             @if (User.IsInRole(AppRoles.Admin))
                                             {
