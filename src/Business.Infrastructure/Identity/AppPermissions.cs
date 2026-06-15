@@ -10,6 +10,7 @@ public static class AppPermissions
     public const string ProjectsChangeStatus = "projects.change-status";
     public const string ProjectsManage = "projects.manage";
     public const string TasksView = "tasks.view";
+    public const string TasksViewAll = "tasks.view-all";
     public const string TasksCreate = "tasks.create";
     public const string TasksUpdate = "tasks.update";
     public const string TasksDelete = "tasks.delete";
@@ -51,6 +52,7 @@ public static class AppPermissions
         new(ProjectsChangeStatus, "Projeler", "Proje durumu değiştir"),
         new(ProjectsManage, "Projeler", "Proje tam yönetim"),
         new(TasksView, "Görevler", "Görevleri görüntüle"),
+        new(TasksViewAll, "Görevler", "Tüm görevleri görüntüle"),
         new(TasksCreate, "Görevler", "Görev oluştur"),
         new(TasksUpdate, "Görevler", "Görev güncelle"),
         new(TasksDelete, "Görevler", "Görev sil"),
