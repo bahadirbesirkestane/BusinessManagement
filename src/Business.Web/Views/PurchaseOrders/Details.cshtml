@@ -1,7 +1,7 @@
 @model PurchaseOrder
 @{
     ViewData["Title"] = "Sipariş Detayı";
-    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+    var returnUrl = ViewBag.ReturnUrl as string ?? $"{Context.Request.Path}{Context.Request.QueryString}";
 }
 
 <section class="panel-block">
@@ -40,11 +40,11 @@
             }
             @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
             {
-                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl">Düzenle</a>
             }
             @if (User.IsInRole(AppRoles.Admin))
             {
-                <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id" asp-route-returnUrl="@Url.Action("Index", "PurchaseOrders", Model.ProjectId.HasValue ? new { projectId = Model.ProjectId } : null)">Sil</a>
+                <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl">Sil</a>
             }
         </div>
     </div>

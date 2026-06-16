@@ -1,6 +1,7 @@
 @model QuickPurchaseOrderViewModel
 @{
     ViewData["Title"] = "Hızlı Sipariş Ekle";
+    var returnUrl = ViewBag.ReturnUrl as string;
 }
 
 <section class="panel-block form-panel">
@@ -9,12 +10,20 @@
             <p class="section-kicker">Satın alma</p>
             <h2>Hızlı sipariş ekleme</h2>
         </div>
-        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Sipariş listesi</a>
+        @if (!string.IsNullOrWhiteSpace(returnUrl))
+        {
+            <a class="btn btn-outline-secondary btn-sm" href="@returnUrl">Geri dön</a>
+        }
+        else
+        {
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Sipariş listesi</a>
+        }
     </div>
 
     @if (ViewBag.Templates is IEnumerable<dynamic> templates && templates.Any())
     {
         <form asp-action="QuickCreate" method="get" class="diagram-filter-bar mb-3">
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
             <select name="projectId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Proje ara veya seç">
                 <option value="">Genel sipariş</option>
                 @foreach (var project in ViewBag.Projects)
@@ -36,6 +45,7 @@
 
     <form method="post" class="app-form quick-order-form" data-quick-order-form>
         <input asp-for="TemplateId" type="hidden" />
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
         <div class="quick-order-context">
@@ -127,7 +137,14 @@
         </div>
 
         <div class="form-actions">
-            <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            @if (!string.IsNullOrWhiteSpace(returnUrl))
+            {
+                <a class="btn btn-outline-secondary" href="@returnUrl">Vazgeç</a>
+            }
+            else
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            }
             <button class="btn btn-primary" type="submit">Siparişleri Kaydet</button>
         </div>
     </form>

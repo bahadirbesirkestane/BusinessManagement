@@ -428,7 +428,7 @@ function initFilterSummaries() {
 }
 
 function initSideNav() {
-    var stateKey = 'business.sideNavGroups';
+    var stateKey = 'business.sideNavOpenGroup';
     document.querySelectorAll('[data-nav-filter]').forEach(function (filterInput) {
         var navRoot = filterInput.closest('.side-nav, .mobile-nav') || filterInput.parentElement;
         var groups = navRoot ? Array.from(navRoot.querySelectorAll('[data-nav-group]')) : [];
@@ -437,19 +437,40 @@ function initSideNav() {
             return;
         }
 
-        var savedState = safeStorageGet(stateKey);
+        var savedGroup = safeStorageGet(stateKey);
+        var defaultOpenGroup = groups.find(function (group) {
+            return group.hasAttribute('open');
+        });
 
         groups.forEach(function (group) {
             var groupName = group.dataset.navGroup;
 
-            if (savedState && Object.prototype.hasOwnProperty.call(savedState, groupName)) {
-                group.open = !!savedState[groupName];
+            if (typeof savedGroup === 'string') {
+                group.open = savedGroup === groupName;
+            }
+            else if (defaultOpenGroup) {
+                group.open = defaultOpenGroup.dataset.navGroup === groupName;
             }
 
             group.addEventListener('toggle', function () {
-                var nextState = safeStorageGet(stateKey) || {};
-                nextState[groupName] = group.open;
-                safeStorageSet(stateKey, nextState);
+                if (filterInput.value) {
+                    return;
+                }
+
+                if (group.open) {
+                    groups.forEach(function (otherGroup) {
+                        if (otherGroup !== group) {
+                            otherGroup.open = false;
+                        }
+                    });
+
+                    safeStorageSet(stateKey, groupName);
+                    return;
+                }
+
+                if (safeStorageGet(stateKey) === groupName) {
+                    safeStorageSet(stateKey, '');
+                }
             });
         });
 
@@ -474,6 +495,18 @@ function initSideNav() {
                     group.open = hasVisibleLink || groupMatches;
                 }
             });
+
+            if (!query) {
+                var restoredGroup = safeStorageGet(stateKey);
+                groups.forEach(function (group) {
+                    var groupName = group.dataset.navGroup;
+                    group.open = typeof restoredGroup === 'string' && restoredGroup.length > 0
+                        ? restoredGroup === groupName
+                        : defaultOpenGroup
+                            ? defaultOpenGroup.dataset.navGroup === groupName
+                            : group.open;
+                });
+            }
         });
     });
 }

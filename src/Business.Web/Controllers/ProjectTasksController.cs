@@ -337,7 +337,7 @@ public class ProjectTasksController : Controller
     }
 
     [Authorize(Policy = AppPolicies.CanCreateTasks)]
-    public async Task<IActionResult> Create(Guid? projectId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid? projectId, string? returnUrl, CancellationToken cancellationToken)
     {
         await FillLookupsAsync(cancellationToken);
         var task = new ProjectTask { ProjectId = projectId };
@@ -360,13 +360,14 @@ public class ProjectTasksController : Controller
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
+        ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(task);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanCreateTasks)]
-    public async Task<IActionResult> Create(ProjectTask task, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(ProjectTask task, string? returnUrl, CancellationToken cancellationToken)
     {
         task.Visibility = User.NormalizeRecordVisibility(task.Visibility);
         NormalizeTaskRelation(task);
@@ -385,6 +386,7 @@ public class ProjectTasksController : Controller
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken);
+            ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
             return View(task);
         }
 
@@ -392,11 +394,11 @@ public class ProjectTasksController : Controller
         await _context.SaveChangesAsync(cancellationToken);
         await SyncAssignmentsAsync(task.Id, Request.Form["AssignedUserIds"].Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!), cancellationToken);
         await _projectTimelineService.AddForTaskAsync(task.Id, "Görev eklendi", task.Title, cancellationToken);
-        return RedirectToAction(nameof(Index));
+        return RedirectToLocal(returnUrl, fallbackRouteValues: task.ProjectId.HasValue ? new { projectId = task.ProjectId } : null);
     }
 
     [Authorize(Policy = AppPolicies.CanUpdateTasks)]
-    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var task = await _context.ProjectTasks
             .Include(x => x.Project)
@@ -409,13 +411,14 @@ public class ProjectTasksController : Controller
         }
 
         await FillLookupsAsync(cancellationToken);
+        ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(task);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanUpdateTasks)]
-    public async Task<IActionResult> Edit(Guid id, ProjectTask task, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, ProjectTask task, string? returnUrl, CancellationToken cancellationToken)
     {
         if (id != task.Id)
         {
@@ -439,6 +442,7 @@ public class ProjectTasksController : Controller
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken);
+            ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
             return View(task);
         }
 
@@ -446,13 +450,13 @@ public class ProjectTasksController : Controller
         await _context.SaveChangesAsync(cancellationToken);
         await SyncAssignmentsAsync(task.Id, Request.Form["AssignedUserIds"].Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!), cancellationToken);
         await _projectTimelineService.AddForTaskAsync(task.Id, "Görev güncellendi", task.Title, cancellationToken);
-        return RedirectToAction(nameof(Index));
+        return RedirectToLocal(returnUrl, fallbackRouteValues: task.ProjectId.HasValue ? new { projectId = task.ProjectId } : null);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanChangeTaskStatus)]
-    public async Task<IActionResult> SubmitForReview(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> SubmitForReview(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var task = await _context.ProjectTasks
             .Include(x => x.Project)
@@ -467,13 +471,13 @@ public class ProjectTasksController : Controller
         task.SubmittedForReviewAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         await _projectTimelineService.AddForTaskAsync(id, "Görev kontrole gönderildi", task.Title, cancellationToken);
-        return RedirectToAction(nameof(Details), new { id });
+        return RedirectToLocal(returnUrl, nameof(Details), new { id });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanCompleteTasks)]
-    public async Task<IActionResult> Complete(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Complete(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var task = await _context.ProjectTasks
             .Include(x => x.Project)
@@ -489,7 +493,7 @@ public class ProjectTasksController : Controller
         task.CompletedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         await _projectTimelineService.AddForTaskAsync(id, "Görev tamamlandı", task.Title, cancellationToken);
-        return RedirectToAction(nameof(Details), new { id });
+        return RedirectToLocal(returnUrl, nameof(Details), new { id });
     }
 
     [HttpPost]
@@ -691,11 +695,18 @@ public class ProjectTasksController : Controller
         ViewBag.FilterUsers = await _userManager.Users.Where(x => x.IsActive).OrderBy(x => x.FullName).ToListAsync(cancellationToken);
     }
 
-    private IActionResult RedirectToLocal(string? returnUrl)
+    private IActionResult RedirectToLocal(string? returnUrl, string fallbackAction = nameof(Index), object? fallbackRouteValues = null)
     {
         return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
             ? Redirect(returnUrl)
-            : RedirectToAction(nameof(Index));
+            : RedirectToAction(fallbackAction, fallbackRouteValues);
+    }
+
+    private string? NormalizeReturnUrl(string? returnUrl)
+    {
+        return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? returnUrl
+            : null;
     }
 
     private IQueryable<ProjectTask> ApplyTaskVisibility(IQueryable<ProjectTask> query)

@@ -372,7 +372,7 @@ public class PurchaseOrdersController : Controller
     }
 
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
-    public async Task<IActionResult> Create(Guid? projectId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid? projectId, string? returnUrl, CancellationToken cancellationToken)
     {
         if (projectId.HasValue)
         {
@@ -387,6 +387,7 @@ public class PurchaseOrdersController : Controller
         }
 
         await FillLookupsAsync(cancellationToken);
+        ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(new PurchaseOrder
         {
             ProjectId = projectId,
@@ -397,17 +398,18 @@ public class PurchaseOrdersController : Controller
     }
 
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
-    public async Task<IActionResult> QuickCreate(Guid? projectId, Guid? templateId, CancellationToken cancellationToken)
+    public async Task<IActionResult> QuickCreate(Guid? projectId, Guid? templateId, string? returnUrl, CancellationToken cancellationToken)
     {
         var model = await BuildQuickCreateModelAsync(projectId, templateId, cancellationToken);
         await FillQuickCreateLookupsAsync(cancellationToken);
+        ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
-    public async Task<IActionResult> QuickCreate(QuickPurchaseOrderViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> QuickCreate(QuickPurchaseOrderViewModel model, string? returnUrl, CancellationToken cancellationToken)
     {
         if (model.ProjectId.HasValue)
         {
@@ -434,6 +436,7 @@ public class PurchaseOrdersController : Controller
         {
             EnsureQuickRows(model);
             await FillQuickCreateLookupsAsync(cancellationToken);
+            ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
             return View(model);
         }
 
@@ -489,13 +492,13 @@ public class PurchaseOrdersController : Controller
         }
 
         TempData["Success"] = $"{createdOrders.Count} sipariş oluşturuldu.";
-        return RedirectToAction(nameof(Index), model.ProjectId.HasValue ? new { projectId = model.ProjectId } : null);
+        return RedirectToLocal(returnUrl, model.ProjectId.HasValue ? new { projectId = model.ProjectId } : null);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
-    public async Task<IActionResult> Create(PurchaseOrder order, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(PurchaseOrder order, string? returnUrl, CancellationToken cancellationToken)
     {
         order.Visibility = User.NormalizeRecordVisibility(order.Visibility);
         if (order.ProjectId.HasValue)
@@ -513,6 +516,7 @@ public class PurchaseOrdersController : Controller
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken);
+            ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
             return View(order);
         }
 
@@ -526,11 +530,11 @@ public class PurchaseOrdersController : Controller
         order.RequestedByUserId = currentUser?.Id;
         await _purchaseOrderService.CreateAsync(order, cancellationToken);
         await _projectTimelineService.AddForOrderAsync(order.Id, "Sipariş oluşturuldu", order.Content, cancellationToken);
-        return RedirectToAction(nameof(Index));
+        return RedirectToLocal(returnUrl, order.ProjectId.HasValue ? new { projectId = order.ProjectId } : null);
     }
 
     [Authorize(Policy = AppPolicies.CanUpdatePurchasing)]
-    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var order = await _context.PurchaseOrders
             .Include(x => x.Project)
@@ -542,13 +546,14 @@ public class PurchaseOrdersController : Controller
         }
 
         await FillLookupsAsync(cancellationToken);
+        ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(order);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanUpdatePurchasing)]
-    public async Task<IActionResult> Edit(Guid id, PurchaseOrder order, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, PurchaseOrder order, string? returnUrl, CancellationToken cancellationToken)
     {
         if (id != order.Id)
         {
@@ -571,6 +576,7 @@ public class PurchaseOrdersController : Controller
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken);
+            ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
             return View(order);
         }
 
@@ -583,7 +589,7 @@ public class PurchaseOrdersController : Controller
         await _purchaseOrderService.UpdateAsync(order, cancellationToken);
         var updateTitle = oldStatus.HasValue && oldStatus.Value != order.Status ? "Sipariş durumu değişti" : "Sipariş güncellendi";
         await _projectTimelineService.AddForOrderAsync(order.Id, updateTitle, $"{order.Content} - {order.Status.ToDisplayName()}", cancellationToken);
-        return RedirectToAction(nameof(Index));
+        return RedirectToLocal(returnUrl, order.ProjectId.HasValue ? new { projectId = order.ProjectId } : null);
     }
 
     [Authorize(Roles = AppRoles.Admin)]
@@ -870,11 +876,18 @@ public class PurchaseOrdersController : Controller
         }
     }
 
-    private IActionResult RedirectToLocal(string? returnUrl)
+    private IActionResult RedirectToLocal(string? returnUrl, object? fallbackRouteValues = null)
     {
         return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
             ? Redirect(returnUrl)
-            : RedirectToAction(nameof(Index));
+            : RedirectToAction(nameof(Index), fallbackRouteValues);
+    }
+
+    private string? NormalizeReturnUrl(string? returnUrl)
+    {
+        return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? returnUrl
+            : null;
     }
 
     private async Task<string> GenerateOrderNumberAsync(CancellationToken cancellationToken, ISet<string>? reservedOrderNumbers = null)

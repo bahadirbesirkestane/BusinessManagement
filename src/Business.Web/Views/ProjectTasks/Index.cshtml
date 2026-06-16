@@ -16,6 +16,8 @@
     var showAll = ViewBag.ShowAll == true;
     var isArchiveList = ViewBag.IsArchiveList == true;
     var statusOptions = (IReadOnlyList<WorkTaskStatus>)(ViewBag.StatusOptions ?? Enum.GetValues<WorkTaskStatus>().ToList());
+    var currentReturnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+    var defaultProjectId = ViewBag.ProjectId?.ToString();
     var moreRoute = new Dictionary<string, string?>();
     var showAllRoute = new Dictionary<string, string?>();
     moreRoute["projectId"] = ViewBag.ProjectId?.ToString();
@@ -64,7 +66,7 @@
             }
             @if (canCreateTask)
             {
-                <a class="btn btn-primary" asp-action="Create">Görev ekle</a>
+                <a class="btn btn-primary" asp-action="Create" asp-route-projectId="@ViewBag.ProjectId" asp-route-returnUrl="@currentReturnUrl">Görev ekle</a>
             }
         </div>
     </div>
@@ -138,6 +140,91 @@
         <a class="icon-filter-button clear" asp-action="@listAction" asp-route-projectId="@ViewBag.ProjectId" title="Temizle" aria-label="Temizle">×</a>
     </form>
 
+    @if (canCreateTask && !isArchiveList)
+    {
+        <details class="inline-quick-panel" @(Model.Any() ? null : "open")>
+            <summary>Üstten hızlı görev ekle</summary>
+            <form asp-action="Create" method="post" class="quick-inline-grid mt-3">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
+                <input type="hidden" name="ProgressPercent" value="0" />
+                <div>
+                    <label class="form-label">Görev başlığı</label>
+                    <input name="Title" class="form-control" required maxlength="220" placeholder="Yapılacak işi yazın" />
+                </div>
+                <div>
+                    <label class="form-label">Proje</label>
+                    <select name="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya seç">
+                        <option value="">Genel</option>
+                        @foreach (var project in ViewBag.FilterProjects)
+                        {
+                            <option value="@project.Id" selected="@(defaultProjectId == project.Id.ToString())">@project.Code - @project.Name</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Müşteri</label>
+                    <select name="CustomerId" class="form-select" data-searchable-select data-search-placeholder="Müşteri ara veya seç">
+                        <option value="">Genel</option>
+                        @foreach (var customer in ViewBag.FilterCustomers)
+                        {
+                            <option value="@customer.Id">@customer.Name</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Kategori</label>
+                    <select name="TaskCategoryId" class="form-select" data-searchable-select data-search-placeholder="Kategori ara veya seç">
+                        <option value="">Seçilmedi</option>
+                        @foreach (var category in ViewBag.FilterTaskCategories)
+                        {
+                            <option value="@category.Id">@category.Name</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Sorumlu</label>
+                    <select name="ResponsibleUserId" class="form-select" data-searchable-select data-search-placeholder="Sorumlu ara veya seç">
+                        <option value="">Seçilmedi</option>
+                        @foreach (var user in ViewBag.FilterUsers)
+                        {
+                            <option value="@user.Id">@user.FullName</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Durum</label>
+                    <select name="Status" class="form-select">
+                        @foreach (WorkTaskStatus status in Enum.GetValues<WorkTaskStatus>())
+                        {
+                            if (status == WorkTaskStatus.Done && !canCompleteTask)
+                            {
+                                continue;
+                            }
+                            <option value="@status">@status.ToDisplayName()</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Öncelik</label>
+                    <select name="Priority" class="form-select">
+                        @foreach (ProjectPriority priority in Enum.GetValues<ProjectPriority>())
+                        {
+                            <option value="@priority">@priority.ToDisplayName()</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Termin</label>
+                    <input name="DueDate" type="date" class="form-control" />
+                </div>
+                <div class="quick-inline-actions">
+                    <button class="btn btn-primary" type="submit">Hızlı kaydet</button>
+                </div>
+            </form>
+        </details>
+    }
+
     @if (canUseBulkActions)
     {
         <form id="bulkActionForm" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkActionForm" hidden>
@@ -196,7 +283,7 @@
             </div>
             @if (canCreateTask)
             {
-                <a class="btn btn-primary btn-sm" asp-action="Create">Yeni görev oluştur</a>
+                <a class="btn btn-primary btn-sm" asp-action="Create" asp-route-projectId="@ViewBag.ProjectId" asp-route-returnUrl="@currentReturnUrl">Yeni görev oluştur</a>
             }
         </div>
     }
@@ -227,7 +314,7 @@
                 <tbody>
                     @foreach (var task in Model)
                     {
-                        var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+                        var returnUrl = currentReturnUrl;
                         var assignedNames = task.Assignments
                             .Select(x => userNames.TryGetValue(x.UserId, out var assignedName) ? assignedName : null)
                             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -293,18 +380,22 @@
                                             @if (!isArchiveList && task.Status != WorkTaskStatus.InReview && task.Status != WorkTaskStatus.Done)
                                             {
                                                 <form asp-action="SubmitForReview" asp-route-id="@task.Id" method="post" class="inline-form">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
                                                     <button class="link-button" type="submit">Kontrole gönder</button>
                                                 </form>
                                             }
                                             @if (!isArchiveList && canCompleteTask)
                                             {
                                                 <form asp-action="Complete" asp-route-id="@task.Id" method="post" class="inline-form">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
                                                     <button class="link-button" type="submit">Tamamlandı yap</button>
                                                 </form>
                                             }
                                             @if (canUpdateTask)
                                             {
-                                                <a asp-action="Edit" asp-route-id="@task.Id">Düzenle</a>
+                                                <a asp-action="Edit" asp-route-id="@task.Id" asp-route-returnUrl="@returnUrl">Düzenle</a>
                                                 <form asp-action="Archive" asp-route-id="@task.Id" method="post" class="inline-form">
                                                     <input type="hidden" name="returnUrl" value="@returnUrl" />
                                                     <input type="hidden" name="archived" value="@(isArchiveList ? "false" : "true")" />

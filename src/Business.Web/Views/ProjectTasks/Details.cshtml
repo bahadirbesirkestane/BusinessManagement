@@ -3,7 +3,7 @@
     var taskUpdates = Model.Updates
         .OrderByDescending(x => x.CreatedAt)
         .ToList();
-    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+    var returnUrl = ViewBag.ReturnUrl as string ?? $"{Context.Request.Path}{Context.Request.QueryString}";
     ViewData["Title"] = "Görev Detayı";
 }
 
@@ -42,24 +42,29 @@
             }
             @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
             {
-                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl">Düzenle</a>
             }
             @if (Model.Status != WorkTaskStatus.InReview && Model.Status != WorkTaskStatus.Done)
             {
                 <form asp-action="SubmitForReview" asp-route-id="@Model.Id" method="post" class="inline-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
                     <button class="btn btn-outline-primary btn-sm" type="submit">Kontrole Gönder</button>
                 </form>
             }
             @if (User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager))
             {
                 <form asp-action="Complete" asp-route-id="@Model.Id" method="post" class="inline-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
                     <button class="btn btn-success btn-sm" type="submit">Tamamlandı Yap</button>
                 </form>
             }
             @if (User.IsInRole(AppRoles.Admin))
             {
                 <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="inline-form">
-                    <input type="hidden" name="returnUrl" value="@Url.Action("Index", "ProjectTasks", Model.ProjectId.HasValue ? new { projectId = Model.ProjectId } : null)" />
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
                     <button class="btn btn-outline-danger btn-sm" type="submit">Sil</button>
                 </form>
             }

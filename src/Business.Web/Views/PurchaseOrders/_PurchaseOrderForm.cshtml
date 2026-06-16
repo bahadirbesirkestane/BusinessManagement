@@ -1,4 +1,7 @@
 @model PurchaseOrder
+@{
+    var returnUrl = ViewBag.ReturnUrl as string;
+}
 
 <section class="panel-block form-panel">
     <div class="panel-heading"><div><p class="section-kicker">SatÄ±n alma</p><h2>@ViewData["Title"]</h2></div></div>
@@ -6,6 +9,7 @@
         <input type="hidden" asp-for="Id" />
         <input type="hidden" asp-for="RequestedBy" />
         <input type="hidden" asp-for="RequestedByUserId" />
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
         <div class="form-grid">
             <div class="mb-3"><label asp-for="OrderNumber" class="form-label">Sipariş no</label><input asp-for="OrderNumber" class="form-control" /></div>
@@ -34,6 +38,16 @@
             <div class="mb-3"><label asp-for="Currency" class="form-label">Para birimi</label><input asp-for="Currency" class="form-control" /></div>
             <div class="mb-3 wide"><label asp-for="Notes" class="form-label">Not</label><textarea asp-for="Notes" class="form-control" rows="3"></textarea></div>
         </div>
-        <div class="form-actions"><a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a><button class="btn btn-primary" type="submit">Kaydet</button></div>
+        <div class="form-actions">
+            @if (!string.IsNullOrWhiteSpace(returnUrl))
+            {
+                <a class="btn btn-outline-secondary" href="@returnUrl">Vazgeç</a>
+            }
+            else
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            }
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+        </div>
     </form>
 </section>
