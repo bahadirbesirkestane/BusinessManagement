@@ -66,14 +66,14 @@
     <div class="panel-heading">
         <div>
             <p class="section-kicker">Proje bazlı planlama</p>
-            <h2>Gantt 2 görev ağacı</h2>
+            <h2>Görev ağacı ve gantt</h2>
         </div>
         <div class="toolbar-actions">
             @if (canCreateTask && Model.ProjectId.HasValue && Model.SelectedProjectText is not null)
             {
                 <button class="btn btn-primary btn-sm" type="button" data-planning-task-trigger data-parent-id="" data-parent-title="">Ana görev ekle</button>
             }
-            <a class="btn btn-outline-primary btn-sm" asp-controller="Reports" asp-action="Gantt">Mevcut Gantt</a>
+            <a class="btn btn-outline-primary btn-sm" asp-controller="Reports" asp-action="Gantt">Genel gantt</a>
             <a class="btn btn-outline-secondary btn-sm" asp-controller="Reports" asp-action="Kanban">Kanban</a>
         </div>
     </div>
@@ -585,6 +585,16 @@
                 minDate = addPlanningDays(minDate, -3);
                 maxDate = addPlanningDays(maxDate, 3);
 
+                const minimumTimelineDays = customViewMode === 'day' ? 21 : customViewMode === 'week' ? 56 : 120;
+                const currentTimelineDays = Math.round((maxDate - minDate) / 86400000);
+                if (currentTimelineDays < minimumTimelineDays) {
+                    const missingDays = minimumTimelineDays - currentTimelineDays;
+                    const leftPadding = Math.floor(missingDays / 2);
+                    const rightPadding = missingDays - leftPadding;
+                    minDate = addPlanningDays(minDate, -leftPadding);
+                    maxDate = addPlanningDays(maxDate, rightPadding);
+                }
+
                 const periods = createPlanningPeriods(customViewMode, minDate, maxDate);
                 const columnWidth = customViewMode === 'day' ? 56 : customViewMode === 'week' ? 116 : 132;
                 const timelineWidth = periods.length * columnWidth;
@@ -593,6 +603,7 @@
                     return `<div class="planning-custom-date-cell">${escapePlanningHtml(period.label)}</div>`;
                 }).join('');
 
+                const visibleRowTarget = 8;
                 const rows = projectPlanningTasks.map(function (task) {
                     const hidden = isCustomTaskHidden(task);
                     const taskStart = parsePlanningDate(task.start);
@@ -642,12 +653,27 @@
                         </div>`;
                 }).join('');
 
+                const fillerRowCount = Math.max(0, visibleRowTarget - projectPlanningTasks.length);
+                const fillerGridCells = periods.map(function () {
+                    return '<div class="planning-custom-grid-cell"></div>';
+                }).join('');
+                const fillerRows = Array.from({ length: fillerRowCount }, function () {
+                    return `
+                        <div class="planning-custom-row is-filler" aria-hidden="true">
+                            <div class="planning-custom-task planning-custom-task-filler"></div>
+                            <div class="planning-custom-timeline" style="width:${timelineWidth}px;--planning-period-width:${columnWidth}px">
+                                <div class="planning-custom-grid">${fillerGridCells}</div>
+                            </div>
+                        </div>`;
+                }).join('');
+
                 customBoard.innerHTML = `
                     <div class="planning-custom-header">
                         <div class="planning-custom-task-head">Plan görevleri</div>
                         <div class="planning-custom-date-head" style="width:${timelineWidth}px;--planning-period-width:${columnWidth}px">${headerCells}</div>
                     </div>
-                    ${rows}`;
+                    ${rows}
+                    ${fillerRows}`;
 
                 customBoard.querySelectorAll('.planning-custom-row').forEach(function (row) {
                     const taskId = row.dataset.customRowId;

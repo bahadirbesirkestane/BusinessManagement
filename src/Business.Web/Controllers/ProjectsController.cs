@@ -163,27 +163,8 @@ public class ProjectsController : Controller
 
     public async Task<IActionResult> Calendar(int? year, int? month, CancellationToken cancellationToken)
     {
-        var today = DateTime.Today;
-        var selectedYear = year ?? today.Year;
-        var selectedMonth = month ?? today.Month;
-        var monthStart = new DateTime(selectedYear, selectedMonth, 1);
-        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
-
-        var projects = await _context.Projects
-            .Include(x => x.Customer)
-            .AsNoTracking()
-            .ApplyRecordVisibility(User)
-            .Where(x =>
-                (x.StartDate.HasValue && x.StartDate.Value.Date <= monthEnd) ||
-                (x.TargetEndDate.HasValue && x.TargetEndDate.Value.Date >= monthStart && x.TargetEndDate.Value.Date <= monthEnd))
-            .OrderBy(x => x.TargetEndDate ?? x.StartDate ?? DateTime.MaxValue)
-            .ToListAsync(cancellationToken);
-
-        ViewBag.MonthStart = monthStart;
-        ViewBag.PreviousMonth = monthStart.AddMonths(-1);
-        ViewBag.NextMonth = monthStart.AddMonths(1);
-        ViewBag.Today = today;
-        return View(projects);
+        await Task.CompletedTask;
+        return RedirectToAction(nameof(Index));
     }
 
     public IActionResult Costs()

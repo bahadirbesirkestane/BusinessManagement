@@ -23,32 +23,19 @@ public class ReportsController : Controller
     }
 
     [Authorize(Policy = AppPolicies.CanViewProjects)]
-    public async Task<IActionResult> Gantt(Guid? projectId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Gantt(CancellationToken cancellationToken)
     {
-        var projectOptions = await _context.Projects
-            .AsNoTracking()
-            .ApplyRecordVisibility(User)
-            .Where(x => x.Status != ProjectStatus.Cancelled)
-            .OrderBy(x => x.Code)
-            .Select(x => new ProjectFilterOptionViewModel { Id = x.Id, Text = x.Code + " - " + x.Name })
-            .ToListAsync(cancellationToken);
-
         var projectQuery = _context.Projects
             .Include(x => x.Customer)
             .Include(x => x.Tasks)
             .AsNoTracking()
             .ApplyRecordVisibility(User)
-            .Where(x => x.Status != ProjectStatus.Cancelled);
-
-        if (projectId.HasValue)
-        {
-            projectQuery = projectQuery.Where(x => x.Id == projectId.Value);
-        }
+            .Where(x => x.Status != ProjectStatus.Cancelled && x.Status != ProjectStatus.Completed);
 
         var projects = await projectQuery
             .OrderBy(x => x.TargetEndDate ?? DateTime.MaxValue)
             .ThenBy(x => x.Code)
-            .Take(projectId.HasValue ? 1 : 40)
+            .Take(80)
             .ToListAsync(cancellationToken);
 
         if (!User.CanViewAdminOnlyRecords())
@@ -90,17 +77,6 @@ public class ReportsController : Controller
                 ?? project.Tasks.SelectMany(GetTaskDates).DefaultIfEmpty(projectStart).Max().Date;
 
             rows.Add(CreateProjectRow(project, projectStart, projectEnd, timelineStart, timelineEnd));
-
-            foreach (var task in project.Tasks
-                .Where(x => x.StartDate.HasValue || x.DueDate.HasValue)
-                .OrderBy(x => x.DueDate ?? DateTime.MaxValue)
-                .ThenBy(x => x.Title)
-                .Take(projectId.HasValue ? 500 : 8))
-            {
-                var taskStart = (task.StartDate ?? task.DueDate ?? task.CreatedAt).Date;
-                var taskEnd = (task.DueDate ?? task.StartDate ?? task.CompletedAt ?? task.CreatedAt).Date;
-                rows.Add(CreateTaskRow(task, project, taskStart, taskEnd, timelineStart, timelineEnd));
-            }
         }
 
         var model = new GanttReportViewModel
@@ -109,19 +85,17 @@ public class ReportsController : Controller
             TimelineEnd = timelineEnd,
             Segments = CreateTimelineSegments(timelineStart, timelineEnd),
             DaySegments = CreateDaySegments(timelineStart, timelineEnd),
-            Projects = projectOptions,
-            ProjectId = projectId,
             TimelineScaleText = CreateTimelineScaleText(timelineStart, timelineEnd),
             Rows = rows,
             ActiveProjectCount = projects.Count(x => x.Status is ProjectStatus.Planned or ProjectStatus.InProgress or ProjectStatus.Waiting),
             TaskCount = projects.Sum(x => x.Tasks.Count),
-            LateTaskCount = projects.SelectMany(x => x.Tasks).Count(IsLateTask)
+            LateTaskCount = projects.Count(x => x.TargetEndDate.HasValue && x.TargetEndDate.Value.Date < DateTime.Today && x.Status != ProjectStatus.Completed)
         };
 
         ViewBag.Breadcrumbs = new Dictionary<string, string?>
         {
             ["Raporlar ve Diyagramlar"] = null,
-            ["Gantt"] = null
+            ["Gantt Diyagramı"] = null
         };
 
         return View(model);
@@ -215,7 +189,8 @@ public class ReportsController : Controller
         return new GanttRowViewModel
         {
             Title = project.Code,
-            Subtitle = $"{project.Name} - {project.Customer?.Name ?? project.CustomerName ?? "Müşteri yok"}",
+            //Subtitle = $"{project.Name} - {project.Customer?.Name ?? project.CustomerName ?? "Müşteri yok"}",,
+            Subtitle = project.Name,
             StatusText = project.Status.ToDisplayName(),
             StatusCss = project.Status.ToString().ToLowerInvariant(),
             PriorityText = project.Priority.ToDisplayName(),
@@ -227,28 +202,7 @@ public class ReportsController : Controller
             WidthPercent = GetWidthPercent(start, end, timelineStart, timelineEnd),
             IsProject = true,
             IsLate = project.TargetEndDate.HasValue && project.TargetEndDate.Value.Date < DateTime.Today && project.Status != ProjectStatus.Completed,
-            Url = $"/Projects/Details/{project.Id}"
-        };
-    }
-
-    private static GanttRowViewModel CreateTaskRow(ProjectTask task, Project project, DateTime start, DateTime end, DateTime timelineStart, DateTime timelineEnd)
-    {
-        return new GanttRowViewModel
-        {
-            Title = task.Title,
-            Subtitle = project.Code,
-            StatusText = task.Status.ToDisplayName(),
-            StatusCss = task.Status.ToString().ToLowerInvariant(),
-            PriorityText = task.Priority.ToDisplayName(),
-            PriorityCss = task.Priority.ToString().ToLowerInvariant(),
-            StartDate = start,
-            EndDate = end,
-            ProgressPercent = task.Status == WorkTaskStatus.Done ? 100 : task.ProgressPercent,
-            OffsetPercent = GetOffsetPercent(start, timelineStart, timelineEnd),
-            WidthPercent = GetWidthPercent(start, end, timelineStart, timelineEnd),
-            IsProject = false,
-            IsLate = IsLateTask(task),
-            Url = $"/ProjectTasks/Details/{task.Id}"
+            Url = $"/ProjectPlanning?projectId={project.Id}"
         };
     }
 

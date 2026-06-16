@@ -234,18 +234,36 @@ public class ProjectPlanningController : Controller
             .ToListAsync(cancellationToken);
 
         var selectedProjectText = projects.FirstOrDefault(x => x.Id == projectId)?.Text;
+        ProjectPlanningSelectedProjectViewModel? selectedProject = null;
         ProjectStatus? selectedProjectStatus = null;
         var tasks = new List<ProjectPlanningTaskRowViewModel>();
         var ganttTasks = new List<ProjectPlanningGanttTaskViewModel>();
 
         if (projectId.HasValue && selectedProjectText is not null)
         {
-            selectedProjectStatus = await _context.Projects
+            selectedProject = await _context.Projects
                 .AsNoTracking()
                 .ApplyRecordVisibility(User)
                 .Where(x => x.Id == projectId.Value)
-                .Select(x => (ProjectStatus?)x.Status)
+                .Select(x => new ProjectPlanningSelectedProjectViewModel
+                {
+                    Id = x.Id,
+                    Code = x.Code,
+                    Name = x.Name,
+                    DisplayText = x.Code + " - " + x.Name,
+                    CustomerText = x.Customer != null ? x.Customer.Name : (x.CustomerName ?? "Müşteri yok"),
+                    Status = x.Status,
+                    StatusText = x.Status.ToDisplayName(),
+                    StatusCss = x.Status.ToString().ToLowerInvariant(),
+                    PriorityText = x.Priority.ToDisplayName(),
+                    Description = x.Description ?? x.Notes ?? string.Empty,
+                    StartDate = x.StartDate,
+                    TargetEndDate = x.TargetEndDate,
+                    TaskCount = x.Tasks.Count(task => !task.IsArchived)
+                })
                 .FirstOrDefaultAsync(cancellationToken);
+
+            selectedProjectStatus = selectedProject?.Status;
 
             var projectTasks = await _context.ProjectTasks
                 .Include(x => x.Assignments)
@@ -279,6 +297,7 @@ public class ProjectPlanningController : Controller
         {
             ProjectId = projectId,
             SelectedProjectText = selectedProjectText,
+            SelectedProject = selectedProject,
             SelectedProjectStatus = selectedProjectStatus,
             SelectedProjectStatusText = selectedProjectStatus?.ToDisplayName() ?? string.Empty,
             SelectedProjectStatusCss = selectedProjectStatus?.ToString().ToLowerInvariant() ?? string.Empty,

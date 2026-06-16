@@ -15,6 +15,7 @@
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsChangeStatus) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+    var selectedProject = Model.SelectedProject;
     var today = DateTime.Today;
     var planningTasks = Model.Tasks.Select(x => new
     {
@@ -96,7 +97,7 @@
             {
                 <button class="btn btn-primary btn-sm" type="button" data-plan-list-task-trigger data-parent-id="" data-parent-title="">Ana görev ekle</button>
             }
-            <a class="btn btn-outline-primary btn-sm" asp-action="Index" asp-route-projectId="@Model.ProjectId">Gantt 2</a>
+            <a class="btn btn-outline-primary btn-sm" asp-action="Index" asp-route-projectId="@Model.ProjectId">Proje planlama gantt</a>
             <a class="btn btn-outline-secondary btn-sm" asp-controller="Reports" asp-action="Kanban">Kanban</a>
         </div>
     </div>
@@ -142,12 +143,18 @@
     }
     else
     {
-        <div class="plan-list-project status-@Model.SelectedProjectStatusCss">
-            <div>
+        <div class="plan-list-project status-@Model.SelectedProjectStatusCss"
+             data-preview-title="@(selectedProject?.DisplayText ?? Model.SelectedProjectText ?? "Proje")"
+             data-preview-subtitle="Müşteri: @(selectedProject?.CustomerText ?? "-") | Öncelik: @(selectedProject?.PriorityText ?? "-")"
+             data-preview-meta="Başlangıç: @(selectedProject?.StartDate?.ToString("dd.MM.yyyy") ?? "-") | Hedef: @(selectedProject?.TargetEndDate?.ToString("dd.MM.yyyy") ?? "-") | Görev: @(selectedProject?.TaskCount ?? 0)"
+             data-preview-description="@(string.IsNullOrWhiteSpace(selectedProject?.Description) ? "Bu proje için ek açıklama girilmemiş." : selectedProject.Description)"
+             data-preview-status="@(selectedProject?.StatusText ?? Model.SelectedProjectStatusText)">
+            <a class="plan-list-project-main" asp-controller="Projects" asp-action="Details" asp-route-id="@Model.ProjectId" asp-route-returnUrl="@returnUrl">
                 <span>Seçili proje</span>
                 <strong>@Model.SelectedProjectText</strong>
-            </div>
-            <div>
+            </a>
+            <div class="plan-list-project-actions">
+                <button class="preview-trigger" type="button" data-preview-trigger title="Ek bilgi" aria-label="Ek bilgi">i</button>
                 @if (canChangeProjectStatus && Model.SelectedProjectStatus.HasValue)
                 {
                     <form asp-controller="Projects" asp-action="UpdateStatus" method="post" class="inline-status-form">
@@ -251,6 +258,14 @@
         }
     }
 </section>
+
+<div class="compact-preview-popover" data-compact-preview hidden>
+    <span class="list-preview-status" data-preview-status></span>
+    <h3 data-preview-title></h3>
+    <p class="list-preview-subtitle" data-preview-subtitle></p>
+    <p class="list-preview-meta" data-preview-meta></p>
+    <p class="list-preview-description" data-preview-description></p>
+</div>
 
 @if ((canCreateTask || canUpdateTask) && Model.ProjectId.HasValue && Model.SelectedProjectText is not null)
 {

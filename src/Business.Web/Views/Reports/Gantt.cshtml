@@ -2,14 +2,14 @@
 @using System.Text.Json
 @{
     ViewData["Title"] = "Gantt Diyagramı";
-    var chartHeight = Math.Max(360, Model.Rows.Count * 42 + 90);
+    var chartHeight = Math.Max(520, Math.Max(Model.Rows.Count, 8) * 46 + 120);
 }
 
 <section class="diagram-hero">
     <div>
         <p class="section-kicker">Raporlar ve diyagramlar</p>
-        <h2>Proje zaman çizelgesi</h2>
-        <p>Seçilen projenin işleri başlangıç ve termin tarihlerine göre profesyonel Gantt diyagramında izlenir.</p>
+        <h2>Proje planlama genel görünümü</h2>
+        <p>Bu ekranda yalnızca projeler yer alır. Bir proje satırına tıkladığınızda ilgili projenin planlama gantt ekranı açılır.</p>
     </div>
     <div class="diagram-summary-grid">
         <div>
@@ -17,11 +17,11 @@
             <strong>@Model.ActiveProjectCount</strong>
         </div>
         <div>
-            <span>Görev</span>
+            <span>Toplam görev</span>
             <strong>@Model.TaskCount</strong>
         </div>
         <div>
-            <span>Geciken görev</span>
+            <span>Geciken proje</span>
             <strong>@Model.LateTaskCount</strong>
         </div>
     </div>
@@ -31,55 +31,41 @@
     <div class="panel-heading">
         <div>
             <p class="section-kicker">@Model.TimelineScaleText · @Model.TimelineStart.ToString("dd.MM.yyyy") - @Model.TimelineEnd.ToString("dd.MM.yyyy")</p>
-            <h2>Gantt görünümü</h2>
+            <h2>Proje listesi ve zaman çizelgesi</h2>
         </div>
         <div class="toolbar-actions">
-            <a class="btn btn-outline-primary btn-sm" asp-action="Kanban">Kanban</a>
-            <a class="btn btn-outline-secondary btn-sm" asp-controller="Projects" asp-action="Index">Proje listesi</a>
+            <a class="btn btn-outline-primary btn-sm" asp-controller="ProjectPlanning" asp-action="Index">Proje planlama gantt</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="ProjectPlanning" asp-action="PlanList">Planlama listesi</a>
         </div>
     </div>
 
-    <form asp-action="Gantt" method="get" class="diagram-filter-bar">
-        <select name="projectId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Proje ara veya seç">
-            <option value="">Tüm projeler</option>
-            @foreach (var project in Model.Projects)
-            {
-                <option value="@project.Id" selected="@(Model.ProjectId == project.Id)">@project.Text</option>
-            }
-        </select>
-        <button class="btn btn-primary btn-sm" type="submit">Uygula</button>
-        <a class="btn btn-outline-secondary btn-sm" asp-action="Gantt">Temizle</a>
-    </form>
-
     @if (!Model.Rows.Any())
     {
-        <p class="empty-note">Tarih bilgisi olan proje veya görev bulunamadı.</p>
+        <p class="empty-note">Tarih bilgisi olan proje bulunamadı.</p>
     }
     else
     {
         <div class="gantt-legend" aria-label="Gantt renk açıklaması">
-            <span><i style="background:#2563eb"></i>Proje</span>
-            <span><i style="background:#94a3b8"></i>Yapılacak</span>
-            <span><i style="background:#0ea5e9"></i>Devam Ediyor</span>
+            <span><i style="background:#94a3b8"></i>Planlandı</span>
+            <span><i style="background:#0ea5e9"></i>Devam ediyor</span>
             <span><i style="background:#f59e0b"></i>Beklemede</span>
-            <span><i style="background:#8b5cf6"></i>Kontrolde</span>
-            <span><i style="background:#16a34a"></i>Bitti</span>
-            <span><i style="background:#dc2626"></i>İptal Edildi</span>
+            <span><i style="background:#16a34a"></i>Tamamlandı</span>
+            <span><i style="background:#dc2626"></i>İptal edildi</span>
         </div>
 
-        <div class="google-gantt-shell">
-            <div id="gantt_chart" class="google-gantt-chart" style="min-height:@(chartHeight)px"></div>
-            <div id="gantt_error" class="empty-note d-none">Gantt kütüphanesi yüklenemedi. Sunucunun Google Charts CDN erişimini kontrol edin.</div>
+        <div class="google-gantt-shell google-gantt-shell-large">
+            <div id="gantt_chart" class="google-gantt-chart google-gantt-chart-large" style="min-height:@(chartHeight)px"></div>
+            <div id="gantt_error" class="empty-note d-none">Gantt kütüphanesi yüklenemedi. Sunucunun Google Charts erişimini kontrol edin.</div>
         </div>
 
         <details class="collapsible-section gantt-data-fallback">
-            <summary>Gantt veri listesi</summary>
+            <summary>Proje veri listesi</summary>
             <div class="table-responsive">
                 <table class="table app-table align-middle">
                     <thead>
                         <tr>
-                            <th>Kayıt</th>
-                            <th>Tür</th>
+                            <th>Proje kodu</th>
+                            <th>Proje adı</th>
                             <th>Durum</th>
                             <th>Başlangıç</th>
                             <th>Bitiş</th>
@@ -90,8 +76,8 @@
                         @foreach (var row in Model.Rows)
                         {
                             <tr>
-                                <td><a href="@row.Url">@row.Title</a><small class="d-block text-muted">@row.Subtitle</small></td>
-                                <td>@(row.IsProject ? "Proje" : "Görev")</td>
+                                <td><a href="@row.Url">@row.Title</a></td>
+                                <td>@row.Subtitle</td>
                                 <td><span class="status-pill status-@row.StatusCss">@row.StatusText</span></td>
                                 <td>@row.StartDate.ToString("dd.MM.yyyy")</td>
                                 <td>@row.EndDate.ToString("dd.MM.yyyy")</td>
@@ -118,8 +104,8 @@
                         ? row.StartDate.Date.AddDays(1)
                         : row.EndDate.Date.AddDays(1);
                     var taskId = $"row-{i}";
-                    var taskName = row.IsProject ? $"{row.Title} · {row.Subtitle}" : row.Title;
-                    var resource = row.IsProject ? "Proje" : row.StatusText;
+                    var taskName = $"  {row.Title} · {row.Subtitle}";
+                    var resource = row.StatusText;
                     <text>[
                         @Html.Raw(JsonSerializer.Serialize(taskId)),
                         @Html.Raw(JsonSerializer.Serialize(taskName)),
@@ -141,12 +127,10 @@
             ];
 
             const ganttResourceColors = {
-                'Proje': { color: '#2563eb', dark: '#1d4ed8', light: '#dbeafe' },
-                'Yapılacak': { color: '#94a3b8', dark: '#64748b', light: '#f1f5f9' },
+                'Planlandı': { color: '#94a3b8', dark: '#64748b', light: '#f1f5f9' },
                 'Devam Ediyor': { color: '#0ea5e9', dark: '#0284c7', light: '#e0f2fe' },
                 'Beklemede': { color: '#f59e0b', dark: '#d97706', light: '#fef3c7' },
-                'Kontrolde': { color: '#8b5cf6', dark: '#7c3aed', light: '#ede9fe' },
-                'Bitti': { color: '#16a34a', dark: '#15803d', light: '#dcfce7' },
+                'Tamamlandı': { color: '#16a34a', dark: '#15803d', light: '#dcfce7' },
                 'İptal Edildi': { color: '#dc2626', dark: '#b91c1c', light: '#fee2e2' }
             };
 
@@ -166,28 +150,28 @@
 
             function drawGanttChart() {
                 const data = new google.visualization.DataTable();
-                data.addColumn('string', 'Task ID');
-                data.addColumn('string', 'Task Name');
-                data.addColumn('string', 'Resource');
-                data.addColumn('date', 'Start Date');
-                data.addColumn('date', 'End Date');
-                data.addColumn('number', 'Duration');
-                data.addColumn('number', 'Percent Complete');
-                data.addColumn('string', 'Dependencies');
+                data.addColumn('string', 'Kayıt kimliği');
+                data.addColumn('string', 'Proje');
+                data.addColumn('string', 'Durum');
+                data.addColumn('date', 'Başlangıç tarihi');
+                data.addColumn('date', 'Bitiş tarihi');
+                data.addColumn('number', 'Süre');
+                data.addColumn('number', 'Tamamlanma yüzdesi');
+                data.addColumn('string', 'Bağlı kayıt');
                 data.addRows(ganttRows);
 
                 const options = {
                     height: @chartHeight,
                     backgroundColor: '#ffffff',
                     gantt: {
-                        trackHeight: 36,
-                        barHeight: 22,
+                        trackHeight: 38,
+                        barHeight: 24,
                         percentEnabled: true,
                         criticalPathEnabled: false,
                         labelStyle: {
-                            fontName: 'Segoe UI',
-                            fontSize: 13,
-                            color: '#18202f'
+                            fontName: 'Trebuchet MS',
+                            fontSize: 14,
+                            color: '#111111'
                         },
                         innerGridHorizLine: {
                             stroke: '#e6eaf0'

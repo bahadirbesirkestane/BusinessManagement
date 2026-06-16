@@ -7,6 +7,7 @@ public class ProjectPlanningIndexViewModel
 {
     public Guid? ProjectId { get; set; }
     public string? SelectedProjectText { get; set; }
+    public ProjectPlanningSelectedProjectViewModel? SelectedProject { get; set; }
     public ProjectStatus? SelectedProjectStatus { get; set; }
     public string SelectedProjectStatusText { get; set; } = string.Empty;
     public string SelectedProjectStatusCss { get; set; } = string.Empty;
@@ -19,6 +20,23 @@ public class ProjectPlanningIndexViewModel
     public ProjectTemplateApplyViewModel TemplateApplyForm { get; set; } = new();
     public bool OpenTaskForm { get; set; }
     public string TaskFormMode { get; set; } = "create";
+}
+
+public class ProjectPlanningSelectedProjectViewModel
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string DisplayText { get; set; } = string.Empty;
+    public string CustomerText { get; set; } = string.Empty;
+    public ProjectStatus Status { get; set; }
+    public string StatusText { get; set; } = string.Empty;
+    public string StatusCss { get; set; } = string.Empty;
+    public string PriorityText { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public DateTime? StartDate { get; set; }
+    public DateTime? TargetEndDate { get; set; }
+    public int TaskCount { get; set; }
 }
 
 public class ProjectPlanningProjectOptionViewModel
