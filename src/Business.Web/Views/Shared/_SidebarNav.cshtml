@@ -85,6 +85,7 @@
             {
                 (Label: "Malzeme Listesi", Url: "/Materials"),
                 (Label: "Malzeme İhtiyaç Listesi", Url: "/MaterialRequests"),
+                (Label: "İhtiyaç Şablonları", Url: "/MaterialRequestTemplates"),
                 (Label: "Malzeme Kategorileri", Url: "/MaterialCategories")
             }
         },
@@ -230,6 +231,11 @@
         }
 
         if (url.StartsWith("/MaterialRequests", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.MaterialRequestsView, AppPermissions.MaterialRequestsManage);
+        }
+
+        if (url.StartsWith("/MaterialRequestTemplates", StringComparison.OrdinalIgnoreCase))
         {
             return HasPermission(AppPermissions.MaterialRequestsView, AppPermissions.MaterialRequestsManage);
         }

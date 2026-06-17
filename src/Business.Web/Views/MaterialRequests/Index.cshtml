@@ -1,6 +1,10 @@
 @model IReadOnlyList<Business.Domain.Entities.MaterialRequest>
 @{
     ViewData["Title"] = "Malzeme İhtiyaçları";
+    var canManageRequest = User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage);
+    var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
+    var currentReturnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+    var defaultProjectId = ViewBag.ProjectId?.ToString();
 }
 
 <section class="panel-block">
@@ -10,10 +14,13 @@
             <h2>Gerekli malzeme listesi</h2>
             <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
-        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
-        {
-            <a class="btn btn-primary btn-sm" asp-action="Create">Yeni talep</a>
-        }
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="MaterialRequestTemplates" asp-action="Index">Şablonlar</a>
+            @if (canManageRequest)
+            {
+                <a class="btn btn-primary btn-sm" asp-action="Create" asp-route-projectId="@ViewBag.ProjectId" asp-route-returnUrl="@currentReturnUrl">Yeni ihtiyaç</a>
+            }
+        </div>
     </div>
 
     <form asp-action="Index" method="get" class="list-filter-bar list-filter-bar-wide">
@@ -31,7 +38,7 @@
                 <option value="">Proje</option>
                 @foreach (var project in ViewBag.Projects)
                 {
-                    <option value="@project.Id">@project.Code - @project.Name</option>
+                    <option value="@project.Id" selected="@(defaultProjectId == project.Id.ToString())">@project.Code - @project.Name</option>
                 }
             </select>
         }
@@ -64,61 +71,205 @@
         <a class="icon-filter-button clear" asp-action="Index" asp-route-projectId="@ViewBag.ProjectId" title="Temizle" aria-label="Temizle">×</a>
     </form>
 
-    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
+    @if (canManageRequest)
+    {
+        <details class="inline-quick-panel" @(Model.Any() ? null : "open")>
+            <summary>Üstten hızlı ihtiyaç ekle</summary>
+            <form asp-action="Create" method="post" class="quick-inline-grid mt-3">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
+                <input type="hidden" name="Status" value="@MaterialRequestStatus.Requested" />
+                <div>
+                    <label class="form-label">İstenen malzeme</label>
+                    <input name="RequestedItem" class="form-control" required maxlength="420" placeholder="Ne gerekiyor?" />
+                </div>
+                <div>
+                    <label class="form-label">Proje</label>
+                    <select name="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya seç">
+                        <option value="">Genel</option>
+                        @foreach (var project in ViewBag.Projects)
+                        {
+                            <option value="@project.Id" selected="@(defaultProjectId == project.Id.ToString())">@project.Code - @project.Name</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Malzeme sınıfı</label>
+                    <select name="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
+                        <option value="">Seçilmedi</option>
+                        @foreach (var material in ViewBag.Materials)
+                        {
+                            <option value="@material.Id">@material.Name</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Miktar</label>
+                    <input name="Quantity" type="number" step="0.001" class="form-control" />
+                </div>
+                <div>
+                    <label class="form-label">Birim</label>
+                    <input name="Unit" class="form-control" maxlength="40" placeholder="Adet, kg, metre" />
+                </div>
+                <div>
+                    <label class="form-label">Miktar metni</label>
+                    <input name="QuantityText" class="form-control" maxlength="80" placeholder="Örn. 12 adet" />
+                </div>
+                <div>
+                    <label class="form-label">Kalite</label>
+                    <input name="Quality" class="form-control" maxlength="120" />
+                </div>
+                <div>
+                    <label class="form-label">Gerekli tarih</label>
+                    <input name="NeededBy" type="date" class="form-control" value="@DateTime.Today.AddDays(3).ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="quick-inline-grid-wide">
+                    <label class="form-label">Not</label>
+                    <input name="Notes" class="form-control" maxlength="2000" />
+                </div>
+                <div class="quick-inline-actions">
+                    <button class="btn btn-primary" type="submit">Hızlı kaydet</button>
+                </div>
+            </form>
+        </details>
+    }
+
+    @if (canManageRequest)
     {
         <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
-            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
             <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
             <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
         </form>
     }
 
-    <div class="table-responsive">
-        <table class="table app-table align-middle">
-            <thead>
-                <tr>
-                    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
-                    {
-                        <th class="bulk-check-cell">
-                            <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm malzeme taleplerini seç" />
-                        </th>
-                    }
-                    <th>Malzeme</th>
-                    <th>Proje</th>
-                    <th>Miktar</th>
-                    <th>Kalite</th>
-                    <th>Gerekli tarih</th>
-                    <th>Durum</th>
-                    <th>Not</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var request in Model)
-                {
-                    <tr class="status-row status-@request.Status.ToString().ToLowerInvariant()" data-row-link="@Url.Action("Details", new { id = request.Id })">
-                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
+    @if (!Model.Any())
+    {
+        <div class="empty-note empty-note-empty-state">
+            <div>
+                <strong>Uygun ihtiyaç kaydı bulunamadı.</strong>
+                <span>Filtreleri temizleyin veya yeni bir ihtiyaç kaydı ekleyin.</span>
+            </div>
+            @if (canManageRequest)
+            {
+                <a class="btn btn-primary btn-sm" asp-action="Create" asp-route-projectId="@ViewBag.ProjectId" asp-route-returnUrl="@currentReturnUrl">Yeni ihtiyaç oluştur</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive table-responsive-menu">
+            <table class="table app-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Malzeme</th>
+                        @if (canManageRequest)
                         {
-                            <td><input type="checkbox" name="ids" value="@request.Id" form="bulkDeleteForm" /></td>
+                            <th class="bulk-check-cell">
+                                <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm ihtiyaç kayıtlarını seç" />
+                            </th>
                         }
-                        <td><strong>@request.RequestedItem</strong><small class="d-block text-muted">@request.Material?.Name</small></td>
-                        <td>@(request.Project?.Code ?? "Genel")</td>
-                        <td>@(request.QuantityText ?? request.Quantity?.ToString("0.###") ?? "-")</td>
-                        <td>@(request.Quality ?? "-")</td>
-                        <td>@request.NeededBy.ToString("dd.MM.yyyy")</td>
-                        <td><span class="status-pill status-@request.Status.ToString().ToLowerInvariant()">@request.Status.ToDisplayName()</span></td>
-                        <td>@(request.Notes ?? "-")</td>
-                        <td class="text-end">
-                            <a asp-action="Details" asp-route-id="@request.Id">Detay</a>
-                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
-                            {
-                                <span> · </span><a asp-action="Edit" asp-route-id="@request.Id">Düzenle</a>
-                                <span> · </span><a class="text-danger" asp-action="Delete" asp-route-id="@request.Id">Sil</a>
-                            }
-                        </td>
+                        <th>Proje</th>
+                        <th>Miktar</th>
+                        <th>Kalite</th>
+                        <th>Gerekli tarih</th>
+                        <th>Durum</th>
+                        <th>Not</th>
+                        <th></th>
                     </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody>
+                    @foreach (var request in Model)
+                    {
+                        var returnUrl = currentReturnUrl;
+                        var quantityDisplay = request.QuantityText
+                            ?? (request.Quantity.HasValue
+                                ? string.IsNullOrWhiteSpace(request.Unit)
+                                    ? request.Quantity.Value.ToString("0.###")
+                                    : $"{request.Quantity.Value:0.###} {request.Unit}"
+                                : "-");
+                        var previewDescription = !string.IsNullOrWhiteSpace(request.Notes)
+                            ? request.Notes
+                            : "Bu ihtiyaç kaydı için ek not girilmemiş. Detay sayfasından dosyaları ve yorumları inceleyebilirsiniz.";
+                        <tr class="status-row status-@request.Status.ToString().ToLowerInvariant()"
+                            data-row-link="@Url.Action("Details", new { id = request.Id })"
+                            data-preview-group="material-requests-list"
+                            data-preview-title="@request.RequestedItem"
+                            data-preview-subtitle="Proje: @(request.Project?.Code ?? "Genel") | Tanımlı malzeme: @(request.Material?.Name ?? "Belirtilmedi")"
+                            data-preview-meta="Gerekli tarih: @request.NeededBy.ToString("dd.MM.yyyy") | Kalite: @(request.Quality ?? "Belirtilmedi")"
+                            data-preview-description="@previewDescription"
+                            data-preview-status="@request.Status.ToDisplayName()">
+                            <td>
+                                <strong>@request.RequestedItem</strong>
+                                <small class="d-block text-muted table-note-clamp">@request.Material?.Name</small>
+                            </td>
+                            @if (canManageRequest)
+                            {
+                                <td><input type="checkbox" name="ids" value="@request.Id" form="bulkDeleteForm" /></td>
+                            }
+                            <td>@(request.Project?.Code ?? "Genel")</td>
+                            <td>@quantityDisplay</td>
+                            <td>@(request.Quality ?? "-")</td>
+                            <td>@request.NeededBy.ToString("dd.MM.yyyy")</td>
+                            <td>
+                                @if (canManageRequest)
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="inline-status-form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@request.Id" />
+                                        <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
+                                        <select name="status" class="status-select status-@request.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="İhtiyaç durumu">
+                                            @foreach (MaterialRequestStatus item in Enum.GetValues<MaterialRequestStatus>())
+                                            {
+                                                <option value="@item" selected="@(request.Status == item)">@item.ToDisplayName()</option>
+                                            }
+                                        </select>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="status-pill status-@request.Status.ToString().ToLowerInvariant()">@request.Status.ToDisplayName()</span>
+                                }
+                            </td>
+                            <td>@(request.Notes ?? "-")</td>
+                            <td class="text-end action-cell">
+                                <div class="action-shell">
+                                    <button class="preview-trigger" type="button" data-preview-trigger title="Hızlı önizleme" aria-label="Hızlı önizleme">i</button>
+                                    <details class="action-menu">
+                                        <summary aria-label="İhtiyaç işlemleri">...</summary>
+                                        <div class="action-menu-list">
+                                            <a asp-action="Details" asp-route-id="@request.Id">Detay</a>
+                                            @if (canCreateOrder)
+                                            {
+                                                <a asp-controller="PurchaseOrders" asp-action="Create" asp-route-materialRequestId="@request.Id" asp-route-returnUrl="@returnUrl">Siparişe gönder</a>
+                                            }
+                                            @if (canManageRequest)
+                                            {
+                                                <form asp-action="Repeat" asp-route-id="@request.Id" method="post" class="inline-form">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                    <button class="link-button" type="submit">İhtiyacı tekrarla</button>
+                                                </form>
+                                                <a asp-action="Edit" asp-route-id="@request.Id" asp-route-returnUrl="@returnUrl">Düzenle</a>
+                                                <a class="text-danger" asp-action="Delete" asp-route-id="@request.Id">Sil</a>
+                                            }
+                                        </div>
+                                    </details>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </section>
+
+<div class="compact-preview-popover" data-compact-preview hidden>
+    <span class="list-preview-status" data-preview-status></span>
+    <h3 data-preview-title></h3>
+    <p class="list-preview-subtitle" data-preview-subtitle></p>
+    <p class="list-preview-meta" data-preview-meta></p>
+    <p class="list-preview-description" data-preview-description></p>
+</div>

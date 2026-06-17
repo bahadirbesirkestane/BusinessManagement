@@ -3,6 +3,7 @@ using Business.Domain.Entities;
 using Business.Domain.Enums;
 using Business.Infrastructure.Data;
 using Business.Infrastructure.Identity;
+using Business.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -116,35 +117,61 @@ public class MaterialRequestsController : Controller
     }
 
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
-    public async Task<IActionResult> Create(CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid? projectId, string? returnUrl, CancellationToken cancellationToken)
     {
-        await FillLookupsAsync(cancellationToken);
-        return View(new MaterialRequest { NeededBy = DateTime.Today.AddDays(3) });
+        var model = new MaterialRequest
+        {
+            NeededBy = DateTime.Today.AddDays(3),
+            Status = MaterialRequestStatus.Requested,
+            ProjectId = projectId
+        };
+
+        if (projectId.HasValue)
+        {
+            var projectExists = await _context.Projects
+                .AsNoTracking()
+                .AnyAsync(x => x.Id == projectId.Value, cancellationToken);
+            if (!projectExists)
+            {
+                return NotFound();
+            }
+        }
+
+        await FillLookupsAsync(cancellationToken, NormalizeReturnUrl(returnUrl));
+        return View(model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
-    public async Task<IActionResult> Create(MaterialRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(MaterialRequest request, string? returnUrl, CancellationToken cancellationToken)
     {
+        returnUrl = NormalizeReturnUrl(returnUrl);
+        NormalizeMaterialRequestInput(request);
+
         if (!ModelState.IsValid)
         {
-            await FillLookupsAsync(cancellationToken);
+            await FillLookupsAsync(cancellationToken, returnUrl);
             return View(request);
         }
 
         request.RequestedByUserId = _userManager.GetUserId(User);
         await _materialRequestService.CreateAsync(request, cancellationToken);
+
         if (request.ProjectId.HasValue)
         {
-            await _projectTimelineService.AddAsync(request.ProjectId.Value, "İhtiyaç listesine eklendi", request.RequestedItem, cancellationToken);
+            await _projectTimelineService.AddAsync(
+                request.ProjectId.Value,
+                "İhtiyaç listesine eklendi",
+                request.RequestedItem,
+                cancellationToken);
         }
 
-        return RedirectToAction(nameof(Index));
+        return RedirectToLocal(returnUrl);
     }
 
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
-    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var request = await _materialRequestService.GetByIdAsync(id, cancellationToken);
         if (request is null)
@@ -152,28 +179,114 @@ public class MaterialRequestsController : Controller
             return NotFound();
         }
 
-        await FillLookupsAsync(cancellationToken);
+        await FillLookupsAsync(cancellationToken, NormalizeReturnUrl(returnUrl));
         return View(request);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
-    public async Task<IActionResult> Edit(Guid id, MaterialRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, MaterialRequest request, string? returnUrl, CancellationToken cancellationToken)
     {
         if (id != request.Id)
         {
             return BadRequest();
         }
 
+        returnUrl = NormalizeReturnUrl(returnUrl);
+        NormalizeMaterialRequestInput(request);
+
         if (!ModelState.IsValid)
         {
-            await FillLookupsAsync(cancellationToken);
+            await FillLookupsAsync(cancellationToken, returnUrl);
             return View(request);
         }
 
         await _materialRequestService.UpdateAsync(request, cancellationToken);
-        return RedirectToAction(nameof(Index));
+
+        if (request.ProjectId.HasValue)
+        {
+            await _projectTimelineService.AddAsync(
+                request.ProjectId.Value,
+                "İhtiyaç kaydı güncellendi",
+                request.RequestedItem,
+                cancellationToken);
+        }
+
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanRequestMaterials)]
+    public async Task<IActionResult> UpdateStatus(Guid id, MaterialRequestStatus status, string? returnUrl, CancellationToken cancellationToken)
+    {
+        var request = await _context.MaterialRequests.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (request is null)
+        {
+            return NotFound();
+        }
+
+        if (request.Status != status)
+        {
+            request.Status = status;
+            NormalizeMaterialRequestInput(request);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            if (request.ProjectId.HasValue)
+            {
+                await _projectTimelineService.AddAsync(
+                    request.ProjectId.Value,
+                    "İhtiyaç durumu güncellendi",
+                    $"{request.RequestedItem} - {status.ToDisplayName()}",
+                    cancellationToken);
+            }
+        }
+
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanRequestMaterials)]
+    public async Task<IActionResult> Repeat(Guid id, string? returnUrl, CancellationToken cancellationToken)
+    {
+        var sourceRequest = await _context.MaterialRequests
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (sourceRequest is null)
+        {
+            return NotFound();
+        }
+
+        var repeatedRequest = new MaterialRequest
+        {
+            ProjectId = sourceRequest.ProjectId,
+            MaterialId = sourceRequest.MaterialId,
+            RequestedItem = sourceRequest.RequestedItem,
+            Quantity = sourceRequest.Quantity,
+            QuantityText = sourceRequest.QuantityText,
+            Unit = sourceRequest.Unit,
+            Quality = sourceRequest.Quality,
+            NeededBy = sourceRequest.NeededBy,
+            Notes = sourceRequest.Notes,
+            Status = MaterialRequestStatus.Requested,
+            RequestedByUserId = _userManager.GetUserId(User)
+        };
+
+        NormalizeMaterialRequestInput(repeatedRequest);
+        await _materialRequestService.CreateAsync(repeatedRequest, cancellationToken);
+
+        if (repeatedRequest.ProjectId.HasValue)
+        {
+            await _projectTimelineService.AddAsync(
+                repeatedRequest.ProjectId.Value,
+                "İhtiyaç kaydı tekrarlandı",
+                repeatedRequest.RequestedItem,
+                cancellationToken);
+        }
+
+        return RedirectToLocal(returnUrl);
     }
 
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
@@ -213,6 +326,33 @@ public class MaterialRequestsController : Controller
         return RedirectToLocal(returnUrl);
     }
 
+    private static void NormalizeMaterialRequestInput(MaterialRequest request)
+    {
+        request.RequestedItem = request.RequestedItem?.Trim() ?? string.Empty;
+        request.QuantityText = string.IsNullOrWhiteSpace(request.QuantityText) ? null : request.QuantityText.Trim();
+        request.Unit = string.IsNullOrWhiteSpace(request.Unit) ? null : request.Unit.Trim();
+        request.Quality = string.IsNullOrWhiteSpace(request.Quality) ? null : request.Quality.Trim();
+        request.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+
+        if (request.Quantity.HasValue && request.Quantity.Value <= 0)
+        {
+            request.Quantity = null;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.QuantityText) && request.Quantity.HasValue)
+        {
+            var quantityText = request.Quantity.Value.ToString("0.###");
+            request.QuantityText = string.IsNullOrWhiteSpace(request.Unit)
+                ? quantityText
+                : $"{quantityText} {request.Unit}";
+        }
+    }
+
+    private static string? NormalizeReturnUrl(string? returnUrl)
+    {
+        return string.IsNullOrWhiteSpace(returnUrl) ? null : returnUrl;
+    }
+
     private IActionResult RedirectToLocal(string? returnUrl)
     {
         return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
@@ -220,9 +360,10 @@ public class MaterialRequestsController : Controller
             : RedirectToAction(nameof(Index));
     }
 
-    private async Task FillLookupsAsync(CancellationToken cancellationToken)
+    private async Task FillLookupsAsync(CancellationToken cancellationToken, string? returnUrl = null)
     {
         ViewBag.Projects = await _lookupService.GetProjectsAsync(cancellationToken);
         ViewBag.Materials = await _lookupService.GetMaterialsAsync(cancellationToken);
+        ViewBag.ReturnUrl = returnUrl;
     }
 }

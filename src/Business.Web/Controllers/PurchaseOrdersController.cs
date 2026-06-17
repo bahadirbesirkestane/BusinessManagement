@@ -365,15 +365,45 @@ public class PurchaseOrdersController : Controller
         };
 
         await _purchaseOrderService.CreateAsync(repeatedOrder, cancellationToken);
-        await _projectTimelineService.AddForOrderAsync(repeatedOrder.Id, "Sipariş tekrarlandı", repeatedOrder.Content, cancellationToken);
+        await _projectTimelineService.AddForOrderAsync(repeatedOrder.Id, "Sipariş tekrarlandı", $"{repeatedOrder.OrderNumber} - {repeatedOrder.Content}", cancellationToken);
         TempData["Success"] = $"Yeni sipariş oluşturuldu: {orderNumber}";
 
         return RedirectToLocal(returnUrl);
     }
 
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
-    public async Task<IActionResult> Create(Guid? projectId, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid? projectId, Guid? materialRequestId, string? returnUrl, CancellationToken cancellationToken)
     {
+        PurchaseOrder? prefilledOrder = null;
+
+        if (materialRequestId.HasValue)
+        {
+            var materialRequest = await _context.MaterialRequests
+                .Include(x => x.Project)
+                .Include(x => x.Material)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == materialRequestId.Value, cancellationToken);
+            if (materialRequest is null)
+            {
+                return NotFound();
+            }
+
+            projectId ??= materialRequest.ProjectId;
+            prefilledOrder = new PurchaseOrder
+            {
+                ProjectId = materialRequest.ProjectId,
+                MaterialId = materialRequest.MaterialId,
+                Content = materialRequest.RequestedItem,
+                Quantity = materialRequest.Quantity,
+                QuantityText = materialRequest.QuantityText,
+                Unit = materialRequest.Unit,
+                Quality = materialRequest.Quality,
+                ExpectedArrivalDate = materialRequest.NeededBy,
+                Notes = materialRequest.Notes,
+                Scope = materialRequest.ProjectId.HasValue ? PurchaseOrderScope.Project : PurchaseOrderScope.General
+            };
+        }
+
         if (projectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -388,7 +418,7 @@ public class PurchaseOrdersController : Controller
 
         await FillLookupsAsync(cancellationToken);
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
-        return View(new PurchaseOrder
+        return View(prefilledOrder ?? new PurchaseOrder
         {
             ProjectId = projectId,
             OrderNumber = await GenerateOrderNumberAsync(cancellationToken),
@@ -490,7 +520,7 @@ public class PurchaseOrdersController : Controller
 
         foreach (var order in createdOrders)
         {
-            await _projectTimelineService.AddForOrderAsync(order.Id, "Hızlı sipariş oluşturuldu", order.Content, cancellationToken);
+            await _projectTimelineService.AddForOrderAsync(order.Id, "Hızlı sipariş oluşturuldu", $"{order.OrderNumber} - {order.Content}", cancellationToken);
         }
 
         TempData["Success"] = $"{createdOrders.Count} sipariş oluşturuldu.";
@@ -538,7 +568,7 @@ public class PurchaseOrdersController : Controller
         order.RequestedBy = currentUser?.FullName ?? User.Identity?.Name;
         order.RequestedByUserId = currentUser?.Id;
         await _purchaseOrderService.CreateAsync(order, cancellationToken);
-        await _projectTimelineService.AddForOrderAsync(order.Id, "Sipariş oluşturuldu", order.Content, cancellationToken);
+        await _projectTimelineService.AddForOrderAsync(order.Id, "Sipariş oluşturuldu", $"{order.OrderNumber} - {order.Content}", cancellationToken);
         return RedirectToLocal(returnUrl, order.ProjectId.HasValue ? new { projectId = order.ProjectId } : null);
     }
 
@@ -598,7 +628,7 @@ public class PurchaseOrdersController : Controller
             .FirstOrDefaultAsync(cancellationToken);
         await _purchaseOrderService.UpdateAsync(order, cancellationToken);
         var updateTitle = oldStatus.HasValue && oldStatus.Value != order.Status ? "Sipariş durumu değişti" : "Sipariş güncellendi";
-        await _projectTimelineService.AddForOrderAsync(order.Id, updateTitle, $"{order.Content} - {order.Status.ToDisplayName()}", cancellationToken);
+        await _projectTimelineService.AddForOrderAsync(order.Id, updateTitle, $"{order.OrderNumber} - {order.Content} - {order.Status.ToDisplayName()}", cancellationToken);
         return RedirectToLocal(returnUrl, order.ProjectId.HasValue ? new { projectId = order.ProjectId } : null);
     }
 
@@ -675,7 +705,7 @@ public class PurchaseOrdersController : Controller
             order.Status = status;
             order.ArrivalDate = status == PurchaseOrderStatus.Delivered ? DateTime.Today : order.ArrivalDate;
             await _context.SaveChangesAsync(cancellationToken);
-            await _projectTimelineService.AddForOrderAsync(order.Id, "Sipariş durumu değişti", $"{order.Content} - {status.ToDisplayName()}", cancellationToken);
+            await _projectTimelineService.AddForOrderAsync(order.Id, "Sipariş durumu değişti", $"{order.OrderNumber} - {order.Content} - {status.ToDisplayName()}", cancellationToken);
         }
 
         return RedirectToLocal(returnUrl);
@@ -697,7 +727,7 @@ public class PurchaseOrdersController : Controller
 
         SetOrderArchiveState(order, archived);
         await _context.SaveChangesAsync(cancellationToken);
-        await _projectTimelineService.AddForOrderAsync(order.Id, archived ? "Sipariş arşivlendi" : "Sipariş arşivden çıkarıldı", order.Content, cancellationToken);
+        await _projectTimelineService.AddForOrderAsync(order.Id, archived ? "Sipariş arşivlendi" : "Sipariş arşivden çıkarıldı", $"{order.OrderNumber} - {order.Content}", cancellationToken);
         return RedirectToLocal(returnUrl);
     }
 

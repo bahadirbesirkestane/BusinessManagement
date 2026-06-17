@@ -3,6 +3,10 @@
     ViewData["Title"] = Model.Project.Code;
     var visibleProjectTasks = ViewBag.VisibleProjectTasks as IReadOnlyList<ProjectTask> ?? [];
     var taskHierarchyLabels = ViewBag.TaskHierarchyLabels as IReadOnlyDictionary<Guid, string> ?? new Dictionary<Guid, string>();
+    var canCreateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
+    var canManageMaterialRequests = User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage);
+    var currentReturnUrl = Context.Request.Path.ToString();
 }
 
 <section class="project-header">
@@ -11,6 +15,7 @@
         <h2>@Model.Project.Name</h2>
         <p><strong>Müşteri:</strong> @(Model.Project.Customer?.Name ?? Model.Project.CustomerName ?? "Müşteri bilgisi yok.")</p>
         <p><strong>Açıklama:</strong> @(Model.Project.Description ?? "Açıklama bilgisi yok.")</p>
+        <p><strong>Oluşturulma tarihi:</strong> @Model.Project.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
     </div>
     <div class="project-header-actions">
         <span class="status-pill">@Model.Project.Status.ToDisplayName()</span>
@@ -36,7 +41,7 @@
             </div>
             <div class="toolbar-actions">
                 <a class="btn btn-outline-primary btn-sm" asp-controller="ProjectTasks" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
-                @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+                @if (canCreateTask)
                 {
                     <a class="btn btn-primary btn-sm" asp-controller="ProjectTasks" asp-action="Create" asp-route-projectId="@Model.Project.Id">Yeni Görev Ekle</a>
                 }
@@ -79,7 +84,7 @@
                 </div>
                 <div class="toolbar-actions">
                     <a class="btn btn-outline-primary btn-sm" asp-controller="PurchaseOrders" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
-                    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage))
+                    @if (canCreateOrder)
                     {
                         <a class="btn btn-primary btn-sm" asp-controller="PurchaseOrders" asp-action="Create" asp-route-projectId="@Model.Project.Id">Yeni Sipariş Ekle</a>
                     }
@@ -110,18 +115,85 @@
                 <p class="section-kicker">Malzeme</p>
                 <h2>İhtiyaç listesi</h2>
             </div>
-            <a class="btn btn-outline-primary btn-sm" asp-controller="MaterialRequests" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
+            <div class="toolbar-actions">
+                <a class="btn btn-outline-primary btn-sm" asp-controller="MaterialRequests" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
+                @if (canManageMaterialRequests)
+                {
+                    <a class="btn btn-primary btn-sm" asp-controller="MaterialRequests" asp-action="Create" asp-route-projectId="@Model.Project.Id" asp-route-returnUrl="@currentReturnUrl">Yeni ekle</a>
+                }
+            </div>
         </div>
+
+        @if (canManageMaterialRequests)
+        {
+            <details class="inline-quick-panel" @(Model.Project.MaterialRequests.Any() ? null : "open")>
+                <summary>Üstten hızlı ihtiyaç ekle</summary>
+                <form asp-controller="MaterialRequests" asp-action="Create" method="post" class="quick-inline-grid mt-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="ProjectId" value="@Model.Project.Id" />
+                    <input type="hidden" name="Status" value="@MaterialRequestStatus.Requested" />
+                    <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
+                    <div>
+                        <label class="form-label">İstenen malzeme</label>
+                        <input name="RequestedItem" class="form-control" required maxlength="420" placeholder="Ne gerekiyor?" />
+                    </div>
+                    <div>
+                        <label class="form-label">Malzeme sınıfı</label>
+                        <select name="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
+                            <option value="">Seçilmedi</option>
+                            @foreach (var material in ViewBag.Materials)
+                            {
+                                <option value="@material.Id">@material.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Miktar</label>
+                        <input name="Quantity" type="number" step="0.001" class="form-control" />
+                    </div>
+                    <div>
+                        <label class="form-label">Birim</label>
+                        <input name="Unit" class="form-control" maxlength="40" placeholder="Adet, kg, metre" />
+                    </div>
+                    <div>
+                        <label class="form-label">Miktar metni</label>
+                        <input name="QuantityText" class="form-control" maxlength="80" placeholder="Örn. 12 adet" />
+                    </div>
+                    <div>
+                        <label class="form-label">Kalite</label>
+                        <input name="Quality" class="form-control" maxlength="120" />
+                    </div>
+                    <div>
+                        <label class="form-label">Gerekli tarih</label>
+                        <input name="NeededBy" type="date" class="form-control" value="@DateTime.Today.AddDays(3).ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="quick-inline-grid-wide">
+                        <label class="form-label">Not</label>
+                        <input name="Notes" class="form-control" maxlength="2000" />
+                    </div>
+                    <div class="quick-inline-actions">
+                        <button class="btn btn-primary" type="submit">Hızlı kaydet</button>
+                    </div>
+                </form>
+            </details>
+        }
+
         <div class="list-stack">
             @foreach (var request in Model.Project.MaterialRequests.OrderByDescending(x => x.CreatedAt).Take(7))
             {
-                <div class="list-row">
+                var quantityDisplay = request.QuantityText
+                    ?? (request.Quantity.HasValue
+                        ? string.IsNullOrWhiteSpace(request.Unit)
+                            ? request.Quantity.Value.ToString("0.###")
+                            : $"{request.Quantity.Value:0.###} {request.Unit}"
+                        : "-");
+                <a class="list-row list-row-link" asp-controller="MaterialRequests" asp-action="Details" asp-route-id="@request.Id">
                     <span>
                         <strong>@request.RequestedItem</strong>
-                        <small>@request.QuantityText · @request.Quality</small>
+                        <small>@quantityDisplay · @(request.Quality ?? "Kalite belirtilmedi")</small>
                     </span>
                     <span class="status-pill">@request.Status.ToDisplayName()</span>
-                </div>
+                </a>
             }
             @if (!Model.Project.MaterialRequests.Any())
             {
@@ -154,7 +226,7 @@
                     <div class="list-row">
                         <span>
                             <strong>@update.Title</strong>
-                            <small>@update.Description</small>
+                            <small>@(string.IsNullOrWhiteSpace(update.Description) ? "Ek açıklama yok." : update.Description)</small>
                         </span>
                         <small>@update.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
                     </div>

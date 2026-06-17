@@ -710,13 +710,15 @@ a:hover {
 
 .status-row.status-completed,
 .status-row.status-done,
-.status-row.status-delivered {
+.status-row.status-delivered,
+.status-row.status-fulfilled {
   border-left: 4px solid #16a34a;
 }
 
 .status-row.status-completed > td,
 .status-row.status-done > td,
-.status-row.status-delivered > td {
+.status-row.status-delivered > td,
+.status-row.status-fulfilled > td {
   background: #c8f2d8;
   color: #0f3d24;
 }
@@ -772,7 +774,8 @@ a:hover {
 
 .status-row.status-completed[data-row-link]:hover > td,
 .status-row.status-done[data-row-link]:hover > td,
-.status-row.status-delivered[data-row-link]:hover > td {
+.status-row.status-delivered[data-row-link]:hover > td,
+.status-row.status-fulfilled[data-row-link]:hover > td {
   background: #b2eac8;
 }
 
@@ -890,6 +893,10 @@ a:hover {
   border-radius: 8px;
   background: #fff;
   box-shadow: inset 0 -1px 0 rgba(15, 23, 42, .02);
+}
+
+.table-responsive.table-responsive-menu {
+  min-height: 320px;
 }
 
 .table-responsive::after {

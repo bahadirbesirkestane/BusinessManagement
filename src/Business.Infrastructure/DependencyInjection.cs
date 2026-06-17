@@ -153,6 +153,7 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IPurchaseOrderTemplateService, PurchaseOrderTemplateService>();
         services.AddScoped<IMaterialRequestService, MaterialRequestService>();
+        services.AddScoped<IMaterialRequestTemplateService, MaterialRequestTemplateService>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IInvoiceService, InvoiceService>();
         services.AddScoped<ISupplierService, SupplierService>();

@@ -33,6 +33,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<PurchaseOrderTemplate> PurchaseOrderTemplates => Set<PurchaseOrderTemplate>();
     public DbSet<PurchaseOrderTemplateLine> PurchaseOrderTemplateLines => Set<PurchaseOrderTemplateLine>();
     public DbSet<MaterialRequest> MaterialRequests => Set<MaterialRequest>();
+    public DbSet<MaterialRequestTemplate> MaterialRequestTemplates => Set<MaterialRequestTemplate>();
+    public DbSet<MaterialRequestTemplateLine> MaterialRequestTemplateLines => Set<MaterialRequestTemplateLine>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
@@ -328,6 +330,27 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Quality).HasMaxLength(120);
             entity.Property(x => x.RequestedByUserId).HasMaxLength(450);
             entity.HasOne(x => x.Material).WithMany(x => x.MaterialRequests).HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<MaterialRequestTemplate>(entity =>
+        {
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.Code).HasMaxLength(40);
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.HasMany(x => x.Lines).WithOne(x => x.MaterialRequestTemplate).HasForeignKey(x => x.MaterialRequestTemplateId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<MaterialRequestTemplateLine>(entity =>
+        {
+            entity.Property(x => x.RequestedItem).HasMaxLength(420).IsRequired();
+            entity.Property(x => x.Quantity).HasColumnType("decimal(18,3)");
+            entity.Property(x => x.QuantityText).HasMaxLength(80);
+            entity.Property(x => x.Unit).HasMaxLength(40);
+            entity.Property(x => x.Quality).HasMaxLength(120);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.MaterialRequestTemplateId, x.SortOrder });
+            entity.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<Customer>(entity =>

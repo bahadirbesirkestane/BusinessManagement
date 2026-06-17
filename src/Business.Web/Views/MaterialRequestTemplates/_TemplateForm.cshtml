@@ -1,0 +1,27 @@
+@model MaterialRequestTemplateFormViewModel
+
+<div class="form-grid">
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label">Şablon adı</label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Code" class="form-label">Şablon kodu</label>
+        <input asp-for="Code" class="form-control" />
+        <span asp-validation-for="Code" class="text-danger"></span>
+    </div>
+    <div class="mb-3 wide">
+        <label asp-for="Description" class="form-label">Açıklama</label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DefaultStatus" class="form-label">Varsayılan durum</label>
+        <select asp-for="DefaultStatus" asp-items="Html.GetEnumSelectList<MaterialRequestStatus>()" class="form-select"></select>
+    </div>
+    <label class="check-card check-inline wide">
+        <input asp-for="IsActive" />
+        <span>Şablon aktif olarak kullanılsın</span>
+    </label>
+</div>

@@ -1,0 +1,336 @@
+@model MaterialRequestTemplateDetailsViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "İhtiyaç Şablonu Detayı";
+    var canManageTemplates = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage);
+    var lineItems = Model.Lines.Select(x => new
+    {
+        id = x.Id.ToString(),
+        materialId = x.MaterialId?.ToString(),
+        requestedItem = x.RequestedItem,
+        quantity = x.Quantity,
+        quantityText = x.QuantityText,
+        unit = x.Unit,
+        quality = x.Quality,
+        neededByOffsetDays = x.NeededByOffsetDays,
+        notes = x.Notes
+    });
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">İhtiyaç şablonları</p>
+        <h2>@Model.Name</h2>
+        <p>@(string.IsNullOrWhiteSpace(Model.Description) ? "Tekrar eden malzeme ihtiyaçları için kullanılacak ön tanımlı satırları burada yönetin." : Model.Description)</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Şablon kodu</span>
+            <strong>@(string.IsNullOrWhiteSpace(Model.Code) ? "-" : Model.Code)</strong>
+        </div>
+        <div>
+            <span>Varsayılan durum</span>
+            <strong>@Model.StatusText</strong>
+        </div>
+        <div>
+            <span>Şablon satırı</span>
+            <strong>@Model.Lines.Count</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Şablon özeti</p>
+            <h2>Varsayılan bilgiler</h2>
+        </div>
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Listeye dön</a>
+            @if (canManageTemplates)
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Şablonu düzenle</a>
+                <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu ihtiyaç şablonu ve tüm şablon satırları silinsin mi?');">Sil</button>
+                </form>
+                <button class="btn btn-primary btn-sm" type="button" data-template-line-trigger>Satır ekle</button>
+            }
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="panel-block h-100">
+                <dl class="mb-0">
+                    <div class="mb-2"><dt>Varsayılan durum</dt><dd>@Model.StatusText</dd></div>
+                    <div><dt>Aktiflik</dt><dd>@(Model.IsActive ? "Aktif" : "Pasif")</dd></div>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="panel-block h-100">
+                <div class="panel-heading">
+                    <div>
+                        <p class="section-kicker">Tek seferde oluştur</p>
+                        <h2>Şablonu ihtiyaç kayıtlarına dönüştür</h2>
+                    </div>
+                </div>
+                <div class="row g-4 align-items-end">
+                    <div class="col-md-8">
+                        <form asp-action="ApplyTemplate" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="TemplateId" value="@Model.Id" />
+                            <div class="mb-3">
+                                <label class="form-label" for="applyProjectId">Proje</label>
+                                <select id="applyProjectId" name="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya seç">
+                                    <option value="">Genel ihtiyaç</option>
+                                    @foreach (var project in Model.Projects)
+                                    {
+                                        <option value="@project.Id">@project.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="applyNeededByDate">Gerekli tarih</label>
+                                <input id="applyNeededByDate" name="NeededByDate" type="date" class="form-control" value="@Model.ApplyForm.NeededByDate.ToString("yyyy-MM-dd")" />
+                                <div class="form-text">Satır bazlı ihtiyaç ofseti varsa bu tarihe göre hesaplanır.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Şablondan ihtiyaç oluştur</button>
+                        </form>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="panel-block h-100 mb-0">
+                            <p class="section-kicker">Bilgi</p>
+                            <h3 class="h6">Uygulama davranışı</h3>
+                            <ul class="mb-0 ps-3">
+                                <li>Her satır ayrı ihtiyaç kaydı olarak açılır.</li>
+                                <li>Proje seçilirse kayıtlar doğrudan o projeye bağlanır.</li>
+                                <li>Ofset girilen satırlar gerekli tarihe göre ötelenir.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="panel-block">
+                <div class="panel-heading">
+                    <div>
+                        <p class="section-kicker">Şablon satırları</p>
+                        <h2>İhtiyaç kalemleri</h2>
+                    </div>
+                </div>
+
+                @if (!Model.Lines.Any())
+                {
+                    <p class="empty-note">Bu şablona henüz satır eklenmemiş.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table app-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>İhtiyaç kalemi</th>
+                                    <th>Malzeme</th>
+                                    <th>Miktar</th>
+                                    <th>Kalite</th>
+                                    <th>İhtiyaç ofseti</th>
+                                    <th class="text-end">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var line in Model.Lines)
+                                {
+                                    <tr>
+                                        <td>@line.SortOrder</td>
+                                        <td>
+                                            <strong>@line.RequestedItem</strong>
+                                            @if (!string.IsNullOrWhiteSpace(line.Notes))
+                                            {
+                                                <div class="text-muted small">Not: @line.Notes</div>
+                                            }
+                                        </td>
+                                        <td>@(line.MaterialName ?? "-")</td>
+                                        <td>@(line.QuantityText ?? line.Quantity?.ToString("0.###") ?? "-") @(line.Unit ?? "")</td>
+                                        <td>@(line.Quality ?? "-")</td>
+                                        <td>@(line.NeededByOffsetDays?.ToString() ?? "-")</td>
+                                        <td class="text-end">
+                                            @if (canManageTemplates)
+                                            {
+                                                <button class="btn btn-outline-secondary btn-sm" type="button" data-template-edit-line="@line.Id">Düzenle</button>
+                                                <form asp-action="DeleteLine" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="templateId" value="@Model.Id" />
+                                                    <input type="hidden" name="lineId" value="@line.Id" />
+                                                    <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu şablon satırı silinsin mi?');">Sil</button>
+                                                </form>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+@if (canManageTemplates)
+{
+    <div class="modal fade planning-task-modal" id="templateLineModal" tabindex="-1" aria-labelledby="templateLineModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <form asp-action="AddLine" method="post" id="templateLineForm">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="LineForm.Id" type="hidden" />
+                    <input asp-for="LineForm.MaterialRequestTemplateId" type="hidden" value="@Model.Id" />
+                    <div class="modal-header">
+                        <div>
+                            <p class="section-kicker mb-1">İhtiyaç şablonları</p>
+                            <h2 class="modal-title fs-5" id="templateLineModalTitle">Şablon satırı ekle</h2>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="form-grid">
+                            <div class="mb-3 wide">
+                                <label asp-for="LineForm.RequestedItem" class="form-label">İhtiyaç kalemi</label>
+                                <input asp-for="LineForm.RequestedItem" class="form-control" />
+                                <span asp-validation-for="LineForm.RequestedItem" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.MaterialId" class="form-label">Malzeme</label>
+                                <select asp-for="LineForm.MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
+                                    <option value="">Seçilmedi</option>
+                                    @foreach (var material in Model.Materials)
+                                    {
+                                        <option value="@material.Value">@material.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.Quantity" class="form-label">Miktar</label>
+                                <input asp-for="LineForm.Quantity" type="number" step="0.001" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.QuantityText" class="form-label">Miktar metni</label>
+                                <input asp-for="LineForm.QuantityText" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.Unit" class="form-label">Birim</label>
+                                <input asp-for="LineForm.Unit" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.Quality" class="form-label">Kalite</label>
+                                <input asp-for="LineForm.Quality" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LineForm.NeededByOffsetDays" class="form-label">İhtiyaç ofseti (gün)</label>
+                                <input asp-for="LineForm.NeededByOffsetDays" type="number" class="form-control" />
+                            </div>
+                            <div class="mb-3 wide">
+                                <label asp-for="LineForm.Notes" class="form-label">Not</label>
+                                <textarea asp-for="LineForm.Notes" class="form-control" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                        <button type="submit" class="btn btn-primary">Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const templateLineItems = @Html.Raw(JsonSerializer.Serialize(lineItems));
+
+        (() => {
+            const modalElement = document.getElementById('templateLineModal');
+            if (!modalElement || typeof bootstrap === 'undefined') {
+                return;
+            }
+
+            const modal = new bootstrap.Modal(modalElement);
+            const form = document.getElementById('templateLineForm');
+            const title = document.getElementById('templateLineModalTitle');
+            const addUrl = '@Url.Action("AddLine", "MaterialRequestTemplates")';
+            const updateUrl = '@Url.Action("UpdateLine", "MaterialRequestTemplates")';
+
+            function setField(name, value) {
+                const field = modalElement.querySelector(`[name="${name}"]`);
+                if (field) {
+                    field.value = value ?? '';
+                }
+            }
+
+            function openCreate() {
+                form.action = addUrl;
+                setField('LineForm.Id', '');
+                setField('LineForm.MaterialId', '');
+                setField('LineForm.RequestedItem', '');
+                setField('LineForm.Quantity', '');
+                setField('LineForm.QuantityText', '');
+                setField('LineForm.Unit', '');
+                setField('LineForm.Quality', '');
+                setField('LineForm.NeededByOffsetDays', '');
+                setField('LineForm.Notes', '');
+                title.textContent = 'Şablon satırı ekle';
+                modal.show();
+            }
+
+            function openEdit(lineId) {
+                const line = templateLineItems.find(x => x.id === lineId);
+                if (!line) {
+                    return;
+                }
+
+                form.action = updateUrl;
+                setField('LineForm.Id', line.id);
+                setField('LineForm.MaterialId', line.materialId || '');
+                setField('LineForm.RequestedItem', line.requestedItem || '');
+                setField('LineForm.Quantity', line.quantity ?? '');
+                setField('LineForm.QuantityText', line.quantityText || '');
+                setField('LineForm.Unit', line.unit || '');
+                setField('LineForm.Quality', line.quality || '');
+                setField('LineForm.NeededByOffsetDays', line.neededByOffsetDays ?? '');
+                setField('LineForm.Notes', line.notes || '');
+                title.textContent = 'Şablon satırını düzenle';
+                modal.show();
+            }
+
+            document.addEventListener('click', function (event) {
+                if (event.target.closest('[data-template-line-trigger]')) {
+                    openCreate();
+                    return;
+                }
+
+                const editButton = event.target.closest('[data-template-edit-line]');
+                if (editButton) {
+                    openEdit(editButton.dataset.templateEditLine);
+                }
+            });
+
+            if (@Html.Raw(JsonSerializer.Serialize(Model.OpenLineForm))) {
+                if (@Html.Raw(JsonSerializer.Serialize(Model.LineFormMode)) === 'edit') {
+                    form.action = updateUrl;
+                    title.textContent = 'Şablon satırını düzenle';
+                }
+                modal.show();
+            }
+        })();
+    </script>
+}

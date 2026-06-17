@@ -193,6 +193,7 @@ public class ProjectsController : Controller
         };
         ViewBag.VisibleProjectTasks = GetVisibleProjectTasks(project);
         ViewBag.TaskHierarchyLabels = CreateTaskHierarchyLabels(project.Tasks);
+        ViewBag.Materials = await _lookupService.GetMaterialsAsync(cancellationToken);
         return View(new ProjectDetailsViewModel
         {
             Project = project,
@@ -240,7 +241,7 @@ public class ProjectsController : Controller
         }
 
         await _projectService.CreateAsync(project, cancellationToken);
-        await _projectTimelineService.AddAsync(project.Id, "Proje oluşturuldu", project.Name, cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, "Proje oluşturuldu", $"{project.Code} - {project.Name}", cancellationToken);
         return RedirectToAction(nameof(Index));
     }
 
@@ -283,7 +284,7 @@ public class ProjectsController : Controller
         }
 
         await _projectService.UpdateAsync(project, cancellationToken);
-        await _projectTimelineService.AddAsync(project.Id, "Proje düzenlendi", project.Name, cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, "Proje düzenlendi", $"{project.Code} - {project.Name}", cancellationToken);
         return RedirectToAction(nameof(Index));
     }
 
@@ -343,7 +344,7 @@ public class ProjectsController : Controller
             project.Status = status;
             project.CompletedAt = status == ProjectStatus.Completed ? DateTime.UtcNow : project.CompletedAt;
             await _projectService.UpdateAsync(project, cancellationToken);
-            await _projectTimelineService.AddAsync(project.Id, "Proje durumu değişti", status.ToDisplayName(), cancellationToken);
+            await _projectTimelineService.AddAsync(project.Id, "Proje durumu değişti", $"{project.Code} - {status.ToDisplayName()}", cancellationToken);
         }
 
         return RedirectToLocal(returnUrl);
@@ -366,7 +367,7 @@ public class ProjectsController : Controller
 
         SetProjectArchiveState(project, archived);
         await _context.SaveChangesAsync(cancellationToken);
-        await _projectTimelineService.AddAsync(project.Id, archived ? "Proje arşivlendi" : "Proje arşivden çıkarıldı", project.Name, cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, archived ? "Proje arşivlendi" : "Proje arşivden çıkarıldı", $"{project.Code} - {project.Name}", cancellationToken);
         return RedirectToLocal(returnUrl);
     }
 

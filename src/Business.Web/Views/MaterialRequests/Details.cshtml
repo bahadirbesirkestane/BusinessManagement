@@ -1,6 +1,8 @@
 @model MaterialRequest
 @{
     ViewData["Title"] = "Malzeme Talebi Detayı";
+    var canManageRequest = User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage);
+    var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
 }
 
 <section class="panel-block">
@@ -8,11 +10,16 @@
         <div><p class="section-kicker">İhtiyaç</p><h2>@Model.RequestedItem</h2></div>
         <div class="actions-row">
             <span class="status-pill">@Model.Status.ToDisplayName()</span>
-            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage))
+            @if (canManageRequest)
             {
                 <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Düzenle</a>
                 <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id">Sil</a>
             }
+            @if (canCreateOrder)
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-controller="PurchaseOrders" asp-action="Create" asp-route-materialRequestId="@Model.Id" asp-route-returnUrl="@Context.Request.Path">Siparişe gönder</a>
+            }
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="MaterialRequestTemplates" asp-action="Index">Şablonlar</a>
         </div>
     </div>
     <dl class="row">

@@ -1,0 +1,98 @@
+@model IReadOnlyList<MaterialRequestTemplateListItemViewModel>
+@{
+    ViewData["Title"] = "İhtiyaç Şablonları";
+    var canManageTemplates = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage);
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">Malzeme ihtiyaçları</p>
+        <h2>İhtiyaç şablonları</h2>
+        <p>Tekrar eden malzeme ihtiyaçlarını standartlaştırmak için ihtiyaç şablonlarını yönetin.</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Toplam şablon</span>
+            <strong>@Model.Count</strong>
+        </div>
+        <div>
+            <span>Aktif şablon</span>
+            <strong>@Model.Count(x => x.IsActive)</strong>
+        </div>
+        <div>
+            <span>Toplam satır</span>
+            <strong>@Model.Sum(x => x.LineCount)</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Şablon listesi</p>
+            <h2>Kayıtlı ihtiyaç şablonları</h2>
+        </div>
+        @if (canManageTemplates)
+        {
+            <a class="btn btn-primary btn-sm" asp-action="Create">Yeni şablon</a>
+        }
+    </div>
+
+    @if (!Model.Any())
+    {
+        <p class="empty-note">Henüz ihtiyaç şablonu bulunmuyor.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table app-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Şablon</th>
+                        <th>Varsayılan durum</th>
+                        <th>Satır</th>
+                        <th>Durum</th>
+                        <th class="text-end">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@item.Name</strong>
+                                @if (!string.IsNullOrWhiteSpace(item.Code))
+                                {
+                                    <div class="text-muted small">@item.Code</div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.Description))
+                                {
+                                    <div class="text-muted small">@item.Description</div>
+                                }
+                            </td>
+                            <td>@item.StatusText</td>
+                            <td>@item.LineCount</td>
+                            <td>
+                                <span class="status-pill @(item.IsActive ? "status-done" : "status-waiting")">
+                                    @(item.IsActive ? "Aktif" : "Pasif")
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-outline-primary btn-sm" asp-action="Details" asp-route-id="@item.Id">Detay</a>
+                                @if (canManageTemplates)
+                                {
+                                    <a class="btn btn-outline-secondary btn-sm" asp-action="Edit" asp-route-id="@item.Id">Düzenle</a>
+                                    <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu ihtiyaç şablonu ve tüm satırları silinsin mi?');">Sil</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

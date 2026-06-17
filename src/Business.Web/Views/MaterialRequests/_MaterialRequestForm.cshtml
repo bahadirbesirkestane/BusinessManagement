@@ -1,9 +1,18 @@
 @model MaterialRequest
+@{
+    var returnUrl = ViewBag.ReturnUrl as string;
+}
 
 <section class="panel-block form-panel">
-    <div class="panel-heading"><div><p class="section-kicker">Atölye / proje ekibi</p><h2>@ViewData["Title"]</h2></div></div>
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Atölye / proje ekibi</p>
+            <h2>@ViewData["Title"]</h2>
+        </div>
+    </div>
     <form method="post" class="app-form">
         <input type="hidden" asp-for="Id" />
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
         <div class="form-grid">
             <div class="mb-3">
@@ -26,13 +35,49 @@
                     }
                 </select>
             </div>
-            <div class="mb-3 wide"><label asp-for="RequestedItem" class="form-label">İstenen malzeme</label><input asp-for="RequestedItem" class="form-control" placeholder="Örn. 30x3 mm paslanmaz lama" /></div>
-            <div class="mb-3"><label asp-for="QuantityText" class="form-label">Adet / miktar</label><input asp-for="QuantityText" class="form-control" /></div>
-            <div class="mb-3"><label asp-for="Quality" class="form-label">Kalite</label><input asp-for="Quality" class="form-control" /></div>
-            <div class="mb-3"><label asp-for="Status" class="form-label">Durum</label><select asp-for="Status" asp-items="Html.GetEnumSelectList<MaterialRequestStatus>()" class="form-select"></select></div>
-            <div class="mb-3"><label asp-for="NeededBy" class="form-label">Gerekli tarih</label><input asp-for="NeededBy" type="date" class="form-control" /></div>
-            <div class="mb-3 wide"><label asp-for="Notes" class="form-label">Not</label><textarea asp-for="Notes" class="form-control" rows="3"></textarea></div>
+            <div class="mb-3 wide">
+                <label asp-for="RequestedItem" class="form-label">İstenen malzeme</label>
+                <input asp-for="RequestedItem" class="form-control" placeholder="Örn. 30x3 mm paslanmaz lama" />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Quantity" class="form-label">Miktar</label>
+                <input asp-for="Quantity" type="number" step="0.001" class="form-control" />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Unit" class="form-label">Birim</label>
+                <input asp-for="Unit" class="form-control" placeholder="Adet, kg, metre" />
+            </div>
+            <div class="mb-3">
+                <label asp-for="QuantityText" class="form-label">Miktar metni</label>
+                <input asp-for="QuantityText" class="form-control" placeholder="Örn. 12 adet" />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Quality" class="form-label">Kalite</label>
+                <input asp-for="Quality" class="form-control" />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Status" class="form-label">Durum</label>
+                <select asp-for="Status" asp-items="Html.GetEnumSelectList<MaterialRequestStatus>()" class="form-select"></select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="NeededBy" class="form-label">Gerekli tarih</label>
+                <input asp-for="NeededBy" type="date" class="form-control" />
+            </div>
+            <div class="mb-3 wide">
+                <label asp-for="Notes" class="form-label">Not</label>
+                <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+            </div>
         </div>
-        <div class="form-actions"><a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a><button class="btn btn-primary" type="submit">Kaydet</button></div>
+        <div class="form-actions">
+            @if (!string.IsNullOrWhiteSpace(returnUrl))
+            {
+                <a class="btn btn-outline-secondary" href="@returnUrl">Vazgeç</a>
+            }
+            else
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            }
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+        </div>
     </form>
 </section>
