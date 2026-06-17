@@ -1,6 +1,7 @@
 @model IReadOnlyList<StockItem>
 @{
     var title = ViewData["Title"]?.ToString() ?? "Stok Listesi";
+    var canManageStock = User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin);
 }
 
 <section class="panel-block">
@@ -11,20 +12,26 @@
         </div>
         <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Stok Durumu</a>
     </div>
-    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+    @if (canManageStock)
     {
-        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkDeleteForm" hidden>
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <div class="bulk-bar-actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkDeleteForm">Seçimi temizle</button>
+                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+            </div>
         </form>
     }
     <div class="table-responsive">
         <table class="table app-table align-middle">
             <thead>
                 <tr>
-                    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+                    @if (canManageStock)
                     {
-                        <th></th>
+                        <th class="bulk-check-cell">
+                            <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm stok kalemlerini seç" />
+                        </th>
                     }
                     <th>Malzeme</th>
                     <th>Tür</th>
@@ -39,7 +46,7 @@
                 @foreach (var item in Model)
                 {
                     <tr class="status-row status-@item.Status.ToString().ToLowerInvariant()">
-                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.StockManage) || User.IsInRole(AppRoles.Admin))
+                        @if (canManageStock)
                         {
                             <td><input type="checkbox" name="ids" value="@item.Id" form="bulkDeleteForm" /></td>
                         }

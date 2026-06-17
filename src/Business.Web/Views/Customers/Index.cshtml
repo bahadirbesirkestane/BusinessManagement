@@ -1,6 +1,7 @@
 @model IReadOnlyList<Business.Domain.Entities.Customer>
 @{
     ViewData["Title"] = "Müşteriler";
+    var canManageCustomers = User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage);
 }
 
 <section class="panel-block">
@@ -10,16 +11,20 @@
             <h2>Müşteri listesi</h2>
             <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
-        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage))
+        @if (canManageCustomers)
         {
             <a class="btn btn-primary btn-sm" asp-action="Create">Yeni müşteri</a>
         }
     </div>
 
-    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage))
+    @if (canManageCustomers)
     {
-        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
-            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkDeleteForm" hidden>
+            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <div class="bulk-bar-actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkDeleteForm">Seçimi temizle</button>
+                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+            </div>
         </form>
     }
 
@@ -27,32 +32,38 @@
         <table class="table app-table align-middle">
             <thead>
                 <tr>
+                    @if (canManageCustomers)
+                    {
+                        <th class="bulk-check-cell">
+                            <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm müşterileri seç" />
+                        </th>
+                    }
                     <th>Müşteri</th>
-                    <th></th>
                     <th>Vergi no</th>
                     <th>İletişim</th>
                     <th>Vade</th>
                     <th>Durum</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var customer in Model)
                 {
                     <tr>
-                        <td><strong>@customer.Name</strong><small class="d-block text-muted">@customer.ContactPerson</small></td>
-                        <td>
-                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage))
-                            {
+                        @if (canManageCustomers)
+                        {
+                            <td>
                                 <input type="checkbox" name="ids" value="@customer.Id" form="bulkDeleteForm" />
-                            }
-                        </td>
+                            </td>
+                        }
+                        <td><strong>@customer.Name</strong><small class="d-block text-muted">@customer.ContactPerson</small></td>
                         <td>@(customer.TaxNumber ?? "-")</td>
                         <td>@(customer.Phone ?? customer.Email ?? "-")</td>
                         <td>@(customer.PaymentTerm ?? "-")</td>
                         <td><span class="status-pill">@(customer.IsActive ? "Aktif" : "Pasif")</span></td>
                         <td class="text-end">
                             <a asp-action="Details" asp-route-id="@customer.Id">Detay</a>
-                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CustomersManage))
+                            @if (canManageCustomers)
                             {
                                 <span> · </span><a asp-action="Edit" asp-route-id="@customer.Id">Düzenle</a>
                                 <span> · </span><a class="text-danger" asp-action="Delete" asp-route-id="@customer.Id">Sil</a>

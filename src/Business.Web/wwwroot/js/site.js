@@ -63,7 +63,7 @@ function initSearchableSelects() {
 
         function syncInputFromSelect() {
             var selectedOption = select.options[select.selectedIndex];
-            input.value = selectedOption ? selectedOption.text : '';
+            input.value = selectedOption && selectedOption.value ? selectedOption.text : '';
         }
 
         function closeList() {
@@ -117,6 +117,14 @@ function initSearchableSelects() {
         });
 
         input.addEventListener('input', function () {
+            var normalizedInput = normalize(input.value);
+            var selectedOption = select.options[select.selectedIndex];
+            var selectedText = selectedOption && selectedOption.value ? normalize(selectedOption.text) : '';
+
+            if (!normalizedInput || normalizedInput !== selectedText) {
+                select.value = '';
+            }
+
             renderOptions();
             openList();
         });

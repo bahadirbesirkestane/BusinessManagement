@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Genel Giderler";
     var total = Model.Sum(x => x.Amount);
+    var canManageCosts = User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin);
 }
 
 <section class="panel-block">
@@ -12,26 +13,45 @@
         </div>
         <span class="status-pill">@total.ToString("N2") TRY</span>
     </div>
-    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+    @if (canManageCosts)
     {
-        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkDeleteForm" hidden>
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-            <button class="btn btn-outline-danger btn-sm" type="submit">Seçilenleri sil</button>
+            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <div class="bulk-bar-actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkDeleteForm">Seçimi temizle</button>
+                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+            </div>
         </form>
     }
     <div class="table-responsive">
         <table class="table app-table align-middle">
-            <thead><tr><th>Tarih</th><th>Proje</th><th>Tür</th><th>Açıklama</th><th>Tutar</th><th></th></tr></thead>
+            <thead>
+                <tr>
+                    @if (canManageCosts)
+                    {
+                        <th class="bulk-check-cell">
+                            <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm genel giderleri seç" />
+                        </th>
+                    }
+                    <th>Tarih</th>
+                    <th>Proje</th>
+                    <th>Tür</th>
+                    <th>Açıklama</th>
+                    <th>Tutar</th>
+                    <th></th>
+                </tr>
+            </thead>
             <tbody>
             @foreach (var item in Model)
             {
                 <tr>
-                    <td>
-                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
-                        {
+                    @if (canManageCosts)
+                    {
+                        <td>
                             <input type="checkbox" name="ids" value="@item.Id" form="bulkDeleteForm" />
-                        }
-                    </td>
+                        </td>
+                    }
                     <td>@(item.CostDate?.ToString("dd.MM.yyyy") ?? item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy"))</td>
                     <td>@(item.Project?.Code ?? "Genel")</td>
                     <td>@item.Type.ToDisplayName()</td>

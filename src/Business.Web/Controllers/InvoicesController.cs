@@ -241,6 +241,27 @@ public class InvoicesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanManageInvoices)]
+    public async Task<IActionResult> BulkDelete(Guid[] ids, CancellationToken cancellationToken)
+    {
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count > 0)
+        {
+            _context.RecordComments.RemoveRange(_context.RecordComments.Where(x => x.OwnerType == RecordOwnerType.Invoice && selectedIds.Contains(x.OwnerId)));
+            _context.RecordFiles.RemoveRange(_context.RecordFiles.Where(x => x.OwnerType == RecordOwnerType.Invoice && selectedIds.Contains(x.OwnerId)));
+            await _context.SaveChangesAsync(cancellationToken);
+
+            foreach (var id in selectedIds)
+            {
+                await _invoiceService.DeleteAsync(id, cancellationToken);
+            }
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     private async Task FillLookupsAsync(CancellationToken cancellationToken)
     {
         ViewBag.Customers = await _lookupService.GetCustomersAsync(cancellationToken);

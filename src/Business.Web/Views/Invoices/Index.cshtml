@@ -1,6 +1,7 @@
 @model IReadOnlyList<Business.Domain.Entities.Invoice>
 @{
     ViewData["Title"] = "Faturalar";
+    var canManageInvoices = User.HasClaim(AppClaimTypes.Permission, AppPermissions.InvoicesManage);
 }
 
 <section class="panel-block">
@@ -10,11 +11,22 @@
             <h2>Fatura listesi</h2>
             <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
-        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.InvoicesManage))
+        @if (canManageInvoices)
         {
             <a class="btn btn-primary btn-sm" asp-action="Create">Yeni fatura</a>
         }
     </div>
+
+    @if (canManageInvoices)
+    {
+        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkDeleteForm" hidden>
+            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
+            <div class="bulk-bar-actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkDeleteForm">Seçimi temizle</button>
+                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+            </div>
+        </form>
+    }
 
     <form asp-action="Index" method="get" class="list-filter-bar list-filter-bar-wide">
         <div class="filter-field filter-search">
@@ -76,6 +88,12 @@
         <table class="table app-table align-middle">
             <thead>
                 <tr>
+                    @if (canManageInvoices)
+                    {
+                        <th class="bulk-check-cell">
+                            <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm faturaları seç" />
+                        </th>
+                    }
                     <th>Fatura</th>
                     <th>Tür</th>
                     <th>Bağlantı</th>
@@ -83,6 +101,7 @@
                     <th>Vade</th>
                     <th>Tutar</th>
                     <th>Durum</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -90,6 +109,10 @@
                 {
                     var party = invoice.Customer?.Name ?? invoice.Supplier?.Name ?? "-";
                     <tr>
+                        @if (canManageInvoices)
+                        {
+                            <td><input type="checkbox" name="ids" value="@invoice.Id" form="bulkDeleteForm" /></td>
+                        }
                         <td><strong>@invoice.InvoiceNumber</strong><small class="d-block text-muted">@party</small></td>
                         <td>@invoice.Type.ToDisplayName()</td>
                         <td>@(invoice.Project?.Code ?? "-")</td>
@@ -99,9 +122,10 @@
                         <td><span class="status-pill">@invoice.Status.ToDisplayName()</span></td>
                         <td class="text-end">
                             <a asp-action="Details" asp-route-id="@invoice.Id">Detay</a>
-                            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.InvoicesManage))
+                            @if (canManageInvoices)
                             {
                                 <span> · </span><a asp-action="Edit" asp-route-id="@invoice.Id">Düzenle</a>
+                                <span> · </span><a class="text-danger" asp-action="Delete" asp-route-id="@invoice.Id">Sil</a>
                             }
                         </td>
                     </tr>
