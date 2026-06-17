@@ -462,7 +462,9 @@ public class PurchaseOrdersController : Controller
                 Content = line.Content!.Trim(),
                 Quantity = line.Quantity,
                 QuantityText = string.IsNullOrWhiteSpace(line.QuantityText) && line.Quantity.HasValue
-                    ? line.Quantity.Value.ToString("0.###")
+                    ? string.IsNullOrWhiteSpace(line.Unit)
+                        ? line.Quantity.Value.ToString("0.###")
+                        : $"{line.Quantity.Value:0.###} {line.Unit.Trim()}"
                     : line.QuantityText?.Trim(),
                 Unit = line.Unit?.Trim(),
                 Quality = line.Quality?.Trim(),
@@ -474,7 +476,7 @@ public class PurchaseOrdersController : Controller
                 PaymentTerm = model.PaymentTerm?.Trim(),
                 UnitPrice = line.UnitPrice,
                 UnitPriceText = line.UnitPrice.HasValue ? $"{line.UnitPrice.Value:N2} {model.Currency}" : null,
-                OrderTotal = line.OrderTotal ?? (line.UnitPrice.HasValue && line.Quantity.HasValue ? line.UnitPrice.Value * line.Quantity.Value : null),
+                OrderTotal = line.UnitPrice.HasValue && line.Quantity.HasValue ? line.UnitPrice.Value * line.Quantity.Value : line.OrderTotal,
                 Currency = string.IsNullOrWhiteSpace(model.Currency) ? "TRY" : model.Currency.Trim().ToUpperInvariant(),
                 Notes = line.Notes?.Trim(),
                 IsActive = true
@@ -501,6 +503,13 @@ public class PurchaseOrdersController : Controller
     public async Task<IActionResult> Create(PurchaseOrder order, string? returnUrl, CancellationToken cancellationToken)
     {
         order.Visibility = User.NormalizeRecordVisibility(order.Visibility);
+        NormalizePurchaseOrderInput(order);
+        if (string.IsNullOrWhiteSpace(order.OrderNumber))
+        {
+            ModelState.Remove(nameof(order.OrderNumber));
+            order.OrderNumber = await GenerateOrderNumberAsync(cancellationToken);
+        }
+
         if (order.ProjectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -521,7 +530,7 @@ public class PurchaseOrdersController : Controller
         }
 
         var currentUser = await _userManager.GetUserAsync(User);
-        if (string.IsNullOrWhiteSpace(order.OrderNumber) || await _context.PurchaseOrders.AnyAsync(x => x.OrderNumber == order.OrderNumber, cancellationToken))
+        if (await _context.PurchaseOrders.AnyAsync(x => x.OrderNumber == order.OrderNumber, cancellationToken))
         {
             order.OrderNumber = await GenerateOrderNumberAsync(cancellationToken);
         }
@@ -561,6 +570,7 @@ public class PurchaseOrdersController : Controller
         }
 
         order.Visibility = User.NormalizeRecordVisibility(order.Visibility);
+        NormalizePurchaseOrderInput(order);
         if (order.ProjectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -888,6 +898,36 @@ public class PurchaseOrdersController : Controller
         return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
             ? returnUrl
             : null;
+    }
+
+    private static void NormalizePurchaseOrderInput(PurchaseOrder order)
+    {
+        order.Content = order.Content?.Trim() ?? string.Empty;
+        order.Unit = string.IsNullOrWhiteSpace(order.Unit) ? null : order.Unit.Trim();
+        order.Quality = string.IsNullOrWhiteSpace(order.Quality) ? null : order.Quality.Trim();
+        order.PaymentTerm = string.IsNullOrWhiteSpace(order.PaymentTerm) ? null : order.PaymentTerm.Trim();
+        order.Notes = string.IsNullOrWhiteSpace(order.Notes) ? null : order.Notes.Trim();
+        order.Currency = string.IsNullOrWhiteSpace(order.Currency) ? "TRY" : order.Currency.Trim().ToUpperInvariant();
+        order.Scope = order.ProjectId.HasValue ? PurchaseOrderScope.Project : order.Scope;
+
+        if (order.Quantity.HasValue)
+        {
+            order.QuantityText = string.IsNullOrWhiteSpace(order.Unit)
+                ? order.Quantity.Value.ToString("0.###")
+                : $"{order.Quantity.Value:0.###} {order.Unit}";
+        }
+        else
+        {
+            order.QuantityText = string.IsNullOrWhiteSpace(order.QuantityText) ? null : order.QuantityText.Trim();
+        }
+
+        order.UnitPriceText = order.UnitPrice.HasValue
+            ? $"{order.UnitPrice.Value:N2} {order.Currency}"
+            : null;
+
+        order.OrderTotal = order.UnitPrice.HasValue && order.Quantity.HasValue
+            ? order.UnitPrice.Value * order.Quantity.Value
+            : order.OrderTotal;
     }
 
     private async Task<string> GenerateOrderNumberAsync(CancellationToken cancellationToken, ISet<string>? reservedOrderNumbers = null)

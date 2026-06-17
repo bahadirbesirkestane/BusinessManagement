@@ -4,7 +4,7 @@
 }
 
 <section class="panel-block form-panel">
-    <div class="panel-heading"><div><p class="section-kicker">SatÄ±n alma</p><h2>@ViewData["Title"]</h2></div></div>
+    <div class="panel-heading"><div><p class="section-kicker">Satın alma</p><h2>@ViewData["Title"]</h2></div></div>
     <form method="post" class="app-form">
         <input type="hidden" asp-for="Id" />
         <input type="hidden" asp-for="RequestedBy" />
@@ -22,8 +22,11 @@
             {
                 <div class="mb-3"><label asp-for="Visibility" class="form-label">Görünürlük</label><select asp-for="Visibility" asp-items="Html.GetEnumSelectList<RecordVisibility>()" class="form-select"></select></div>
             }
-            <div class="mb-3 wide"><label asp-for="Content" class="form-label">Sipariş içerği</label><input asp-for="Content" class="form-control" /></div>
-            <div class="mb-3"><label asp-for="QuantityText" class="form-label">Adet / miktar</label><input asp-for="QuantityText" class="form-control" /></div>
+            <div class="mb-3 wide"><label asp-for="Content" class="form-label">Sipariş içeriği</label><input asp-for="Content" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Quantity" class="form-label">Adet</label><input asp-for="Quantity" type="number" step="0.001" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="Unit" class="form-label">Birim</label><input asp-for="Unit" class="form-control" placeholder="Adet, kg, litre" /></div>
+            <div class="mb-3"><label asp-for="UnitPrice" class="form-label">Birim fiyat</label><input asp-for="UnitPrice" type="number" step="0.01" class="form-control" /></div>
+            <div class="mb-3"><label asp-for="OrderTotal" class="form-label">Sipariş tutarı</label><input asp-for="OrderTotal" type="number" step="0.01" class="form-control" /></div>
             <div class="mb-3"><label asp-for="Quality" class="form-label">Kalite</label><input asp-for="Quality" class="form-control" /></div>
             <div class="mb-3"><label asp-for="OrderDate" class="form-label">Sipariş tarihi</label><input asp-for="OrderDate" type="date" class="form-control" /></div>
             <div class="mb-3"><label asp-for="ExpectedArrivalDate" class="form-label">Beklenen varış</label><input asp-for="ExpectedArrivalDate" type="date" class="form-control" /></div>
@@ -32,9 +35,6 @@
                 <div class="mb-3"><label asp-for="RequestedBy" class="form-label">Veren kişi</label><input asp-for="RequestedBy" class="form-control" readonly /></div>
             }
             <div class="mb-3"><label asp-for="PaymentTerm" class="form-label">Vade</label><input asp-for="PaymentTerm" class="form-control" /></div>
-            <div class="mb-3"><label asp-for="UnitPrice" class="form-label">Birim fiyat</label><input asp-for="UnitPrice" type="number" step="0.01" class="form-control" /></div>
-            <div class="mb-3"><label asp-for="UnitPriceText" class="form-label">Birim fiyat metni</label><input asp-for="UnitPriceText" class="form-control" /></div>
-            <div class="mb-3"><label asp-for="OrderTotal" class="form-label">Sipariş tutarı</label><input asp-for="OrderTotal" type="number" step="0.01" class="form-control" /></div>
             <div class="mb-3"><label asp-for="Currency" class="form-label">Para birimi</label><input asp-for="Currency" class="form-control" /></div>
             <div class="mb-3 wide"><label asp-for="Notes" class="form-label">Not</label><textarea asp-for="Notes" class="form-control" rows="3"></textarea></div>
         </div>
@@ -51,3 +51,38 @@
         </div>
     </form>
 </section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var quantityInput = document.getElementById('Quantity');
+        var unitPriceInput = document.getElementById('UnitPrice');
+        var totalInput = document.getElementById('OrderTotal');
+
+        if (!quantityInput || !unitPriceInput || !totalInput) {
+            return;
+        }
+
+        function parseNumber(value) {
+            if (!value) {
+                return NaN;
+            }
+
+            return Number(String(value).replace(',', '.'));
+        }
+
+        function updateTotal() {
+            var quantity = parseNumber(quantityInput.value);
+            var unitPrice = parseNumber(unitPriceInput.value);
+
+            if (Number.isFinite(quantity) && Number.isFinite(unitPrice)) {
+                totalInput.value = (quantity * unitPrice).toFixed(2);
+                return;
+            }
+
+            totalInput.value = '';
+        }
+
+        quantityInput.addEventListener('input', updateTotal);
+        unitPriceInput.addEventListener('input', updateTotal);
+    });
+</script>

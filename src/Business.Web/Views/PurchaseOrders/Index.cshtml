@@ -147,7 +147,7 @@
     {
         <details class="inline-quick-panel" @(Model.Any() ? null : "open")>
             <summary>Üstten hızlı sipariş ekle</summary>
-            <form asp-action="Create" method="post" class="quick-inline-grid mt-3">
+            <form asp-action="Create" method="post" class="quick-inline-grid mt-3" data-inline-order-form>
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
                 <input type="hidden" name="OrderDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
@@ -167,23 +167,6 @@
                     </select>
                 </div>
                 <div>
-                    <label class="form-label">Kapsam</label>
-                    <select name="Scope" class="form-select">
-                        <option value="@PurchaseOrderScope.General" selected="@(ViewBag.ProjectId is null)">Genel</option>
-                        <option value="@PurchaseOrderScope.Project" selected="@(ViewBag.ProjectId is not null)">Proje</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="form-label">Tedarikçi</label>
-                    <select name="SupplierId" class="form-select" data-searchable-select data-search-placeholder="Tedarikçi ara veya seç">
-                        <option value="">Seçilmedi</option>
-                        @foreach (var supplier in ViewBag.Suppliers)
-                        {
-                            <option value="@supplier.Id">@supplier.Name</option>
-                        }
-                    </select>
-                </div>
-                <div>
                     <label class="form-label">Malzeme</label>
                     <select name="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
                         <option value="">Seçilmedi</option>
@@ -194,12 +177,20 @@
                     </select>
                 </div>
                 <div>
-                    <label class="form-label">Miktar</label>
-                    <input name="QuantityText" class="form-control" maxlength="80" placeholder="Örn. 12 adet" />
+                    <label class="form-label">Adet</label>
+                    <input name="Quantity" type="number" step="0.001" class="form-control" data-inline-order-quantity />
                 </div>
                 <div>
-                    <label class="form-label">Kalite</label>
-                    <input name="Quality" class="form-control" maxlength="120" placeholder="Kalite / özellik" />
+                    <label class="form-label">Birim</label>
+                    <input name="Unit" class="form-control" maxlength="40" placeholder="Adet, kg, litre" />
+                </div>
+                <div>
+                    <label class="form-label">Birim fiyat</label>
+                    <input name="UnitPrice" type="number" step="0.01" class="form-control" data-inline-order-unit-price />
+                </div>
+                <div>
+                    <label class="form-label">Sipariş tutarı</label>
+                    <input name="OrderTotal" type="number" step="0.01" class="form-control" data-inline-order-total />
                 </div>
                 <div>
                     <label class="form-label">Beklenen varış</label>
@@ -402,3 +393,43 @@
     <p class="list-preview-meta" data-preview-meta></p>
     <p class="list-preview-description" data-preview-description></p>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var form = document.querySelector('[data-inline-order-form]');
+        if (!form) {
+            return;
+        }
+
+        var quantityInput = form.querySelector('[data-inline-order-quantity]');
+        var unitPriceInput = form.querySelector('[data-inline-order-unit-price]');
+        var totalInput = form.querySelector('[data-inline-order-total]');
+
+        if (!quantityInput || !unitPriceInput || !totalInput) {
+            return;
+        }
+
+        function parseNumber(value) {
+            if (!value) {
+                return NaN;
+            }
+
+            return Number(String(value).replace(',', '.'));
+        }
+
+        function updateTotal() {
+            var quantity = parseNumber(quantityInput.value);
+            var unitPrice = parseNumber(unitPriceInput.value);
+
+            if (Number.isFinite(quantity) && Number.isFinite(unitPrice)) {
+                totalInput.value = (quantity * unitPrice).toFixed(2);
+                return;
+            }
+
+            totalInput.value = '';
+        }
+
+        quantityInput.addEventListener('input', updateTotal);
+        unitPriceInput.addEventListener('input', updateTotal);
+    });
+</script>
