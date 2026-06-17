@@ -12,7 +12,7 @@
     var hasMore = ViewBag.HasMore == true;
     var currentTake = (int)(ViewBag.CurrentTake ?? 50);
     var nextTake = (int)(ViewBag.NextTake ?? (currentTake + 50));
-    var requiresManualLoad = !string.Equals(listAction, "Index", StringComparison.OrdinalIgnoreCase) && !string.Equals(listAction, "AssignedToMe", StringComparison.OrdinalIgnoreCase);
+    var requiresManualLoad = isDeferredLoad;
     var showAll = ViewBag.ShowAll == true;
     var isArchiveList = ViewBag.IsArchiveList == true;
     var statusOptions = (IReadOnlyList<WorkTaskStatus>)(ViewBag.StatusOptions ?? Enum.GetValues<WorkTaskStatus>().ToList());

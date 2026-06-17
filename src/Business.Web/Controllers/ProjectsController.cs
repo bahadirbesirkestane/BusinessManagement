@@ -142,7 +142,7 @@ public class ProjectsController : Controller
         return View(projects);
     }
 
-    public async Task<IActionResult> Completed(string? q, ProjectPriority? priority, Guid? customerId, string? sort, bool load = false, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Completed(string? q, ProjectPriority? priority, Guid? customerId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
         var result = await Index(q, ProjectStatus.Completed, priority, customerId, sort, load, take, showAll, archivedOnly: false, cancellationToken);
         ViewBag.ProjectListTitle = "Tamamlanan projeler";
@@ -153,7 +153,7 @@ public class ProjectsController : Controller
             : result;
     }
 
-    public async Task<IActionResult> Archived(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, bool load = false, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Archived(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
         var result = await Index(q, status, priority, customerId, sort, load, take, showAll, archivedOnly: true, cancellationToken);
         return result is ViewResult viewResult

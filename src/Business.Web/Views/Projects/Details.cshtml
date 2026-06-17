@@ -9,7 +9,8 @@
     <div>
         <p class="section-kicker">@Model.Project.Code</p>
         <h2>@Model.Project.Name</h2>
-        <p>@(Model.Project.Description ?? "Proje açıklaması henüz girilmedi.")</p>
+        <p><strong>Müşteri:</strong> @(Model.Project.Customer?.Name ?? Model.Project.CustomerName ?? "Müşteri bilgisi yok.")</p>
+        <p><strong>Açıklama:</strong> @(Model.Project.Description ?? "Açıklama bilgisi yok.")</p>
     </div>
     <div class="project-header-actions">
         <span class="status-pill">@Model.Project.Status.ToDisplayName()</span>

@@ -182,7 +182,7 @@ public class ProjectTasksController : Controller
         return View(tasks);
     }
 
-    public async Task<IActionResult> Completed(Guid? projectId, string? q, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = false, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Completed(Guid? projectId, string? q, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
         var result = await Index(projectId, q, WorkTaskStatus.Done, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, archivedOnly: false, cancellationToken);
         ViewBag.TaskListTitle = "Tamamlanan görevler";
@@ -193,7 +193,7 @@ public class ProjectTasksController : Controller
             : result;
     }
 
-    public async Task<IActionResult> Archived(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = false, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Archived(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
         var result = await Index(projectId, q, status, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, archivedOnly: true, cancellationToken);
         return result is ViewResult viewResult

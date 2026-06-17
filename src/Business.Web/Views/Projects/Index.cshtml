@@ -9,7 +9,7 @@
     var hasMore = ViewBag.HasMore == true;
     var listAction = (string)(ViewBag.ListAction ?? "Index");
     var isArchiveList = ViewBag.IsArchiveList == true;
-    var requiresManualLoad = !string.Equals(listAction, "Index", StringComparison.OrdinalIgnoreCase);
+    var requiresManualLoad = isDeferredLoad;
     var currentTake = (int)(ViewBag.CurrentTake ?? 50);
     var nextTake = (int)(ViewBag.NextTake ?? (currentTake + 50));
     var showAll = ViewBag.ShowAll == true;

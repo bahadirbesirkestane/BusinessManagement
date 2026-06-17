@@ -236,7 +236,7 @@ public class PurchaseOrdersController : Controller
         DateTime? dateFrom,
         DateTime? dateTo,
         string? sort,
-        bool load = false,
+        bool load = true,
         int take = DefaultListTake,
         bool showAll = false,
         CancellationToken cancellationToken = default)
@@ -262,7 +262,7 @@ public class PurchaseOrdersController : Controller
         DateTime? dateFrom,
         DateTime? dateTo,
         string? sort,
-        bool load = false,
+        bool load = true,
         int take = DefaultListTake,
         bool showAll = false,
         CancellationToken cancellationToken = default)
