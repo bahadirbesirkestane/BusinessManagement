@@ -4,7 +4,8 @@
     var canCreateProject = User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var canUpdateProject = User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var canChangeProjectStatus = User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
-    var canUseBulkActions = canUpdateProject || canChangeProjectStatus || User.IsInRole(AppRoles.Admin);
+    var canDeleteProject = User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsDelete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canUseBulkActions = canUpdateProject || canChangeProjectStatus || canDeleteProject;
     var isDeferredLoad = ViewBag.IsDeferredLoad == true;
     var hasMore = ViewBag.HasMore == true;
     var listAction = (string)(ViewBag.ListAction ?? "Index");
@@ -128,7 +129,7 @@
                     </select>
                     <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("BulkUpdateStatus")">Durumu uygula</button>
                 }
-                @if (User.IsInRole(AppRoles.Admin))
+                @if (canDeleteProject)
                 {
                     <button class="btn btn-outline-danger btn-sm" type="submit" formaction="@Url.Action("BulkDelete")" data-bulk-submit="bulkActionForm">Seçilenleri sil</button>
                 }
@@ -240,7 +241,7 @@
                                                     <button class="link-button" type="submit">@(isArchiveList ? "Aktife al" : "Arşivle")</button>
                                                 </form>
                                             }
-                                            @if (User.IsInRole(AppRoles.Admin))
+                                            @if (canDeleteProject)
                                             {
                                                 <a class="text-danger" asp-action="Delete" asp-route-id="@project.Id">Sil</a>
                                             }

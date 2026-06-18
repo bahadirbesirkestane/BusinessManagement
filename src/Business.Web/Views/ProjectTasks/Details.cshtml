@@ -4,6 +4,14 @@
         .OrderByDescending(x => x.CreatedAt)
         .ToList();
     var returnUrl = ViewBag.ReturnUrl as string ?? $"{Context.Request.Path}{Context.Request.QueryString}";
+    var canCompleteTask = User.IsInRole(AppRoles.Admin) ||
+        User.IsInRole(AppRoles.Manager) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canDeleteTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksDelete) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     ViewData["Title"] = "Görev Detayı";
 }
 
@@ -22,7 +30,7 @@
         <div class="project-header-actions">
             <a class="btn btn-outline-secondary btn-sm" asp-controller="PersonalNotes" asp-action="Create" asp-route-projectTaskId="@Model.Id">Bana özel not ekle</a>
             <a class="btn btn-outline-secondary btn-sm" asp-controller="PersonalTasks" asp-action="Create" asp-route-projectTaskId="@Model.Id">Bana özel görev ekle</a>
-            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
             {
                 <form asp-action="UpdateStatus" method="post" class="inline-status-form">
                     @Html.AntiForgeryToken()
@@ -40,7 +48,7 @@
             {
                 <span class="status-pill status-@Model.Status.ToString().ToLowerInvariant()">@Model.Status.ToDisplayName()</span>
             }
-            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
+            @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
             {
                 <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl">Düzenle</a>
             }
@@ -52,7 +60,7 @@
                     <button class="btn btn-outline-primary btn-sm" type="submit">Kontrole Gönder</button>
                 </form>
             }
-            @if (User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager))
+            @if (canCompleteTask)
             {
                 <form asp-action="Complete" asp-route-id="@Model.Id" method="post" class="inline-form">
                     @Html.AntiForgeryToken()
@@ -60,7 +68,7 @@
                     <button class="btn btn-success btn-sm" type="submit">Tamamlandı Yap</button>
                 </form>
             }
-            @if (User.IsInRole(AppRoles.Admin))
+            @if (canDeleteTask)
             {
                 <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="inline-form">
                     @Html.AntiForgeryToken()

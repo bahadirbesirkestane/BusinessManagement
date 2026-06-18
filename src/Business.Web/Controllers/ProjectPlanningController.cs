@@ -419,6 +419,7 @@ public class ProjectPlanningController : Controller
     {
         return User.IsInRole(AppRoles.Admin) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     }
 
@@ -426,6 +427,7 @@ public class ProjectPlanningController : Controller
     {
         return User.IsInRole(AppRoles.Admin) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     }
 

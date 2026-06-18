@@ -3,9 +3,10 @@
     ViewData["Title"] = Model.Project.Code;
     var visibleProjectTasks = ViewBag.VisibleProjectTasks as IReadOnlyList<ProjectTask> ?? [];
     var taskHierarchyLabels = ViewBag.TaskHierarchyLabels as IReadOnlyDictionary<Guid, string> ?? new Dictionary<Guid, string>();
-    var canCreateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canCreateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
     var canManageMaterialRequests = User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage);
+    var canDeleteProject = User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsDelete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var currentReturnUrl = Context.Request.Path.ToString();
 }
 
@@ -25,7 +26,7 @@
         {
             <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Project.Id">Projeyi Düzenle</a>
         }
-        @if (User.IsInRole(AppRoles.Admin))
+        @if (canDeleteProject)
         {
             <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Project.Id">Sil</a>
         }

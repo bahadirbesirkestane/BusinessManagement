@@ -66,12 +66,12 @@ public static class DependencyInjection
             AddPermissionPolicy(options, AppPolicies.CanUpdateProjects, AppPermissions.ProjectsUpdate, AppPermissions.ProjectsManage);
             AddPermissionPolicy(options, AppPolicies.CanDeleteProjects, AppPermissions.ProjectsDelete, AppPermissions.ProjectsManage);
             AddPermissionPolicy(options, AppPolicies.CanChangeProjectStatus, AppPermissions.ProjectsChangeStatus, AppPermissions.ProjectsManage);
-            AddPermissionPolicy(options, AppPolicies.CanViewTasks, AppPermissions.TasksView, AppPermissions.ProjectsView);
-            AddPermissionPolicy(options, AppPolicies.CanCreateTasks, AppPermissions.TasksCreate, AppPermissions.ProjectsManage);
-            AddPermissionPolicy(options, AppPolicies.CanUpdateTasks, AppPermissions.TasksUpdate, AppPermissions.ProjectsManage);
-            AddPermissionPolicy(options, AppPolicies.CanDeleteTasks, AppPermissions.TasksDelete, AppPermissions.ProjectsManage);
-            AddPermissionPolicy(options, AppPolicies.CanChangeTaskStatus, AppPermissions.TasksChangeStatus, AppPermissions.ProjectsManage);
-            AddPermissionPolicy(options, AppPolicies.CanCompleteTasks, AppPermissions.TasksComplete, AppPermissions.ProjectsManage);
+            AddPermissionPolicy(options, AppPolicies.CanViewTasks, AppPermissions.TasksView, AppPermissions.ProjectsView, AppPermissions.TasksManage);
+            AddPermissionPolicy(options, AppPolicies.CanCreateTasks, AppPermissions.TasksCreate, AppPermissions.ProjectsManage, AppPermissions.TasksManage);
+            AddPermissionPolicy(options, AppPolicies.CanUpdateTasks, AppPermissions.TasksUpdate, AppPermissions.ProjectsManage, AppPermissions.TasksManage);
+            AddPermissionPolicy(options, AppPolicies.CanDeleteTasks, AppPermissions.TasksDelete, AppPermissions.ProjectsManage, AppPermissions.TasksManage);
+            AddPermissionPolicy(options, AppPolicies.CanChangeTaskStatus, AppPermissions.TasksChangeStatus, AppPermissions.ProjectsManage, AppPermissions.TasksManage);
+            AddPermissionPolicy(options, AppPolicies.CanCompleteTasks, AppPermissions.TasksComplete, AppPermissions.ProjectsManage, AppPermissions.TasksManage);
 
             options.AddPolicy(AppPolicies.CanViewPurchasing, policy =>
                 policy.RequireClaim(AppClaimTypes.Permission, AppPermissions.PurchasingView));

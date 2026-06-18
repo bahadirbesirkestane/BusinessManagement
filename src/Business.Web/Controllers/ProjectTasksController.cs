@@ -501,7 +501,12 @@ public class ProjectTasksController : Controller
     [Authorize(Policy = AppPolicies.CanChangeTaskStatus)]
     public async Task<IActionResult> UpdateStatus(Guid id, WorkTaskStatus status, string? returnUrl, CancellationToken cancellationToken)
     {
-        if (status == WorkTaskStatus.Done && !(User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager)))
+        if (status == WorkTaskStatus.Done &&
+            !(User.IsInRole(AppRoles.Admin) ||
+              User.IsInRole(AppRoles.Manager) ||
+              User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
+              User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
+              User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage)))
         {
             return Forbid();
         }
@@ -579,7 +584,12 @@ public class ProjectTasksController : Controller
     [Authorize(Policy = AppPolicies.CanChangeTaskStatus)]
     public async Task<IActionResult> BulkUpdateStatus(Guid[] ids, WorkTaskStatus status, string? returnUrl = null, CancellationToken cancellationToken = default)
     {
-        if (status == WorkTaskStatus.Done && !(User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager)))
+        if (status == WorkTaskStatus.Done &&
+            !(User.IsInRole(AppRoles.Admin) ||
+              User.IsInRole(AppRoles.Manager) ||
+              User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
+              User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
+              User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage)))
         {
             return Forbid();
         }
@@ -645,7 +655,7 @@ public class ProjectTasksController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Policy = AppPolicies.CanDeleteTasks)]
     public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var task = await _context.ProjectTasks.FindAsync([id], cancellationToken);
@@ -663,7 +673,7 @@ public class ProjectTasksController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Policy = AppPolicies.CanDeleteTasks)]
     public async Task<IActionResult> BulkDelete(Guid[] ids, string? returnUrl, CancellationToken cancellationToken)
     {
         if (ids.Length == 0)
@@ -746,6 +756,7 @@ public class ProjectTasksController : Controller
     {
         return User.IsInRole(AppRoles.Admin) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksViewAll) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     }
 

@@ -39,6 +39,7 @@ public class MaterialRequestsController : Controller
         string? q,
         MaterialRequestStatus? status,
         Guid? materialId,
+        string? requestedByUserId,
         DateTime? neededFrom,
         DateTime? neededTo,
         string? sort,
@@ -58,13 +59,22 @@ public class MaterialRequestsController : Controller
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
+            var matchingRequesterIds = await _userManager.Users
+                .AsNoTracking()
+                .Where(x =>
+                    (x.FullName != null && x.FullName.Contains(term)) ||
+                    (x.Email != null && x.Email.Contains(term)))
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+
             query = query.Where(x =>
                 x.RequestedItem.Contains(term) ||
                 (x.QuantityText != null && x.QuantityText.Contains(term)) ||
                 (x.Quality != null && x.Quality.Contains(term)) ||
                 (x.Notes != null && x.Notes.Contains(term)) ||
                 (x.Project != null && (x.Project.Code.Contains(term) || x.Project.Name.Contains(term))) ||
-                (x.Material != null && x.Material.Name.Contains(term)));
+                (x.Material != null && x.Material.Name.Contains(term)) ||
+                matchingRequesterIds.Contains(x.RequestedByUserId!));
         }
 
         if (status.HasValue)
@@ -75,6 +85,11 @@ public class MaterialRequestsController : Controller
         if (materialId.HasValue)
         {
             query = query.Where(x => x.MaterialId == materialId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedByUserId))
+        {
+            query = query.Where(x => x.RequestedByUserId == requestedByUserId);
         }
 
         if (neededFrom.HasValue)
@@ -101,19 +116,32 @@ public class MaterialRequestsController : Controller
         ViewBag.FilterQ = q;
         ViewBag.FilterStatus = status;
         ViewBag.FilterMaterialId = materialId;
+        ViewBag.FilterRequestedByUserId = requestedByUserId;
         ViewBag.FilterNeededFrom = neededFrom?.ToString("yyyy-MM-dd");
         ViewBag.FilterNeededTo = neededTo?.ToString("yyyy-MM-dd");
         ViewBag.Sort = sort;
         ViewBag.Projects = await _lookupService.GetProjectsAsync(cancellationToken);
         ViewBag.Materials = await _lookupService.GetMaterialsAsync(cancellationToken);
+        ViewBag.Users = await GetActiveUsersAsync(cancellationToken);
 
-        return View(await query.ToListAsync(cancellationToken));
+        var requests = await query.ToListAsync(cancellationToken);
+        ViewBag.RequestedByNames = await GetRequestedByNamesAsync(
+            requests.Select(x => x.RequestedByUserId).Where(x => !string.IsNullOrWhiteSpace(x))!,
+            cancellationToken);
+
+        return View(requests);
     }
 
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
     {
         var request = await _materialRequestService.GetDetailsAsync(id, cancellationToken);
-        return request is null ? NotFound() : View(request);
+        if (request is null)
+        {
+            return NotFound();
+        }
+
+        ViewBag.RequestedByName = await GetRequestedByNameAsync(request.RequestedByUserId, cancellationToken);
+        return View(request);
     }
 
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
@@ -364,6 +392,51 @@ public class MaterialRequestsController : Controller
     {
         ViewBag.Projects = await _lookupService.GetProjectsAsync(cancellationToken);
         ViewBag.Materials = await _lookupService.GetMaterialsAsync(cancellationToken);
+        ViewBag.Users = await GetActiveUsersAsync(cancellationToken);
         ViewBag.ReturnUrl = returnUrl;
+    }
+
+    private async Task<Dictionary<string, string>> GetRequestedByNamesAsync(IEnumerable<string> userIds, CancellationToken cancellationToken)
+    {
+        var ids = userIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToList();
+
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await _userManager.Users
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.Id))
+            .ToDictionaryAsync(
+                x => x.Id,
+                x => x.FullName ?? x.Email ?? x.UserName ?? x.Id,
+                cancellationToken);
+    }
+
+    private async Task<string?> GetRequestedByNameAsync(string? userId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        var user = await _userManager.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
+
+        return user is null ? null : user.FullName ?? user.Email ?? user.UserName ?? user.Id;
+    }
+
+    private async Task<List<ApplicationUser>> GetActiveUsersAsync(CancellationToken cancellationToken)
+    {
+        return await _userManager.Users
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.FullName)
+            .ToListAsync(cancellationToken);
     }
 }

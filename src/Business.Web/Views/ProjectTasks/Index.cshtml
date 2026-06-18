@@ -3,11 +3,12 @@
     ViewData["Title"] = "Görevler";
     var userNames = (IReadOnlyDictionary<string, string>)(ViewBag.UserNames ?? new Dictionary<string, string>());
     var listAction = (string)(ViewBag.ListAction ?? (ViewBag.AssignedToMe == true ? "AssignedToMe" : "Index"));
-    var canCreateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
-    var canUpdateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
-    var canChangeTaskStatus = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
-    var canCompleteTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
-    var canUseBulkActions = canUpdateTask || canChangeTaskStatus || User.IsInRole(AppRoles.Admin);
+    var canCreateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canUpdateTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canChangeTaskStatus = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canCompleteTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canDeleteTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksDelete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canUseBulkActions = canUpdateTask || canChangeTaskStatus || canDeleteTask;
     var isDeferredLoad = ViewBag.IsDeferredLoad == true;
     var hasMore = ViewBag.HasMore == true;
     var currentTake = (int)(ViewBag.CurrentTake ?? 50);
@@ -253,7 +254,7 @@
                     </select>
                     <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("BulkUpdateStatus")">Durumu uygula</button>
                 }
-                @if (User.IsInRole(AppRoles.Admin))
+                @if (canDeleteTask)
                 {
                     <button class="btn btn-outline-danger btn-sm" type="submit" formaction="@Url.Action("BulkDelete")" data-bulk-submit="bulkActionForm">Seçilenleri sil</button>
                 }
@@ -402,7 +403,7 @@
                                                     <button class="link-button" type="submit">@(isArchiveList ? "Aktife al" : "Arşivle")</button>
                                                 </form>
                                             }
-                                            @if (User.IsInRole(AppRoles.Admin))
+                                            @if (canDeleteTask)
                                             {
                                                 <form asp-action="Delete" asp-route-id="@task.Id" method="post" class="inline-form">
                                                     <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />

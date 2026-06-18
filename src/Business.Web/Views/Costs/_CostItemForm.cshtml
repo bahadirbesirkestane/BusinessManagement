@@ -23,7 +23,7 @@
                 <span asp-validation-for="ProjectId" class="text-danger"></span>
             </div>
             <div class="mb-3">
-                <label asp-for="PurchaseOrderId" class="form-label">BaÄŸlÄ± sipariÅŸ</label>
+                <label asp-for="PurchaseOrderId" class="form-label">Bağlı sipariş</label>
                 <select asp-for="PurchaseOrderId" class="form-select">
                     <option value="">Yok</option>
                     @foreach (var order in ViewBag.PurchaseOrders)
@@ -32,7 +32,7 @@
                     }
                 </select>
             </div>
-            <div class="mb-3"><label asp-for="Type" class="form-label">TÃ¼r</label><select asp-for="Type" asp-items="Html.GetEnumSelectList<CostItemType>()" class="form-select"></select></div>
+            <div class="mb-3"><label asp-for="Type" class="form-label">Tür</label><select asp-for="Type" asp-items="Html.GetEnumSelectList<CostItemType>()" class="form-select"></select></div>
             @if (User.IsInRole(AppRoles.Admin))
             {
                 <div class="mb-3"><label asp-for="Visibility" class="form-label">Görünürlük</label><select asp-for="Visibility" asp-items="Html.GetEnumSelectList<RecordVisibility>()" class="form-select"></select></div>

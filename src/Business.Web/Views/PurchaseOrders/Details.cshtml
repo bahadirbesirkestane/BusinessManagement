@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Sipariş Detayı";
     var returnUrl = ViewBag.ReturnUrl as string ?? $"{Context.Request.Path}{Context.Request.QueryString}";
+    var canDeleteOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingDelete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
 }
 
 <section class="panel-block">
@@ -42,7 +43,7 @@
             {
                 <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl">Düzenle</a>
             }
-            @if (User.IsInRole(AppRoles.Admin))
+            @if (canDeleteOrder)
             {
                 <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl">Sil</a>
             }

@@ -1,16 +1,17 @@
-using Business.Infrastructure.Identity;
-using Business.Infrastructure.Data;
+﻿using System.Security.Claims;
+using System.Text;
+using System.Text.Encodings.Web;
 using Business.Application.Services;
+using Business.Infrastructure.Data;
+using Business.Infrastructure.Identity;
 using Business.Web.Services;
 using Business.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using System.Text;
-using System.Text.Encodings.Web;
 
 namespace Business.Web.Controllers;
 
@@ -23,6 +24,7 @@ public class UsersController : Controller
     private readonly IAdminRecoveryCodeService _recoveryCodeService;
     private readonly IEmailSender _emailSender;
     private readonly ILogger<UsersController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
     public UsersController(
         UserManager<ApplicationUser> userManager,
@@ -30,7 +32,8 @@ public class UsersController : Controller
         ApplicationDbContext context,
         IAdminRecoveryCodeService recoveryCodeService,
         IEmailSender emailSender,
-        ILogger<UsersController> logger)
+        ILogger<UsersController> logger,
+        IWebHostEnvironment environment)
     {
         _userManager = userManager;
         _roleManager = roleManager;
@@ -38,6 +41,7 @@ public class UsersController : Controller
         _recoveryCodeService = recoveryCodeService;
         _emailSender = emailSender;
         _logger = logger;
+        _environment = environment;
     }
 
     public async Task<IActionResult> Index()
@@ -114,7 +118,6 @@ public class UsersController : Controller
         try
         {
             await SendInvitationEmailAsync(user, inviteLink, cancellationToken);
-
             TempData["Success"] = $"{user.Email} adresine kullanıcı daveti gönderildi.";
         }
         catch (Exception ex)
@@ -152,10 +155,144 @@ public class UsersController : Controller
         });
     }
 
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> DeleteBlockers(string id, bool wasDeactivated = false, CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var items = await GetUserDeletionBlockersAsync(user, cancellationToken);
+        if (items.Count == 0)
+        {
+            TempData["Success"] = "Kullanıcının silinmesini engelleyen kayıt bulunamadı.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        return View(new UserDeletionBlockersViewModel
+        {
+            UserId = user.Id,
+            UserDisplayName = user.FullName ?? user.Email ?? user.UserName ?? user.Id,
+            WasDeactivated = wasDeactivated,
+            Items = items
+        });
+    }
+
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> DownloadDeleteBlockers(string id, CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var items = await GetUserDeletionBlockersAsync(user, cancellationToken);
+        var rows = items
+            .Select(item => (IReadOnlyList<object?>)
+            [
+                item.RowNumber,
+                item.Category,
+                item.Source,
+                item.RecordKey,
+                item.Title,
+                item.Description
+            ])
+            .ToList();
+
+        var bytes = ExcelWorkbookBuilder.Build(
+        [
+            new ExcelSheet(
+                "Silme Engelleri",
+                ["Sıra", "Kategori", "Kaynak", "Kayıt No", "Başlık", "Açıklama"],
+                rows)
+        ]);
+
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"kullanici-silme-engelleri-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = AppRoles.Admin)]
-    public async Task<IActionResult> Delete(string id)
+    public async Task<IActionResult> ClearDeleteBlockerRelation(string userId, Guid recordId, string relationType, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        switch (relationType)
+        {
+            case "task":
+            {
+                var task = await _context.ProjectTasks
+                    .Include(x => x.Assignments)
+                    .FirstOrDefaultAsync(x => x.Id == recordId, cancellationToken);
+                if (task is null)
+                {
+                    TempData["Error"] = "Görev kaydı bulunamadı.";
+                    break;
+                }
+
+                if (task.AssignedToUserId == user.Id)
+                {
+                    task.AssignedToUserId = null;
+                }
+
+                if (task.ResponsibleUserId == user.Id)
+                {
+                    task.ResponsibleUserId = null;
+                }
+
+                _context.ProjectTaskAssignments.RemoveRange(task.Assignments.Where(x => x.UserId == user.Id));
+                await _context.SaveChangesAsync(cancellationToken);
+                TempData["Success"] = "Görev ilişkileri kaldırıldı.";
+                break;
+            }
+            case "material-request":
+            {
+                var materialRequest = await _context.MaterialRequests.FirstOrDefaultAsync(x => x.Id == recordId, cancellationToken);
+                if (materialRequest is null)
+                {
+                    TempData["Error"] = "İhtiyaç kaydı bulunamadı.";
+                    break;
+                }
+
+                materialRequest.RequestedByUserId = null;
+                await _context.SaveChangesAsync(cancellationToken);
+                TempData["Success"] = "İhtiyaç kaydındaki kullanıcı ilişkisi kaldırıldı.";
+                break;
+            }
+            case "purchase-order":
+            {
+                var purchaseOrder = await _context.PurchaseOrders.FirstOrDefaultAsync(x => x.Id == recordId, cancellationToken);
+                if (purchaseOrder is null)
+                {
+                    TempData["Error"] = "Sipariş kaydı bulunamadı.";
+                    break;
+                }
+
+                purchaseOrder.RequestedBy ??= user.FullName ?? user.Email ?? user.UserName;
+                purchaseOrder.RequestedByUserId = null;
+                await _context.SaveChangesAsync(cancellationToken);
+                TempData["Success"] = "Sipariş kaydındaki kullanıcı ilişkisi kaldırıldı.";
+                break;
+            }
+            default:
+                TempData["Error"] = "Desteklenmeyen ilişki tipi.";
+                break;
+        }
+
+        return RedirectToAction(nameof(DeleteBlockers), new { id = userId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
     {
         var user = await _userManager.FindByIdAsync(id);
         if (user is null)
@@ -175,20 +312,26 @@ public class UsersController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        if (await HasBusinessReferencesAsync(user.Id))
+        var blockers = await GetUserDeletionBlockersAsync(user, cancellationToken);
+        if (blockers.Count > 0)
         {
             user.IsActive = false;
             await _userManager.UpdateAsync(user);
             await _userManager.UpdateSecurityStampAsync(user);
-            TempData["Error"] = "Kullanıcı geçmiş kayıtlarda kullanıldığı için silinmedi, pasife alındı.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(DeleteBlockers), new { id = user.Id, wasDeactivated = true });
         }
+
+        await CleanupUserOwnedDataAsync(user, cancellationToken);
 
         var result = await _userManager.DeleteAsync(user);
         if (!result.Succeeded)
         {
             AddIdentityErrors(result);
             TempData["Error"] = "Kullanıcı silinemedi. Kayıt ilişkileri kontrol edildi.";
+        }
+        else
+        {
+            TempData["Success"] = "Kullanıcı ve kişisel kayıtları silindi.";
         }
 
         return RedirectToAction(nameof(Index));
@@ -560,15 +703,207 @@ public class UsersController : Controller
         return await _context.Departments.Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync();
     }
 
-    private async Task<bool> HasBusinessReferencesAsync(string userId)
+    private async Task CleanupUserOwnedDataAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
-        return await _context.ProjectTasks.AnyAsync(x =>
-                   x.AssignedToUserId == userId ||
-                   x.ResponsibleUserId == userId ||
-                   x.Assignments.Any(assignment => assignment.UserId == userId)) ||
-               await _context.MaterialRequests.AnyAsync(x => x.RequestedByUserId == userId) ||
-               await _context.RecordComments.AnyAsync(x => x.CreatedByUserId == userId) ||
-               await _context.RecordFiles.AnyAsync(x => x.CreatedByUserId == userId);
+        _context.PersonalNotes.RemoveRange(_context.PersonalNotes.Where(x => x.OwnerUserId == user.Id));
+        _context.PersonalTasks.RemoveRange(_context.PersonalTasks.Where(x => x.OwnerUserId == user.Id));
+        _context.RecordComments.RemoveRange(_context.RecordComments.Where(x => x.CreatedByUserId == user.Id));
+
+        var files = await _context.RecordFiles
+            .Where(x => x.CreatedByUserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (var file in files)
+        {
+            try
+            {
+                var physicalPath = Path.Combine(_environment.WebRootPath, file.RelativePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(physicalPath))
+                {
+                    System.IO.File.Delete(physicalPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Kullanıcı silinirken dosya kaydı fiziksel olarak temizlenemedi. FileId: {FileId}", file.Id);
+            }
+        }
+
+        _context.RecordFiles.RemoveRange(files);
+
+        var projectTasks = await _context.ProjectTasks
+            .Include(x => x.Assignments)
+            .Where(x =>
+                x.AssignedToUserId == user.Id ||
+                x.ResponsibleUserId == user.Id ||
+                x.Assignments.Any(assignment => assignment.UserId == user.Id))
+            .ToListAsync(cancellationToken);
+        foreach (var task in projectTasks)
+        {
+            if (task.AssignedToUserId == user.Id)
+            {
+                task.AssignedToUserId = null;
+            }
+
+            if (task.ResponsibleUserId == user.Id)
+            {
+                task.ResponsibleUserId = null;
+            }
+
+            _context.ProjectTaskAssignments.RemoveRange(task.Assignments.Where(x => x.UserId == user.Id));
+        }
+
+        var purchaseOrders = await _context.PurchaseOrders
+            .Where(x => x.RequestedByUserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (var order in purchaseOrders)
+        {
+            order.RequestedBy ??= user.FullName ?? user.Email ?? user.UserName;
+            order.RequestedByUserId = null;
+        }
+
+        var materialRequests = await _context.MaterialRequests
+            .Where(x => x.RequestedByUserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (var request in materialRequests)
+        {
+            request.RequestedByUserId = null;
+        }
+
+        var templateTasks = await _context.ProjectTemplateTasks
+            .Where(x => x.DefaultAssignedUserId == user.Id || x.DefaultResponsibleUserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (var task in templateTasks)
+        {
+            if (task.DefaultAssignedUserId == user.Id)
+            {
+                task.DefaultAssignedUserId = null;
+            }
+
+            if (task.DefaultResponsibleUserId == user.Id)
+            {
+                task.DefaultResponsibleUserId = null;
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<List<UserDeletionBlockerItemViewModel>> GetUserDeletionBlockersAsync(ApplicationUser user, CancellationToken cancellationToken)
+    {
+        var items = new List<UserDeletionBlockerItemViewModel>();
+
+        var taskAssignments = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .Include(x => x.Assignments)
+            .Where(x =>
+                x.AssignedToUserId == user.Id ||
+                x.ResponsibleUserId == user.Id ||
+                x.Assignments.Any(assignment => assignment.UserId == user.Id))
+            .Select(x => new
+            {
+                x.Id,
+                x.Title,
+                ProjectCode = x.Project != null ? x.Project.Code : null,
+                IsAssigned = x.AssignedToUserId == user.Id,
+                IsResponsible = x.ResponsibleUserId == user.Id,
+                IsInAssignmentList = x.Assignments.Any(assignment => assignment.UserId == user.Id)
+            })
+            .ToListAsync(cancellationToken);
+
+        items.AddRange(taskAssignments.Select(task => new UserDeletionBlockerItemViewModel
+        {
+            RecordId = task.Id,
+            RelationType = "task",
+            CanClearRelation = true,
+            Category = "Görev",
+            Source = "Proje görevleri",
+            RecordKey = task.ProjectCode is not null ? $"{task.ProjectCode} / {task.Id}" : task.Id.ToString(),
+            Title = task.Title,
+            Description = BuildTaskBlockerDescription(task.IsAssigned, task.IsResponsible, task.IsInAssignmentList)
+        }));
+
+        var materialRequests = await _context.MaterialRequests
+            .Include(x => x.Project)
+            .Where(x => x.RequestedByUserId == user.Id)
+            .Select(x => new
+            {
+                x.Id,
+                x.RequestedItem,
+                ProjectCode = x.Project != null ? x.Project.Code : null
+            })
+            .ToListAsync(cancellationToken);
+
+        items.AddRange(materialRequests.Select(request => new UserDeletionBlockerItemViewModel
+        {
+            RecordId = request.Id,
+            RelationType = "material-request",
+            CanClearRelation = true,
+            Category = "İhtiyaç",
+            Source = "İhtiyaç listesi",
+            RecordKey = request.ProjectCode is not null ? $"{request.ProjectCode} / {request.Id}" : request.Id.ToString(),
+            Title = request.RequestedItem,
+            Description = "Kullanıcı bu ihtiyaç kaydını oluşturan kişi olarak kayıtlı."
+        }));
+
+        var purchaseOrders = await _context.PurchaseOrders
+            .Include(x => x.Project)
+            .Where(x => x.RequestedByUserId == user.Id)
+            .Select(x => new
+            {
+                x.Id,
+                x.OrderNumber,
+                x.Content,
+                ProjectCode = x.Project != null ? x.Project.Code : null
+            })
+            .ToListAsync(cancellationToken);
+
+        items.AddRange(purchaseOrders.Select(order => new UserDeletionBlockerItemViewModel
+        {
+            RecordId = order.Id,
+            RelationType = "purchase-order",
+            CanClearRelation = true,
+            Category = "Sipariş",
+            Source = "Satın alma siparişleri",
+            RecordKey = string.IsNullOrWhiteSpace(order.OrderNumber)
+                ? (order.ProjectCode is not null ? $"{order.ProjectCode} / {order.Id}" : order.Id.ToString())
+                : order.OrderNumber,
+            Title = order.Content,
+            Description = "Kullanıcı bu siparişte siparişi veren kişi olarak kayıtlı."
+        }));
+
+        var orderedItems = items
+            .OrderBy(x => x.Category)
+            .ThenBy(x => x.Source)
+            .ThenBy(x => x.Title)
+            .ToList();
+
+        for (var i = 0; i < orderedItems.Count; i++)
+        {
+            orderedItems[i].RowNumber = i + 1;
+        }
+
+        return orderedItems;
+    }
+
+    private static string BuildTaskBlockerDescription(bool isAssigned, bool isResponsible, bool isInAssignmentList)
+    {
+        var roles = new List<string>();
+        if (isAssigned)
+        {
+            roles.Add("atanan kullanıcı");
+        }
+
+        if (isResponsible)
+        {
+            roles.Add("sorumlu kullanıcı");
+        }
+
+        if (isInAssignmentList)
+        {
+            roles.Add("görev atama listesi");
+        }
+
+        return $"Kullanıcı bu görevde {string.Join(", ", roles)} olarak kayıtlı.";
     }
 
     private void AddIdentityErrors(IdentityResult result)

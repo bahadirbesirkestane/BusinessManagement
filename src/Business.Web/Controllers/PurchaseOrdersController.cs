@@ -632,7 +632,7 @@ public class PurchaseOrdersController : Controller
         return RedirectToLocal(returnUrl, order.ProjectId.HasValue ? new { projectId = order.ProjectId } : null);
     }
 
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Policy = AppPolicies.CanDeletePurchasing)]
     public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var order = await _purchaseOrderService.GetDetailsAsync(id, cancellationToken);
@@ -646,7 +646,7 @@ public class PurchaseOrdersController : Controller
 
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Policy = AppPolicies.CanDeletePurchasing)]
     public async Task<IActionResult> DeleteConfirmed(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var linkedCosts = await _context.ProjectCostItems.Where(x => x.PurchaseOrderId == id).ToListAsync(cancellationToken);
@@ -664,7 +664,7 @@ public class PurchaseOrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Policy = AppPolicies.CanDeletePurchasing)]
     public async Task<IActionResult> BulkDelete(Guid[] ids, string? returnUrl, CancellationToken cancellationToken)
     {
         if (ids.Length == 0)

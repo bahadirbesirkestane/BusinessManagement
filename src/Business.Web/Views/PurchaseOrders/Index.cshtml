@@ -4,7 +4,8 @@
     var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
     var canUpdateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
     var canChangeOrderStatus = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingChangeStatus) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
-    var canUseBulkActions = canUpdateOrder || canChangeOrderStatus || User.IsInRole(AppRoles.Admin);
+    var canDeleteOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingDelete) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
+    var canUseBulkActions = canUpdateOrder || canChangeOrderStatus || canDeleteOrder;
     var isDeferredLoad = ViewBag.IsDeferredLoad == true;
     var hasMore = ViewBag.HasMore == true;
     var listAction = (string)(ViewBag.ListAction ?? "Index");
@@ -227,7 +228,7 @@
                     </select>
                     <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("BulkUpdateStatus")">Durumu uygula</button>
                 }
-                @if (User.IsInRole(AppRoles.Admin))
+                @if (canDeleteOrder)
                 {
                     <button class="btn btn-outline-danger btn-sm" type="submit" formaction="@Url.Action("BulkDelete")" data-bulk-submit="bulkActionForm">Seçilenleri sil</button>
                 }
@@ -356,7 +357,7 @@
                                                     <button class="link-button" type="submit">Siparişi tekrarla</button>
                                                 </form>
                                             }
-                                            @if (User.IsInRole(AppRoles.Admin))
+                                            @if (canDeleteOrder)
                                             {
                                                 <a class="text-danger" asp-action="Delete" asp-route-id="@order.Id" asp-route-returnUrl="@returnUrl">Sil</a>
                                             }

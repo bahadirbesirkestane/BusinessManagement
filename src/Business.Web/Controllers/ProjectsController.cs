@@ -453,7 +453,7 @@ public class ProjectsController : Controller
             $"arsiv-projeler-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
     }
 
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Policy = AppPolicies.CanDeleteProjects)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var project = await _projectService.GetDetailsAsync(id, cancellationToken);
@@ -462,7 +462,7 @@ public class ProjectsController : Controller
 
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Policy = AppPolicies.CanDeleteProjects)]
     public async Task<IActionResult> DeleteConfirmed(Guid id, CancellationToken cancellationToken)
     {
         RemoveActivityRecords(RecordOwnerType.Project, id);
@@ -472,7 +472,7 @@ public class ProjectsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Policy = AppPolicies.CanDeleteProjects)]
     public async Task<IActionResult> BulkDelete(Guid[] ids, string? returnUrl, CancellationToken cancellationToken)
     {
         foreach (var id in ids.Distinct())
@@ -516,6 +516,7 @@ public class ProjectsController : Controller
     {
         if (User.IsInRole(AppRoles.Admin) ||
             User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksViewAll) ||
+            User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
             User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))
         {
             return project.Tasks

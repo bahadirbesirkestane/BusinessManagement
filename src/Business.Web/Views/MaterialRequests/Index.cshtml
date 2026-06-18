@@ -5,6 +5,7 @@
     var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
     var currentReturnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
     var defaultProjectId = ViewBag.ProjectId?.ToString();
+    var requestedByNames = ViewBag.RequestedByNames as IReadOnlyDictionary<string, string> ?? new Dictionary<string, string>();
 }
 
 <section class="panel-block">
@@ -30,7 +31,7 @@
         }
         <div class="filter-field filter-search">
             <span class="filter-icon" aria-hidden="true">⌕</span>
-            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Malzeme, kalite, proje veya not ara" />
+            <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Malzeme, kalite, proje, veren kişi veya not ara" />
         </div>
         @if (ViewBag.ProjectId is null)
         {
@@ -54,6 +55,13 @@
             @foreach (var material in ViewBag.Materials)
             {
                 <option value="@material.Id" selected="@(ViewBag.FilterMaterialId == material.Id)">@material.Name</option>
+            }
+        </select>
+        <select name="requestedByUserId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Veren kişiyi ara veya seç">
+            <option value="">Veren kişi</option>
+            @foreach (var user in ViewBag.Users)
+            {
+                <option value="@user.Id" selected="@(ViewBag.FilterRequestedByUserId == user.Id)">@((user.FullName ?? user.Email ?? user.UserName ?? user.Id))</option>
             }
         </select>
         <input name="neededFrom" value="@ViewBag.FilterNeededFrom" type="date" class="form-control form-control-sm" title="Başlangıç tarihi" />
@@ -173,6 +181,7 @@
                         <th>Proje</th>
                         <th>Miktar</th>
                         <th>Kalite</th>
+                        <th>Veren kişi</th>
                         <th>Gerekli tarih</th>
                         <th>Durum</th>
                         <th>Not</th>
@@ -189,6 +198,9 @@
                                     ? request.Quantity.Value.ToString("0.###")
                                     : $"{request.Quantity.Value:0.###} {request.Unit}"
                                 : "-");
+                        var requestedByName = !string.IsNullOrWhiteSpace(request.RequestedByUserId) && requestedByNames.TryGetValue(request.RequestedByUserId, out var resolvedRequestedByName)
+                            ? resolvedRequestedByName
+                            : "-";
                         var previewDescription = !string.IsNullOrWhiteSpace(request.Notes)
                             ? request.Notes
                             : "Bu ihtiyaç kaydı için ek not girilmemiş. Detay sayfasından dosyaları ve yorumları inceleyebilirsiniz.";
@@ -197,7 +209,7 @@
                             data-preview-group="material-requests-list"
                             data-preview-title="@request.RequestedItem"
                             data-preview-subtitle="Proje: @(request.Project?.Code ?? "Genel") | Tanımlı malzeme: @(request.Material?.Name ?? "Belirtilmedi")"
-                            data-preview-meta="Gerekli tarih: @request.NeededBy.ToString("dd.MM.yyyy") | Kalite: @(request.Quality ?? "Belirtilmedi")"
+                            data-preview-meta="Veren kişi: @requestedByName | Gerekli tarih: @request.NeededBy.ToString("dd.MM.yyyy") | Kalite: @(request.Quality ?? "Belirtilmedi")"
                             data-preview-description="@previewDescription"
                             data-preview-status="@request.Status.ToDisplayName()">
                             <td>
@@ -211,6 +223,7 @@
                             <td>@(request.Project?.Code ?? "Genel")</td>
                             <td>@quantityDisplay</td>
                             <td>@(request.Quality ?? "-")</td>
+                            <td>@requestedByName</td>
                             <td>@request.NeededBy.ToString("dd.MM.yyyy")</td>
                             <td>
                                 @if (canManageRequest)

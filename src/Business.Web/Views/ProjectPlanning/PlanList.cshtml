@@ -4,12 +4,15 @@
     ViewData["Title"] = "Proje Planlama Liste";
     var canCreateTask = User.IsInRole(AppRoles.Admin) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var canUpdateTask = User.IsInRole(AppRoles.Admin) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var canChangeTaskStatus = User.IsInRole(AppRoles.Admin) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var canChangeProjectStatus = User.IsInRole(AppRoles.Admin) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsChangeStatus) ||

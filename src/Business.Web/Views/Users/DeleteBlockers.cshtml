@@ -1,0 +1,78 @@
+@model Business.Web.ViewModels.UserDeletionBlockersViewModel
+@{
+    ViewData["Title"] = "Silme Engelleri";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Kullanıcılar ve Yetkiler</p>
+            <h2>@Model.UserDisplayName</h2>
+            <p class="record-count">
+                @if (Model.WasDeactivated)
+                {
+                    <span>Kullanıcı geçmiş kayıtlarda kullanıldığı için silinmedi, pasife alındı.</span>
+                }
+                else
+                {
+                    <span>Kullanıcıyı silmeden önce temizlenmesi gereken kayıtlar listeleniyor.</span>
+                }
+            </p>
+            <p class="record-count">Toplam satır sayısı: @Model.Items.Count</p>
+        </div>
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-primary btn-sm" asp-action="DownloadDeleteBlockers" asp-route-id="@Model.UserId">Excel indir</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Listeye dön</a>
+        </div>
+    </div>
+
+    <div class="alert alert-warning mb-3" role="alert">
+        Bu kullanıcıyı kalıcı olarak silebilmek için aşağıdaki kayıt ilişkilerini kaldırmanız gerekir.
+        Kişisel notlar ve kişisel görevler, silme sırasında sistem tarafından otomatik temizlenir.
+    </div>
+
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Kategori</th>
+                    <th>Kaynak</th>
+                    <th>Kayıt No</th>
+                    <th>Başlık</th>
+                    <th>Açıklama</th>
+                    <th>İşlem</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td>@item.RowNumber</td>
+                        <td>@item.Category</td>
+                        <td>@item.Source</td>
+                        <td>@item.RecordKey</td>
+                        <td>@item.Title</td>
+                        <td>@item.Description</td>
+                        <td>
+                            @if (item.CanClearRelation && item.RecordId.HasValue && !string.IsNullOrWhiteSpace(item.RelationType))
+                            {
+                                <form asp-action="ClearDeleteBlockerRelation" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="userId" value="@Model.UserId" />
+                                    <input type="hidden" name="recordId" value="@item.RecordId" />
+                                    <input type="hidden" name="relationType" value="@item.RelationType" />
+                                    <button type="submit" class="btn btn-outline-warning btn-sm">İlişkiyi kaldır</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Elle temizlenmeli</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

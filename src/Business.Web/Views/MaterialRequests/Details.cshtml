@@ -3,6 +3,7 @@
     ViewData["Title"] = "Malzeme Talebi Detayı";
     var canManageRequest = User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage);
     var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
+    var requestedByName = ViewBag.RequestedByName as string;
 }
 
 <section class="panel-block">
@@ -27,6 +28,7 @@
         <dt class="col-sm-3">Malzeme sınıfı</dt><dd class="col-sm-9">@(Model.Material?.Name ?? "-")</dd>
         <dt class="col-sm-3">Miktar</dt><dd class="col-sm-9">@(Model.QuantityText ?? Model.Quantity?.ToString("0.###") ?? "-")</dd>
         <dt class="col-sm-3">Kalite</dt><dd class="col-sm-9">@(Model.Quality ?? "-")</dd>
+        <dt class="col-sm-3">Veren kişi</dt><dd class="col-sm-9">@(requestedByName ?? "-")</dd>
         <dt class="col-sm-3">Not</dt><dd class="col-sm-9">@(Model.Notes ?? "-")</dd>
     </dl>
 </section>

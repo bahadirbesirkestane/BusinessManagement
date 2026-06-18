@@ -16,6 +16,7 @@ public static class AppPermissions
     public const string TasksDelete = "tasks.delete";
     public const string TasksChangeStatus = "tasks.change-status";
     public const string TasksComplete = "tasks.complete";
+    public const string TasksManage = "tasks.manage";
     public const string PurchasingView = "purchasing.view";
     public const string PurchasingCreate = "purchasing.create";
     public const string PurchasingUpdate = "purchasing.update";
@@ -58,6 +59,7 @@ public static class AppPermissions
         new(TasksDelete, "Görevler", "Görev sil"),
         new(TasksChangeStatus, "Görevler", "Görev durumu değiştir"),
         new(TasksComplete, "Görevler", "Görevi tamamlandı yap"),
+        new(TasksManage, "Görevler", "Görev tam yönetim"),
         new(PurchasingView, "Siparişler", "Siparişleri görüntüle"),
         new(PurchasingCreate, "Siparişler", "Sipariş oluştur"),
         new(PurchasingUpdate, "Siparişler", "Sipariş güncelle"),

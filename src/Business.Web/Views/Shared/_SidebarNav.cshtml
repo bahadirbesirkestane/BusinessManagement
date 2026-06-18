@@ -181,7 +181,7 @@
 
         if (url.StartsWith("/ProjectTasks", StringComparison.OrdinalIgnoreCase))
         {
-            return HasPermission(AppPermissions.TasksView, AppPermissions.TasksCreate, AppPermissions.TasksUpdate, AppPermissions.TasksChangeStatus, AppPermissions.TasksComplete);
+            return HasPermission(AppPermissions.TasksView, AppPermissions.TasksCreate, AppPermissions.TasksUpdate, AppPermissions.TasksChangeStatus, AppPermissions.TasksComplete, AppPermissions.TasksManage);
         }
 
         if (url.StartsWith("/PersonalNotes", StringComparison.OrdinalIgnoreCase) ||
@@ -212,12 +212,12 @@
 
         if (url.StartsWith("/Reports/Kanban", StringComparison.OrdinalIgnoreCase))
         {
-            return HasPermission(AppPermissions.TasksView, AppPermissions.ProjectsManage);
+            return HasPermission(AppPermissions.TasksView, AppPermissions.TasksManage, AppPermissions.ProjectsManage);
         }
 
         if (url.StartsWith("/ProjectPlanning", StringComparison.OrdinalIgnoreCase))
         {
-            return HasPermission(AppPermissions.ProjectsView, AppPermissions.ProjectsManage);
+            return HasPermission(AppPermissions.ProjectsView, AppPermissions.TasksManage, AppPermissions.ProjectsManage);
         }
 
         if (url.StartsWith("/PurchaseOrders", StringComparison.OrdinalIgnoreCase))
