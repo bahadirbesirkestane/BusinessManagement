@@ -36,6 +36,12 @@ public class Project : BaseEntity, IValidatableObject
     [StringLength(3, MinimumLength = 3, ErrorMessage = "Para birimi 3 karakter olmalıdır.")]
     public string Currency { get; set; } = "TRY";
 
+    [Range(typeof(decimal), "0.0001", "999999999", ConvertValueInInvariantCulture = true, ParseLimitsInInvariantCulture = true, ErrorMessage = "Euro kuru 0'dan bÃ¼yÃ¼k olmalÄ±dÄ±r.")]
+    public decimal? EurToTryRate { get; set; }
+
+    [Range(typeof(decimal), "0.0001", "999999999", ConvertValueInInvariantCulture = true, ParseLimitsInInvariantCulture = true, ErrorMessage = "Dolar kuru 0'dan bÃ¼yÃ¼k olmalÄ±dÄ±r.")]
+    public decimal? UsdToTryRate { get; set; }
+
     [StringLength(2000, ErrorMessage = "Not en fazla 2000 karakter olabilir.")]
     public string? Notes { get; set; }
 

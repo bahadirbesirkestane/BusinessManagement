@@ -166,6 +166,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.IsArchived).HasDefaultValue(false);
             entity.Property(x => x.Currency).HasMaxLength(3);
             entity.Property(x => x.Budget).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.EurToTryRate).HasColumnType("decimal(18,4)");
+            entity.Property(x => x.UsdToTryRate).HasColumnType("decimal(18,4)");
             entity.HasOne(x => x.Customer).WithMany(x => x.Projects).HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
             entity.HasMany(x => x.Tasks).WithOne(x => x.Project).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.SetNull);
             entity.HasMany(x => x.PurchaseOrders).WithOne(x => x.Project).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.SetNull);

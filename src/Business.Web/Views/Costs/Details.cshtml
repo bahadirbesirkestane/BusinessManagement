@@ -1,9 +1,9 @@
 @model Project
 @{
     ViewData["Title"] = "Maliyet Detayı";
-    var costItemsTotal = Model.CostItems.Sum(x => x.Amount);
-    var orderTotal = Model.PurchaseOrders.Sum(x => x.OrderTotal ?? ((x.UnitPrice ?? 0) * (x.Quantity ?? 0)));
-    var total = costItemsTotal + orderTotal;
+    var summary = CostSummaryBuilder.Build(Model);
+    var canManageCosts = User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin);
+    var canUpdateProject = User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage) || User.IsInRole(AppRoles.Admin);
 }
 
 <section class="project-header">
@@ -13,8 +13,15 @@
         <p>@(Model.Customer?.Name ?? Model.CustomerName ?? "Müşteri yok")</p>
     </div>
     <div class="project-header-actions">
-        <span class="status-pill">@total.ToString("N2") @Model.Currency</span>
-        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+        @if (summary.GrandTotalInProjectCurrency.HasValue)
+        {
+            <span class="status-pill">@summary.GrandTotalInProjectCurrency.Value.ToString("N2") @summary.ProjectCurrency</span>
+        }
+        else
+        {
+            <span class="status-pill">Kur bilgisi bekleniyor</span>
+        }
+        @if (canManageCosts)
         {
             <a class="btn btn-primary btn-sm" asp-action="Create" asp-route-projectId="@Model.Id">Maliyet kalemi ekle</a>
         }
@@ -30,45 +37,120 @@
             </div>
         </div>
         <dl class="row mb-0">
-            <dt class="col-sm-5">Proje bütçesi</dt><dd class="col-sm-7">@(Model.Budget?.ToString("N2") ?? "-") @Model.Currency</dd>
-            <dt class="col-sm-5">Elle girilen maliyetler</dt><dd class="col-sm-7">@costItemsTotal.ToString("N2") @Model.Currency</dd>
-            <dt class="col-sm-5">Projeye bağlı siparişler</dt><dd class="col-sm-7">@orderTotal.ToString("N2") @Model.Currency</dd>
-            <dt class="col-sm-5">Toplam maliyet</dt><dd class="col-sm-7"><strong>@total.ToString("N2") @Model.Currency</strong></dd>
-            @if (Model.Budget.HasValue)
+            <dt class="col-sm-5">Proje bütçesi</dt>
+            <dd class="col-sm-7">@(summary.Budget?.ToString("N2") ?? "-") @summary.ProjectCurrency</dd>
+
+            <dt class="col-sm-5">Elle girilen maliyetler</dt>
+            <dd class="col-sm-7">
+                @foreach (var total in summary.CostItemTotals)
+                {
+                    <div>@total.Amount.ToString("N2") @total.Currency</div>
+                }
+            </dd>
+
+            <dt class="col-sm-5">Projeye bağlı siparişler</dt>
+            <dd class="col-sm-7">
+                @foreach (var total in summary.PurchaseOrderTotals)
+                {
+                    <div>@total.Amount.ToString("N2") @total.Currency</div>
+                }
+            </dd>
+
+            <dt class="col-sm-5">Toplam maliyet</dt>
+            <dd class="col-sm-7">
+                @foreach (var total in summary.CombinedTotals)
+                {
+                    <div>@total.Amount.ToString("N2") @total.Currency</div>
+                }
+            </dd>
+
+            <dt class="col-sm-5">EUR/TRY kuru</dt>
+            <dd class="col-sm-7">@(summary.EurToTryRate?.ToString("N4") ?? "-")</dd>
+
+            <dt class="col-sm-5">USD/TRY kuru</dt>
+            <dd class="col-sm-7">@(summary.UsdToTryRate?.ToString("N4") ?? "-")</dd>
+
+            @if (summary.GrandTotalInProjectCurrency.HasValue)
             {
-                var remaining = Model.Budget.Value - total;
-                <dt class="col-sm-5">Bütçe farkı</dt><dd class="col-sm-7"><strong>@remaining.ToString("N2") @Model.Currency</strong></dd>
+                <dt class="col-sm-5">Dönüştürülmüş toplam</dt>
+                <dd class="col-sm-7"><strong>@summary.GrandTotalInProjectCurrency.Value.ToString("N2") @summary.ProjectCurrency</strong></dd>
+            }
+
+            @if (summary.RemainingBudgetInProjectCurrency.HasValue)
+            {
+                <dt class="col-sm-5">Bütçe farkı</dt>
+                <dd class="col-sm-7"><strong>@summary.RemainingBudgetInProjectCurrency.Value.ToString("N2") @summary.ProjectCurrency</strong></dd>
             }
         </dl>
+
+        @if (summary.HasMissingExchangeRates)
+        {
+            <div class="alert alert-warning mt-3 mb-0">
+                Dönüştürülmüş toplam hesaplanamadı. Eksik kur: @string.Join(", ", summary.MissingRateCurrencies)
+            </div>
+        }
     </section>
 
     <section class="panel-block">
         <div class="panel-heading">
             <div>
-                <p class="section-kicker">Sipariş</p>
-                <h2>Projeye bağlı siparişler</h2>
+                <p class="section-kicker">Kur</p>
+                <h2>Kur yönetimi</h2>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table app-table align-middle">
-                <thead><tr><th>Sipariş</th><th>Tedarikçi</th><th>Durum</th><th>Tutar</th><th></th></tr></thead>
-                <tbody>
-                @foreach (var order in Model.PurchaseOrders)
-                {
-                    var amount = order.OrderTotal ?? ((order.UnitPrice ?? 0) * (order.Quantity ?? 0));
-                    <tr>
-                        <td><strong>@order.OrderNumber</strong><small class="d-block text-muted">@order.Content</small></td>
-                        <td>@(order.Supplier?.Name ?? "-")</td>
-                        <td><span class="status-pill status-@order.Status.ToString().ToLowerInvariant()">@order.Status.ToDisplayName()</span></td>
-                        <td>@amount.ToString("N2") @order.Currency</td>
-                        <td class="text-end"><a asp-controller="PurchaseOrders" asp-action="Details" asp-route-id="@order.Id">Sipariş</a></td>
-                    </tr>
-                }
-                </tbody>
-            </table>
-        </div>
+        @if (canUpdateProject)
+        {
+            <form asp-action="UpdateRates" method="post" class="app-form">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <div class="form-grid">
+                    <div class="mb-3">
+                        <label class="form-label" for="eurToTryRate">EUR/TRY</label>
+                        <input id="eurToTryRate" name="eurToTryRate" type="text" inputmode="decimal" value="@Model.EurToTryRate?.ToString()" class="form-control" placeholder="43,25 veya 43.25" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="usdToTryRate">USD/TRY</label>
+                        <input id="usdToTryRate" name="usdToTryRate" type="text" inputmode="decimal" value="@Model.UsdToTryRate?.ToString()" class="form-control" placeholder="39,80 veya 39.80" />
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary btn-sm" type="submit">Kurları güncelle</button>
+                    <a class="btn btn-outline-secondary btn-sm" asp-controller="Projects" asp-action="Edit" asp-route-id="@Model.Id">Proje kartını aç</a>
+                </div>
+            </form>
+        }
+        else
+        {
+            <p class="text-muted mb-0">Kur bilgilerini güncellemek için proje düzenleme yetkisi gerekir.</p>
+        }
     </section>
 </div>
+
+<section class="panel-block mt-3">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Sipariş</p>
+            <h2>Projeye bağlı siparişler</h2>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table app-table align-middle">
+            <thead><tr><th>Sipariş</th><th>Tedarikçi</th><th>Durum</th><th>Tutar</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var order in Model.PurchaseOrders)
+            {
+                var amount = CostSummaryBuilder.GetOrderAmount(order);
+                <tr>
+                    <td><strong>@order.OrderNumber</strong><small class="d-block text-muted">@order.Content</small></td>
+                    <td>@(order.Supplier?.Name ?? "-")</td>
+                    <td><span class="status-pill status-@order.Status.ToString().ToLowerInvariant()">@order.Status.ToDisplayName()</span></td>
+                    <td>@amount.ToString("N2") @order.Currency</td>
+                    <td class="text-end"><a asp-controller="PurchaseOrders" asp-action="Details" asp-route-id="@order.Id">Sipariş</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
 
 <section class="panel-block mt-3">
     <div class="panel-heading">
@@ -77,7 +159,7 @@
             <h2>Maliyet kalemleri</h2>
         </div>
     </div>
-    @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+    @if (canManageCosts)
     {
         <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
@@ -92,7 +174,7 @@
             {
                 <tr>
                     <td>
-                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+                        @if (canManageCosts)
                         {
                             <input type="checkbox" name="ids" value="@item.Id" form="bulkDeleteForm" />
                         }
@@ -104,7 +186,7 @@
                     <td>@item.Amount.ToString("N2") @item.Currency</td>
                     <td>@(item.Notes ?? "-")</td>
                     <td class="text-end">
-                        @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin))
+                        @if (canManageCosts)
                         {
                             <a asp-action="Edit" asp-route-id="@item.Id">Düzenle</a>
                             <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline">

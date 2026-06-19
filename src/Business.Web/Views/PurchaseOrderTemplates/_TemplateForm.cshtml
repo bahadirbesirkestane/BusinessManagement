@@ -41,7 +41,7 @@
     </div>
     <div class="mb-3">
         <label asp-for="DefaultCurrency" class="form-label">Varsayılan para birimi</label>
-        <input asp-for="DefaultCurrency" class="form-control" />
+        <select asp-for="DefaultCurrency" asp-items="CurrencyMetadata.GetSelectList()" class="form-select"></select>
         <span asp-validation-for="DefaultCurrency" class="text-danger"></span>
     </div>
     <div class="mb-3">

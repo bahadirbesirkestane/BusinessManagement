@@ -31,17 +31,38 @@
             <tbody>
             @foreach (var project in Model)
             {
-                var costItemsTotal = project.CostItems.Sum(x => x.Amount);
-                var orderTotal = project.PurchaseOrders.Sum(x => x.OrderTotal ?? ((x.UnitPrice ?? 0) * (x.Quantity ?? 0)));
-                var total = costItemsTotal + orderTotal;
+                var summary = CostSummaryBuilder.Build(project);
                 <tr>
                     <td><strong>@project.Code</strong></td>
                     <td>@project.Name</td>
                     <td>@(project.Customer?.Name ?? project.CustomerName ?? "-")</td>
-                    <td>@(project.Budget?.ToString("N2") ?? "-") @project.Currency</td>
-                    <td>@costItemsTotal.ToString("N2") @project.Currency</td>
-                    <td>@orderTotal.ToString("N2") @project.Currency</td>
-                    <td><strong>@total.ToString("N2") @project.Currency</strong></td>
+                    <td>@(project.Budget?.ToString("N2") ?? "-") @summary.ProjectCurrency</td>
+                    <td>
+                        @foreach (var total in summary.CostItemTotals)
+                        {
+                            <div>@total.Amount.ToString("N2") @total.Currency</div>
+                        }
+                    </td>
+                    <td>
+                        @foreach (var total in summary.PurchaseOrderTotals)
+                        {
+                            <div>@total.Amount.ToString("N2") @total.Currency</div>
+                        }
+                    </td>
+                    <td>
+                        @if (summary.GrandTotalInProjectCurrency.HasValue)
+                        {
+                            <strong class="d-block">@summary.GrandTotalInProjectCurrency.Value.ToString("N2") @summary.ProjectCurrency</strong>
+                        }
+                        @foreach (var total in summary.CombinedTotals)
+                        {
+                            <div class="text-muted">@total.Amount.ToString("N2") @total.Currency</div>
+                        }
+                        @if (summary.HasMissingExchangeRates)
+                        {
+                            <small class="text-warning d-block">Kur eksiği: @string.Join(", ", summary.MissingRateCurrencies)</small>
+                        }
+                    </td>
                     <td class="text-end"><a asp-action="Details" asp-route-id="@project.Id">Maliyet detayı</a></td>
                 </tr>
             }

@@ -96,7 +96,7 @@ public class PurchaseOrderTemplatesController : Controller
             DefaultStatus = model.DefaultStatus,
             DefaultSupplierId = model.DefaultSupplierId,
             DefaultPaymentTerm = Normalize(model.DefaultPaymentTerm),
-            DefaultCurrency = model.DefaultCurrency.Trim().ToUpperInvariant(),
+            DefaultCurrency = CurrencyMetadata.NormalizeInput(model.DefaultCurrency),
             DefaultVatRate = model.DefaultVatRate,
             IsActive = model.IsActive
         };
@@ -173,7 +173,7 @@ public class PurchaseOrderTemplatesController : Controller
         template.DefaultStatus = model.DefaultStatus;
         template.DefaultSupplierId = model.DefaultSupplierId;
         template.DefaultPaymentTerm = Normalize(model.DefaultPaymentTerm);
-        template.DefaultCurrency = model.DefaultCurrency.Trim().ToUpperInvariant();
+        template.DefaultCurrency = CurrencyMetadata.NormalizeInput(model.DefaultCurrency);
         template.DefaultVatRate = model.DefaultVatRate;
         template.IsActive = model.IsActive;
 

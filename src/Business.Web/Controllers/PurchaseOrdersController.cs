@@ -937,7 +937,7 @@ public class PurchaseOrdersController : Controller
         order.Quality = string.IsNullOrWhiteSpace(order.Quality) ? null : order.Quality.Trim();
         order.PaymentTerm = string.IsNullOrWhiteSpace(order.PaymentTerm) ? null : order.PaymentTerm.Trim();
         order.Notes = string.IsNullOrWhiteSpace(order.Notes) ? null : order.Notes.Trim();
-        order.Currency = string.IsNullOrWhiteSpace(order.Currency) ? "TRY" : order.Currency.Trim().ToUpperInvariant();
+        order.Currency = CurrencyMetadata.NormalizeInput(order.Currency);
         order.Scope = order.ProjectId.HasValue ? PurchaseOrderScope.Project : order.Scope;
 
         if (order.Quantity.HasValue)

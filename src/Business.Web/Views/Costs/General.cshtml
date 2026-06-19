@@ -1,7 +1,7 @@
 @model IReadOnlyList<ProjectCostItem>
 @{
     ViewData["Title"] = "Genel Giderler";
-    var total = Model.Sum(x => x.Amount);
+    var totals = CostSummaryBuilder.GroupByCurrency(Model.Select(x => (CurrencyMetadata.NormalizeStored(x.Currency), x.Amount)));
     var canManageCosts = User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin);
 }
 
@@ -11,7 +11,12 @@
             <p class="section-kicker">Maliyet</p>
             <h2>Genel giderler</h2>
         </div>
-        <span class="status-pill">@total.ToString("N2") TRY</span>
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var total in totals)
+            {
+                <span class="status-pill">@total.Amount.ToString("N2") @total.Currency</span>
+            }
+        </div>
     </div>
     @if (canManageCosts)
     {

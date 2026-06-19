@@ -3,6 +3,7 @@ using Business.Application.Common;
 using Business.Infrastructure;
 using Business.Infrastructure.Data;
 using Business.Infrastructure.Seed;
+using Business.Web.ModelBinding;
 using Business.Web.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,7 +24,10 @@ builder.Services.Configure<AdminTwoFactorOptions>(builder.Configuration.GetSecti
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.ModelBinderProviders.Insert(0, new FlexibleDecimalModelBinderProvider());
+});
 
 var app = builder.Build();
 

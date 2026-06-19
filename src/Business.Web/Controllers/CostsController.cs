@@ -260,10 +260,41 @@ public class CostsController : Controller
             : RedirectToAction(nameof(General));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanUpdateProjects)]
+    public async Task<IActionResult> UpdateRates(Guid id, decimal? eurToTryRate, decimal? usdToTryRate, CancellationToken cancellationToken)
+    {
+        var project = await _context.Projects
+            .ApplyRecordVisibility(User)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (project is null)
+        {
+            return NotFound();
+        }
+
+        project.EurToTryRate = eurToTryRate;
+        project.UsdToTryRate = usdToTryRate;
+
+        if (!TryValidateModel(project))
+        {
+            TempData["Error"] = "Kur bilgileri geÃ§ersiz.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, "Kur bilgileri gÃ¼ncellendi", $"EUR/TRY: {project.EurToTryRate:N4} - USD/TRY: {project.UsdToTryRate:N4}", cancellationToken);
+        TempData["Success"] = "Kur bilgileri gÃ¼ncellendi.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
     private static void NormalizeCostItem(ProjectCostItem item)
     {
         item.ProjectId = item.ProjectId == Guid.Empty ? null : item.ProjectId;
         item.PurchaseOrderId = item.PurchaseOrderId == Guid.Empty ? null : item.PurchaseOrderId;
+        item.Description = item.Description?.Trim() ?? string.Empty;
+        item.Notes = string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes.Trim();
+        item.Currency = CurrencyMetadata.NormalizeInput(item.Currency);
 
         if (!item.ProjectId.HasValue && !item.PurchaseOrderId.HasValue)
         {

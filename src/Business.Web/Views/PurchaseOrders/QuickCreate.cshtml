@@ -83,7 +83,7 @@
             </div>
             <div class="mb-3">
                 <label asp-for="Currency" class="form-label">Para birimi</label>
-                <input asp-for="Currency" class="form-control" />
+                <select asp-for="Currency" asp-items="CurrencyMetadata.GetSelectList()" class="form-select"></select>
             </div>
             <div class="mb-3">
                 <label asp-for="PaymentTerm" class="form-label">Vade</label>

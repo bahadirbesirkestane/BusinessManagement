@@ -1,7 +1,7 @@
 @model IReadOnlyList<PurchaseOrder>
 @{
     ViewData["Title"] = "Sipariş Maliyetleri";
-    var total = Model.Sum(x => x.OrderTotal ?? ((x.UnitPrice ?? 0) * (x.Quantity ?? 0)));
+    var totals = CostSummaryBuilder.GroupByCurrency(Model.Select(x => (CurrencyMetadata.NormalizeStored(x.Currency), CostSummaryBuilder.GetOrderAmount(x))));
 }
 
 <section class="panel-block">
@@ -10,7 +10,12 @@
             <p class="section-kicker">Maliyet</p>
             <h2>Sipariş maliyetleri</h2>
         </div>
-        <span class="status-pill">@total.ToString("N2") TRY</span>
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var total in totals)
+            {
+                <span class="status-pill">@total.Amount.ToString("N2") @total.Currency</span>
+            }
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table app-table align-middle">

@@ -222,6 +222,7 @@ public class ProjectsController : Controller
     public async Task<IActionResult> Create(Project project, CancellationToken cancellationToken)
     {
         project.Visibility = User.NormalizeRecordVisibility(project.Visibility);
+        NormalizeProjectInput(project);
 
         if (!ModelState.IsValid)
         {
@@ -269,6 +270,7 @@ public class ProjectsController : Controller
         }
 
         project.Visibility = User.NormalizeRecordVisibility(project.Visibility);
+        NormalizeProjectInput(project);
 
         if (!ModelState.IsValid)
         {
@@ -488,6 +490,16 @@ public class ProjectsController : Controller
     {
         ViewBag.Customers = await _lookupService.GetCustomersAsync(cancellationToken);
         ViewBag.Users = await _userManager.Users.Where(x => x.IsActive).OrderBy(x => x.FullName).ToListAsync(cancellationToken);
+    }
+
+    private static void NormalizeProjectInput(Project project)
+    {
+        project.Code = project.Code?.Trim() ?? string.Empty;
+        project.Name = project.Name?.Trim() ?? string.Empty;
+        project.CustomerName = string.IsNullOrWhiteSpace(project.CustomerName) ? null : project.CustomerName.Trim();
+        project.Description = string.IsNullOrWhiteSpace(project.Description) ? null : project.Description.Trim();
+        project.Notes = string.IsNullOrWhiteSpace(project.Notes) ? null : project.Notes.Trim();
+        project.Currency = CurrencyMetadata.NormalizeInput(project.Currency);
     }
 
     private async Task<string> GenerateProjectCodeAsync(CancellationToken cancellationToken)
