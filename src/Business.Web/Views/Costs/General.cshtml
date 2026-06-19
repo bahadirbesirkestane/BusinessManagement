@@ -12,12 +12,36 @@
             <h2>Genel giderler</h2>
         </div>
         <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-success btn-sm"
+               asp-action="ExportGeneral"
+               asp-route-q="@ViewBag.FilterQ"
+               asp-route-projectId="@ViewBag.FilterProjectId"
+               asp-route-currency="@ViewBag.FilterCurrency">Excel indir</a>
             @foreach (var total in totals)
             {
                 <span class="status-pill">@total.Amount.ToString("N2") @total.Currency</span>
             }
         </div>
     </div>
+    <form method="get" class="diagram-filter-bar mb-3">
+        <input type="text" name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Açıklama veya proje ara" />
+        <select name="projectId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Proje ara veya seç">
+            <option value="">Tüm projeler</option>
+            @foreach (var project in ViewBag.Projects)
+            {
+                <option value="@project.Id" selected="@(ViewBag.FilterProjectId == project.Id)">@project.Code - @project.Name</option>
+            }
+        </select>
+        <select name="currency" class="form-select form-select-sm">
+            <option value="">Tüm para birimleri</option>
+            @foreach (var currencyItem in CurrencyMetadata.GetSelectList())
+            {
+                <option value="@currencyItem.Value" selected="@(ViewBag.FilterCurrency == currencyItem.Value)">@currencyItem.Text</option>
+            }
+        </select>
+        <button class="btn btn-outline-primary btn-sm" type="submit">Filtrele</button>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="General">Temizle</a>
+    </form>
     @if (canManageCosts)
     {
         <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkDeleteForm" hidden>

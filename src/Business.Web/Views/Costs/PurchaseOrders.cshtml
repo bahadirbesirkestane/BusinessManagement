@@ -11,19 +11,59 @@
             <h2>Sipariş maliyetleri</h2>
         </div>
         <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-success btn-sm"
+               asp-action="ExportPurchaseOrders"
+               asp-route-q="@ViewBag.FilterQ"
+               asp-route-projectId="@ViewBag.FilterProjectId"
+               asp-route-supplierId="@ViewBag.FilterSupplierId"
+               asp-route-materialId="@ViewBag.FilterMaterialId"
+               asp-route-currency="@ViewBag.FilterCurrency">Excel indir</a>
             @foreach (var total in totals)
             {
                 <span class="status-pill">@total.Amount.ToString("N2") @total.Currency</span>
             }
         </div>
     </div>
+    <form method="get" class="diagram-filter-bar mb-3">
+        <input type="text" name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Sipariş, proje, tedarikçi ara" />
+        <select name="projectId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Proje ara veya seç">
+            <option value="">Tüm projeler</option>
+            @foreach (var project in ViewBag.Projects)
+            {
+                <option value="@project.Id" selected="@(ViewBag.FilterProjectId == project.Id)">@project.Code - @project.Name</option>
+            }
+        </select>
+        <select name="supplierId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Tedarikçi ara veya seç">
+            <option value="">Tüm tedarikçiler</option>
+            @foreach (var supplier in ViewBag.Suppliers)
+            {
+                <option value="@supplier.Id" selected="@(ViewBag.FilterSupplierId == supplier.Id)">@supplier.Name</option>
+            }
+        </select>
+        <select name="materialId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
+            <option value="">Tüm malzemeler</option>
+            @foreach (var material in ViewBag.Materials)
+            {
+                <option value="@material.Id" selected="@(ViewBag.FilterMaterialId == material.Id)">@material.Name</option>
+            }
+        </select>
+        <select name="currency" class="form-select form-select-sm">
+            <option value="">Tüm para birimleri</option>
+            @foreach (var currencyItem in CurrencyMetadata.GetSelectList())
+            {
+                <option value="@currencyItem.Value" selected="@(ViewBag.FilterCurrency == currencyItem.Value)">@currencyItem.Text</option>
+            }
+        </select>
+        <button class="btn btn-outline-primary btn-sm" type="submit">Filtrele</button>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="PurchaseOrders">Temizle</a>
+    </form>
     <div class="table-responsive">
         <table class="table app-table align-middle">
             <thead><tr><th>Sipariş</th><th>Proje</th><th>Tedarikçi</th><th>Malzeme</th><th>Birim fiyat</th><th>Tutar</th><th></th></tr></thead>
             <tbody>
             @foreach (var order in Model)
             {
-                var amount = order.OrderTotal ?? ((order.UnitPrice ?? 0) * (order.Quantity ?? 0));
+                var amount = CostSummaryBuilder.GetOrderAmount(order);
                 <tr>
                     <td><strong>@order.OrderNumber</strong><small class="d-block text-muted">@order.Content</small></td>
                     <td>@(order.Project?.Code ?? "Genel")</td>

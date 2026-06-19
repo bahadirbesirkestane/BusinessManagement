@@ -25,6 +25,8 @@ public static class AppPolicies
     public const string CanManageInvoices = "CanManageInvoices";
     public const string CanViewCosts = "CanViewCosts";
     public const string CanManageCosts = "CanManageCosts";
+    public const string CanViewProjectBudget = "CanViewProjectBudget";
+    public const string CanManageProjectBudget = "CanManageProjectBudget";
     public const string CanManagePurchasing = "CanManagePurchasing";
     public const string CanCreatePurchasing = "CanCreatePurchasing";
     public const string CanUpdatePurchasing = "CanUpdatePurchasing";

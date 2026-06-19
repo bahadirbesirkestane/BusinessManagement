@@ -3,7 +3,8 @@
     ViewData["Title"] = "Maliyet Detayı";
     var summary = CostSummaryBuilder.Build(Model);
     var canManageCosts = User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage) || User.IsInRole(AppRoles.Admin);
-    var canUpdateProject = User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage) || User.IsInRole(AppRoles.Admin);
+    var canViewBudget = User.IsInRole(AppRoles.Admin) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectBudgetView) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectBudgetManage);
+    var canManageBudget = User.IsInRole(AppRoles.Admin) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectBudgetManage);
 }
 
 <section class="project-header">
@@ -21,6 +22,7 @@
         {
             <span class="status-pill">Kur bilgisi bekleniyor</span>
         }
+        <a class="btn btn-outline-success btn-sm" asp-action="ExportDetails" asp-route-id="@Model.Id">Excel indir</a>
         @if (canManageCosts)
         {
             <a class="btn btn-primary btn-sm" asp-action="Create" asp-route-projectId="@Model.Id">Maliyet kalemi ekle</a>
@@ -37,8 +39,11 @@
             </div>
         </div>
         <dl class="row mb-0">
-            <dt class="col-sm-5">Proje bütçesi</dt>
-            <dd class="col-sm-7">@(summary.Budget?.ToString("N2") ?? "-") @summary.ProjectCurrency</dd>
+            @if (canViewBudget)
+            {
+                <dt class="col-sm-5">Proje bütçesi</dt>
+                <dd class="col-sm-7">@(summary.Budget?.ToString("N2") ?? "-") @summary.ProjectCurrency</dd>
+            }
 
             <dt class="col-sm-5">Elle girilen maliyetler</dt>
             <dd class="col-sm-7">
@@ -76,7 +81,7 @@
                 <dd class="col-sm-7"><strong>@summary.GrandTotalInProjectCurrency.Value.ToString("N2") @summary.ProjectCurrency</strong></dd>
             }
 
-            @if (summary.RemainingBudgetInProjectCurrency.HasValue)
+            @if (canViewBudget && summary.RemainingBudgetInProjectCurrency.HasValue)
             {
                 <dt class="col-sm-5">Bütçe farkı</dt>
                 <dd class="col-sm-7"><strong>@summary.RemainingBudgetInProjectCurrency.Value.ToString("N2") @summary.ProjectCurrency</strong></dd>
@@ -94,15 +99,28 @@
     <section class="panel-block">
         <div class="panel-heading">
             <div>
-                <p class="section-kicker">Kur</p>
-                <h2>Kur yönetimi</h2>
+                <p class="section-kicker">Bütçe</p>
+                <h2>Bütçe ve kur yönetimi</h2>
             </div>
         </div>
-        @if (canUpdateProject)
+        @if (canManageBudget)
         {
-            <form asp-action="UpdateRates" method="post" class="app-form">
+            <form asp-action="UpdateBudgetSettings" method="post" class="app-form">
                 <input type="hidden" name="id" value="@Model.Id" />
                 <div class="form-grid">
+                    <div class="mb-3">
+                        <label class="form-label" for="budget">Bütçe</label>
+                        <input id="budget" name="budget" type="text" inputmode="decimal" value="@Model.Budget?.ToString()" class="form-control" placeholder="150000 veya 150000,50" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="currency">Para birimi</label>
+                        <select id="currency" name="currency" class="form-select">
+                            @foreach (var currencyItem in CurrencyMetadata.GetSelectList())
+                            {
+                                <option value="@currencyItem.Value" selected="@(Model.Currency == currencyItem.Value)">@currencyItem.Text</option>
+                            }
+                        </select>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label" for="eurToTryRate">EUR/TRY</label>
                         <input id="eurToTryRate" name="eurToTryRate" type="text" inputmode="decimal" value="@Model.EurToTryRate?.ToString()" class="form-control" placeholder="43,25 veya 43.25" />
@@ -113,14 +131,13 @@
                     </div>
                 </div>
                 <div class="form-actions">
-                    <button class="btn btn-primary btn-sm" type="submit">Kurları güncelle</button>
-                    <a class="btn btn-outline-secondary btn-sm" asp-controller="Projects" asp-action="Edit" asp-route-id="@Model.Id">Proje kartını aç</a>
+                    <button class="btn btn-primary btn-sm" type="submit">Bütçe ve kurları güncelle</button>
                 </div>
             </form>
         }
         else
         {
-            <p class="text-muted mb-0">Kur bilgilerini güncellemek için proje düzenleme yetkisi gerekir.</p>
+            <p class="text-muted mb-0">Bütçe ve kur bilgilerini güncellemek için ayrı bütçe yönetim yetkisi gerekir.</p>
         }
     </section>
 </div>

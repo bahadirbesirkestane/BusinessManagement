@@ -38,6 +38,8 @@ public static class AppPermissions
     public const string InvoicesManage = "invoices.manage";
     public const string CostsView = "costs.view";
     public const string CostsManage = "costs.manage";
+    public const string ProjectBudgetView = "project-budget.view";
+    public const string ProjectBudgetManage = "project-budget.manage";
     public const string UsersView = "users.view";
     public const string UsersManage = "users.manage";
     public const string RolesManage = "roles.manage";
@@ -81,6 +83,8 @@ public static class AppPermissions
         new(InvoicesManage, "Faturalar", "Fatura yönet"),
         new(CostsView, "Maliyet", "Maliyetleri görüntüle"),
         new(CostsManage, "Maliyet", "Maliyetleri yönet"),
+        new(ProjectBudgetView, "Maliyet", "Proje bütçesini görüntüle"),
+        new(ProjectBudgetManage, "Maliyet", "Proje bütçesi ve kur yönet"),
         new(UsersView, "Kullanıcılar ve Yetkiler", "Kullanıcıları görüntüle"),
         new(UsersManage, "Kullanıcılar ve Yetkiler", "Kullanıcı yönet"),
         new(RolesManage, "Kullanıcılar ve Yetkiler", "Rol ve izin yönet"),

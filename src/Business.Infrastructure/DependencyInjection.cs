@@ -108,6 +108,17 @@ public static class DependencyInjection
                     context.User.IsInRole(AppRoles.Admin) ||
                     context.User.HasClaim(AppClaimTypes.Permission, AppPermissions.CostsManage)));
 
+            options.AddPolicy(AppPolicies.CanViewProjectBudget, policy =>
+                policy.RequireAssertion(context =>
+                    context.User.IsInRole(AppRoles.Admin) ||
+                    context.User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectBudgetView) ||
+                    context.User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectBudgetManage)));
+
+            options.AddPolicy(AppPolicies.CanManageProjectBudget, policy =>
+                policy.RequireAssertion(context =>
+                    context.User.IsInRole(AppRoles.Admin) ||
+                    context.User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectBudgetManage)));
+
             options.AddPolicy(AppPolicies.CanManagePurchasing, policy =>
                 policy.RequireClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage));
 

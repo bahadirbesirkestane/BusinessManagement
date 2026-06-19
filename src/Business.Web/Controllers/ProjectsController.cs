@@ -223,6 +223,13 @@ public class ProjectsController : Controller
     {
         project.Visibility = User.NormalizeRecordVisibility(project.Visibility);
         NormalizeProjectInput(project);
+        if (!CanManageProjectBudget())
+        {
+            project.Budget = null;
+            project.Currency = CurrencyMetadata.Try;
+            project.EurToTryRate = null;
+            project.UsdToTryRate = null;
+        }
 
         if (!ModelState.IsValid)
         {
@@ -271,6 +278,30 @@ public class ProjectsController : Controller
 
         project.Visibility = User.NormalizeRecordVisibility(project.Visibility);
         NormalizeProjectInput(project);
+        if (!CanManageProjectBudget())
+        {
+            var existingBudgetValues = await _context.Projects
+                .AsNoTracking()
+                .Where(x => x.Id == id)
+                .Select(x => new
+                {
+                    x.Budget,
+                    x.Currency,
+                    x.EurToTryRate,
+                    x.UsdToTryRate
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (existingBudgetValues is null)
+            {
+                return NotFound();
+            }
+
+            project.Budget = existingBudgetValues.Budget;
+            project.Currency = existingBudgetValues.Currency;
+            project.EurToTryRate = existingBudgetValues.EurToTryRate;
+            project.UsdToTryRate = existingBudgetValues.UsdToTryRate;
+        }
 
         if (!ModelState.IsValid)
         {
@@ -500,6 +531,12 @@ public class ProjectsController : Controller
         project.Description = string.IsNullOrWhiteSpace(project.Description) ? null : project.Description.Trim();
         project.Notes = string.IsNullOrWhiteSpace(project.Notes) ? null : project.Notes.Trim();
         project.Currency = CurrencyMetadata.NormalizeInput(project.Currency);
+    }
+
+    private bool CanManageProjectBudget()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectBudgetManage);
     }
 
     private async Task<string> GenerateProjectCodeAsync(CancellationToken cancellationToken)

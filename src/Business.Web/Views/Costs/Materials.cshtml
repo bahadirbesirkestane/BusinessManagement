@@ -10,7 +10,23 @@
             <p class="section-kicker">Maliyet</p>
             <h2>Malzeme giderleri</h2>
         </div>
+        <a class="btn btn-outline-success btn-sm"
+           asp-action="ExportMaterials"
+           asp-route-q="@ViewBag.FilterQ"
+           asp-route-currency="@ViewBag.FilterCurrency">Excel indir</a>
     </div>
+    <form method="get" class="diagram-filter-bar mb-3">
+        <input type="text" name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Malzeme veya sipariş ara" />
+        <select name="currency" class="form-select form-select-sm">
+            <option value="">Tüm para birimleri</option>
+            @foreach (var currencyItem in CurrencyMetadata.GetSelectList())
+            {
+                <option value="@currencyItem.Value" selected="@(ViewBag.FilterCurrency == currencyItem.Value)">@currencyItem.Text</option>
+            }
+        </select>
+        <button class="btn btn-outline-primary btn-sm" type="submit">Filtrele</button>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Materials">Temizle</a>
+    </form>
     <div class="list-stack">
         @foreach (var group in groups)
         {

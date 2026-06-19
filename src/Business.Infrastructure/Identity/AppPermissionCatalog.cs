@@ -42,6 +42,8 @@ public static class AppPermissionCatalog
             AppPermissions.InvoicesManage,
             AppPermissions.CostsView,
             AppPermissions.CostsManage,
+            AppPermissions.ProjectBudgetView,
+            AppPermissions.ProjectBudgetManage,
             AppPermissions.UsersView,
             AppPermissions.UsersManage,
             AppPermissions.RolesManage,
@@ -84,6 +86,7 @@ public static class AppPermissionCatalog
             AppPermissions.CustomersView,
             AppPermissions.InvoicesView,
             AppPermissions.CostsView,
+            AppPermissions.ProjectBudgetView,
             AppPermissions.UsersView
         ],
         [AppRoles.Purchasing] =
