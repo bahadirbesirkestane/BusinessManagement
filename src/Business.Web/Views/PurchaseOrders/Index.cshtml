@@ -146,7 +146,7 @@
 
     @if (canCreateOrder && !isArchiveList)
     {
-        <details class="inline-quick-panel" @(Model.Any() ? null : "open")>
+        <details class="inline-quick-panel">
             <summary>Üstten hızlı sipariş ekle</summary>
             <form asp-action="Create" method="post" class="quick-inline-grid mt-3" data-inline-order-form>
                 @Html.AntiForgeryToken()
@@ -192,6 +192,10 @@
                 <div>
                     <label class="form-label">Sipariş tutarı</label>
                     <input name="OrderTotal" type="number" step="0.01" class="form-control" data-inline-order-total />
+                </div>
+                <div>
+                    <label class="form-label">Para birimi</label>
+                    <select name="Currency" class="form-select" asp-items="CurrencyMetadata.GetSelectList()"></select>
                 </div>
                 <div>
                     <label class="form-label">Beklenen varış</label>

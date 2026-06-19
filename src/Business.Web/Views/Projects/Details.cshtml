@@ -87,10 +87,69 @@
                     <a class="btn btn-outline-primary btn-sm" asp-controller="PurchaseOrders" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
                     @if (canCreateOrder)
                     {
+                        <a class="btn btn-outline-secondary btn-sm" asp-controller="PurchaseOrders" asp-action="QuickCreate" asp-route-projectId="@Model.Project.Id" asp-route-returnUrl="@currentReturnUrl">Hızlı sipariş</a>
                         <a class="btn btn-primary btn-sm" asp-controller="PurchaseOrders" asp-action="Create" asp-route-projectId="@Model.Project.Id">Yeni Sipariş Ekle</a>
                     }
                 </div>
             </div>
+            @if (canCreateOrder)
+            {
+                <details class="inline-quick-panel">
+                    <summary>Üstten hızlı sipariş ekle</summary>
+                    <form asp-controller="PurchaseOrders" asp-action="Create" method="post" class="quick-inline-grid mt-3" data-inline-order-form>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
+                        <input type="hidden" name="ProjectId" value="@Model.Project.Id" />
+                        <input type="hidden" name="OrderDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        <input type="hidden" name="Status" value="@PurchaseOrderStatus.Requested" />
+                        <div>
+                            <label class="form-label">Sipariş içeriği</label>
+                            <input name="Content" class="form-control" required maxlength="600" placeholder="Ne sipariş edilecek?" />
+                        </div>
+                        <div>
+                            <label class="form-label">Malzeme</label>
+                            <select name="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
+                                <option value="">Seçilmedi</option>
+                                @foreach (var material in ViewBag.Materials)
+                                {
+                                    <option value="@material.Id">@material.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Adet</label>
+                            <input name="Quantity" type="number" step="0.001" class="form-control" data-inline-order-quantity />
+                        </div>
+                        <div>
+                            <label class="form-label">Birim</label>
+                            <input name="Unit" class="form-control" maxlength="40" placeholder="Adet, kg, litre" />
+                        </div>
+                        <div>
+                            <label class="form-label">Birim fiyat</label>
+                            <input name="UnitPrice" type="number" step="0.01" class="form-control" data-inline-order-unit-price />
+                        </div>
+                        <div>
+                            <label class="form-label">Sipariş tutarı</label>
+                            <input name="OrderTotal" type="number" step="0.01" class="form-control" data-inline-order-total />
+                        </div>
+                        <div>
+                            <label class="form-label">Para birimi</label>
+                            <select name="Currency" class="form-select" asp-items="CurrencyMetadata.GetSelectList()"></select>
+                        </div>
+                        <div>
+                            <label class="form-label">Beklenen varış</label>
+                            <input name="ExpectedArrivalDate" type="date" class="form-control" />
+                        </div>
+                        <div class="quick-inline-grid-wide">
+                            <label class="form-label">Not</label>
+                            <input name="Notes" class="form-control" maxlength="2000" />
+                        </div>
+                        <div class="quick-inline-actions">
+                            <button class="btn btn-primary" type="submit">Hızlı kaydet</button>
+                        </div>
+                    </form>
+                </details>
+            }
             <div class="list-stack">
                 @foreach (var order in Model.Project.PurchaseOrders.OrderByDescending(x => x.CreatedAt).Take(6))
                 {
@@ -241,3 +300,45 @@
 {
     @await Html.PartialAsync("_RecordActivity", Model.Activity)
 }
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var forms = document.querySelectorAll('[data-inline-order-form]');
+        if (!forms.length) {
+            return;
+        }
+
+        function parseNumber(value) {
+            if (!value) {
+                return NaN;
+            }
+
+            return Number(String(value).replace(',', '.'));
+        }
+
+        forms.forEach(function (form) {
+            var quantityInput = form.querySelector('[data-inline-order-quantity]');
+            var unitPriceInput = form.querySelector('[data-inline-order-unit-price]');
+            var totalInput = form.querySelector('[data-inline-order-total]');
+
+            if (!quantityInput || !unitPriceInput || !totalInput) {
+                return;
+            }
+
+            function updateTotal() {
+                var quantity = parseNumber(quantityInput.value);
+                var unitPrice = parseNumber(unitPriceInput.value);
+
+                if (Number.isFinite(quantity) && Number.isFinite(unitPrice)) {
+                    totalInput.value = (quantity * unitPrice).toFixed(2);
+                    return;
+                }
+
+                totalInput.value = '';
+            }
+
+            quantityInput.addEventListener('input', updateTotal);
+            unitPriceInput.addEventListener('input', updateTotal);
+        });
+    });
+</script>
