@@ -168,14 +168,14 @@
                     </select>
                 </div>
                 <div>
+                    <label class="form-label">Tedarikçi</label>
+                    <input name="SupplierNameInput" class="form-control" list="inlineOrderSupplierOptions" data-free-text-select data-target-id="InlineSupplierId" placeholder="Tedarikçi ara veya yeni ekle" autocomplete="off" />
+                    <input id="InlineSupplierId" name="SupplierId" type="hidden" />
+                </div>
+                <div>
                     <label class="form-label">Malzeme</label>
-                    <select name="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
-                        <option value="">Seçilmedi</option>
-                        @foreach (var material in ViewBag.Materials)
-                        {
-                            <option value="@material.Id">@material.Name</option>
-                        }
-                    </select>
+                    <input name="MaterialNameInput" class="form-control" list="inlineOrderMaterialOptions" data-free-text-select data-target-id="InlineMaterialId" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
+                    <input id="InlineMaterialId" name="MaterialId" type="hidden" />
                 </div>
                 <div>
                     <label class="form-label">Adet</label>

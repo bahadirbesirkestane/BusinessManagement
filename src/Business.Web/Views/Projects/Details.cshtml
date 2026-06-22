@@ -107,14 +107,14 @@
                             <input name="Content" class="form-control" required maxlength="600" placeholder="Ne sipariş edilecek?" />
                         </div>
                         <div>
+                            <label class="form-label">Tedarikçi</label>
+                            <input name="SupplierNameInput" class="form-control" placeholder="Tedarikçi yazın" autocomplete="off" />
+                            <input id="ProjectInlineSupplierId" name="SupplierId" type="hidden" />
+                        </div>
+                        <div>
                             <label class="form-label">Malzeme</label>
-                            <select name="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
-                                <option value="">Seçilmedi</option>
-                                @foreach (var material in ViewBag.Materials)
-                                {
-                                    <option value="@material.Id">@material.Name</option>
-                                }
-                            </select>
+                            <input name="MaterialNameInput" class="form-control" placeholder="Malzeme yazın" autocomplete="off" />
+                            <input id="ProjectInlineMaterialId" name="MaterialId" type="hidden" />
                         </div>
                         <div>
                             <label class="form-label">Adet</label>

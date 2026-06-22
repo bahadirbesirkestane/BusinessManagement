@@ -8,6 +8,10 @@ public class QuickPurchaseOrderViewModel
     public Guid? TemplateId { get; set; }
     public Guid? ProjectId { get; set; }
     public Guid? SupplierId { get; set; }
+
+    [StringLength(220, ErrorMessage = "Tedarikçi adı en fazla 220 karakter olabilir.")]
+    public string? SupplierName { get; set; }
+
     public RecordVisibility Visibility { get; set; } = RecordVisibility.General;
     public PurchaseOrderScope Scope { get; set; } = PurchaseOrderScope.General;
     public PurchaseOrderStatus Status { get; set; } = PurchaseOrderStatus.Requested;
@@ -19,6 +23,7 @@ public class QuickPurchaseOrderViewModel
 
     [StringLength(80, ErrorMessage = "Vade en fazla 80 karakter olabilir.")]
     public string? PaymentTerm { get; set; }
+
     public List<QuickPurchaseOrderLineViewModel> Lines { get; set; } =
     [
         new QuickPurchaseOrderLineViewModel(),
@@ -28,7 +33,15 @@ public class QuickPurchaseOrderViewModel
 
 public class QuickPurchaseOrderLineViewModel
 {
+    public Guid? SupplierId { get; set; }
+
+    [StringLength(220, ErrorMessage = "Tedarikçi adı en fazla 220 karakter olabilir.")]
+    public string? SupplierName { get; set; }
+
     public Guid? MaterialId { get; set; }
+
+    [StringLength(220, ErrorMessage = "Malzeme adı en fazla 220 karakter olabilir.")]
+    public string? MaterialName { get; set; }
 
     [StringLength(600, ErrorMessage = "Sipariş içeriği en fazla 600 karakter olabilir.")]
     public string? Content { get; set; }

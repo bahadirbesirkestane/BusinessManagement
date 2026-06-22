@@ -43,7 +43,8 @@
         </form>
     }
 
-    <form method="post" class="app-form quick-order-form" data-quick-order-form>
+    <form asp-action="QuickCreate" method="post" class="app-form quick-order-form" data-quick-order-form novalidate>
+        @Html.AntiForgeryToken()
         <input asp-for="TemplateId" type="hidden" />
         <input type="hidden" name="returnUrl" value="@returnUrl" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
@@ -60,16 +61,6 @@
                 </select>
             </div>
             <div class="mb-3">
-                <label asp-for="SupplierId" class="form-label">Tedarikçi</label>
-                <select asp-for="SupplierId" class="form-select" data-searchable-select data-search-placeholder="Tedarikçi ara veya seç">
-                    <option value="">Seçilmedi</option>
-                    @foreach (var supplier in ViewBag.Suppliers)
-                    {
-                        <option value="@supplier.Id">@supplier.Name</option>
-                    }
-                </select>
-            </div>
-            <div class="mb-3">
                 <label asp-for="Status" class="form-label">Durum</label>
                 <select asp-for="Status" asp-items="Html.GetEnumSelectList<PurchaseOrderStatus>()" class="form-select"></select>
             </div>
@@ -80,10 +71,6 @@
             <div class="mb-3">
                 <label asp-for="ExpectedArrivalDate" class="form-label">Beklenen varış</label>
                 <input asp-for="ExpectedArrivalDate" type="date" class="form-control" />
-            </div>
-            <div class="mb-3">
-                <label asp-for="Currency" class="form-label">Para birimi</label>
-                <select asp-for="Currency" asp-items="CurrencyMetadata.GetSelectList()" class="form-select"></select>
             </div>
             <div class="mb-3">
                 <label asp-for="PaymentTerm" class="form-label">Vade</label>
@@ -99,6 +86,7 @@
                     <tr>
                         <th>#</th>
                         <th>Sipariş içeriği</th>
+                        <th>Tedarikçi</th>
                         <th>Malzeme</th>
                         <th>Adet</th>
                         <th>Birim</th>
@@ -111,25 +99,23 @@
                 <tbody>
                 @for (var i = 0; i < Model.Lines.Count; i++)
                 {
-                    var disabled = i > 0 && string.IsNullOrWhiteSpace(Model.Lines[i].Content);
-                    <tr class="quick-order-row @(disabled ? "is-disabled" : "")" data-row-index="@i">
+                    <tr class="quick-order-row" data-row-index="@i">
                         <td class="row-number">@(i + 1)</td>
-                        <td><input asp-for="Lines[i].Content" class="form-control form-control-sm quick-cell main-cell" disabled="@disabled" autocomplete="off" /></td>
+                        <td><input asp-for="Lines[i].Content" class="form-control form-control-sm quick-cell main-cell" autocomplete="off" /></td>
                         <td>
-                            <select asp-for="Lines[i].MaterialId" class="form-select form-select-sm quick-cell" disabled="@disabled">
-                                <option value="">Seçilmedi</option>
-                                @foreach (var material in ViewBag.Materials)
-                                {
-                                    <option value="@material.Id">@material.Name</option>
-                                }
-                            </select>
+                            <input asp-for="Lines[i].SupplierName" class="form-control form-control-sm quick-cell" placeholder="Tedarikçi yazın" autocomplete="off" />
+                            <input asp-for="Lines[i].SupplierId" type="hidden" />
                         </td>
-                        <td><input asp-for="Lines[i].Quantity" type="number" step="0.001" class="form-control form-control-sm quick-cell quantity-cell" disabled="@disabled" /></td>
-                        <td><input asp-for="Lines[i].Unit" class="form-control form-control-sm quick-cell" disabled="@disabled" /></td>
-                        <td><input asp-for="Lines[i].Quality" class="form-control form-control-sm quick-cell" disabled="@disabled" /></td>
-                        <td><input asp-for="Lines[i].UnitPrice" type="number" step="0.01" class="form-control form-control-sm quick-cell unit-price-cell" disabled="@disabled" /></td>
-                        <td><input asp-for="Lines[i].OrderTotal" type="number" step="0.01" class="form-control form-control-sm quick-cell total-cell" disabled="@disabled" /></td>
-                        <td><input asp-for="Lines[i].Notes" class="form-control form-control-sm quick-cell" disabled="@disabled" /></td>
+                        <td>
+                            <input asp-for="Lines[i].MaterialName" class="form-control form-control-sm quick-cell" placeholder="Malzeme yazın" autocomplete="off" />
+                            <input asp-for="Lines[i].MaterialId" type="hidden" />
+                        </td>
+                        <td><input asp-for="Lines[i].Quantity" type="text" inputmode="decimal" class="form-control form-control-sm quick-cell quantity-cell" /></td>
+                        <td><input asp-for="Lines[i].Unit" class="form-control form-control-sm quick-cell" /></td>
+                        <td><input asp-for="Lines[i].Quality" class="form-control form-control-sm quick-cell" /></td>
+                        <td><input asp-for="Lines[i].UnitPrice" type="text" inputmode="decimal" class="form-control form-control-sm quick-cell unit-price-cell" /></td>
+                        <td><input asp-for="Lines[i].OrderTotal" type="text" inputmode="decimal" class="form-control form-control-sm quick-cell total-cell" /></td>
+                        <td><input asp-for="Lines[i].Notes" class="form-control form-control-sm quick-cell" /></td>
                     </tr>
                 }
                 </tbody>
@@ -162,38 +148,9 @@
             const scopeInput = form.querySelector('[data-scope-input]');
 
             const updateScope = () => {
-                if (scopeInput) scopeInput.value = projectSelect?.value ? 'Project' : 'General';
-            };
-
-            const enableRow = (row) => {
-                row.classList.remove('is-disabled');
-                row.querySelectorAll('input, select').forEach(input => input.disabled = false);
-            };
-
-            const addRow = () => {
-                const rows = [...tbody.querySelectorAll('tr')];
-                const last = rows[rows.length - 1];
-                const nextIndex = rows.length;
-                const row = last.cloneNode(true);
-                row.dataset.rowIndex = nextIndex;
-                row.classList.add('is-disabled');
-                row.querySelector('.row-number').textContent = nextIndex + 1;
-                row.querySelectorAll('input, select').forEach(input => {
-                    input.name = input.name.replace(/Lines\[\d+\]/, `Lines[${nextIndex}]`);
-                    input.id = input.id.replace(/Lines_\d+__/, `Lines_${nextIndex}__`);
-                    if (input.tagName === 'SELECT') input.selectedIndex = 0;
-                    else input.value = '';
-                    input.disabled = true;
-                });
-                tbody.appendChild(row);
-                return row;
-            };
-
-            const activateNextRow = (row) => {
-                let next = row.nextElementSibling;
-                if (!next) next = addRow();
-                enableRow(next);
-                next.querySelector('.main-cell')?.focus();
+                if (scopeInput) {
+                    scopeInput.value = projectSelect?.value ? 'Project' : 'General';
+                }
             };
 
             const parseNumber = (value) => {
@@ -208,6 +165,7 @@
                 const quantity = parseNumber(row.querySelector('.quantity-cell')?.value);
                 const unitPrice = parseNumber(row.querySelector('.unit-price-cell')?.value);
                 const total = row.querySelector('.total-cell');
+
                 if (!total) {
                     return;
                 }
@@ -220,35 +178,69 @@
                 total.value = '';
             };
 
+            const addRow = () => {
+                const rows = [...tbody.querySelectorAll('tr')];
+                const last = rows[rows.length - 1];
+                const nextIndex = rows.length;
+                const row = last.cloneNode(true);
+
+                row.dataset.rowIndex = nextIndex;
+                row.querySelector('.row-number').textContent = nextIndex + 1;
+                row.querySelectorAll('input, select').forEach(input => {
+                    input.name = input.name.replace(/Lines\[\d+\]/, `Lines[${nextIndex}]`);
+                    input.id = input.id.replace(/Lines_\d+__/, `Lines_${nextIndex}__`);
+                    if (input.tagName === 'SELECT') {
+                        input.selectedIndex = 0;
+                    } else {
+                        input.value = '';
+                    }
+                });
+
+                tbody.appendChild(row);
+                return row;
+            };
+
+            const activateNextRow = (row) => {
+                let next = row.nextElementSibling;
+                if (!next) {
+                    next = addRow();
+                }
+
+                next.querySelector('.main-cell')?.focus();
+            };
+
             form.addEventListener('keydown', event => {
                 if (event.key !== 'Enter') return;
+
                 const cell = event.target.closest('.quick-cell');
                 if (!cell) return;
 
                 event.preventDefault();
+
                 const row = event.target.closest('tr');
                 if (event.target.classList.contains('main-cell') && event.target.value.trim()) {
                     activateNextRow(row);
                     return;
                 }
 
-                const enabledCells = [...row.querySelectorAll('.quick-cell:not(:disabled)')];
-                const index = enabledCells.indexOf(event.target);
-                const nextCell = enabledCells[index + 1];
-                if (nextCell) nextCell.focus();
-                else activateNextRow(row);
+                const cells = [...row.querySelectorAll('.quick-cell')];
+                const index = cells.indexOf(event.target);
+                const nextCell = cells[index + 1];
+
+                if (nextCell) {
+                    nextCell.focus();
+                } else {
+                    activateNextRow(row);
+                }
             });
 
             form.addEventListener('input', event => {
                 const row = event.target.closest('tr');
                 if (!row) return;
+
                 if (event.target.classList.contains('quantity-cell') || event.target.classList.contains('unit-price-cell')) {
                     calculateTotal(row);
                 }
-            });
-
-            form.addEventListener('submit', () => {
-                form.querySelectorAll('tr.is-disabled input, tr.is-disabled select').forEach(input => input.disabled = false);
             });
 
             projectSelect?.addEventListener('change', updateScope);

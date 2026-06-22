@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
     initSearchableSelects();
+    initFreeTextLookups();
     initRowLinks();
     initBulkSelection();
     initCompactPreview();
@@ -157,6 +158,50 @@ function initSearchableSelects() {
         renderOptions();
     });
 }
+
+function initFreeTextLookups(root) {
+    var scope = root instanceof Element ? root : document;
+
+    scope.querySelectorAll('[data-free-text-select]').forEach(function (input) {
+        if (input.dataset.freeTextReady === 'true') {
+            return;
+        }
+
+        input.dataset.freeTextReady = 'true';
+
+        var targetId = input.dataset.targetId;
+        var hiddenInput = targetId ? document.getElementById(targetId) : null;
+        var listId = input.getAttribute('list');
+        var datalist = listId ? document.getElementById(listId) : null;
+
+        if (!hiddenInput || !datalist) {
+            return;
+        }
+
+        function normalize(value) {
+            return (value || '')
+                .toLocaleLowerCase('tr-TR')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function syncValue() {
+            var currentValue = normalize(input.value);
+            var match = Array.from(datalist.options).find(function (option) {
+                return normalize(option.value) === currentValue;
+            });
+
+            hiddenInput.value = match ? (match.dataset.id || '') : '';
+        }
+
+        input.addEventListener('input', syncValue);
+        input.addEventListener('change', syncValue);
+        input.addEventListener('blur', syncValue);
+        syncValue();
+    });
+}
+
+window.initFreeTextLookups = initFreeTextLookups;
 
 function initRowLinks() {
     document.querySelectorAll('[data-row-link]').forEach(function (row) {

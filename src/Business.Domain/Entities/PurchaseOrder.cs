@@ -1,6 +1,7 @@
 using Business.Domain.Common;
 using Business.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Business.Domain.Entities;
 
@@ -60,6 +61,14 @@ public class PurchaseOrder : BaseEntity, IValidatableObject
 
     [StringLength(3, MinimumLength = 3, ErrorMessage = "Para birimi 3 karakter olmalıdır.")]
     public string Currency { get; set; } = "TRY";
+
+    [NotMapped]
+    [StringLength(220, ErrorMessage = "Tedarikçi adı en fazla 220 karakter olabilir.")]
+    public string? SupplierNameInput { get; set; }
+
+    [NotMapped]
+    [StringLength(220, ErrorMessage = "Malzeme adı en fazla 220 karakter olabilir.")]
+    public string? MaterialNameInput { get; set; }
 
     [Range(0, 100, ErrorMessage = "KDV oranı 0 ile 100 arasında olmalıdır.")]
     public decimal? VatRate { get; set; }

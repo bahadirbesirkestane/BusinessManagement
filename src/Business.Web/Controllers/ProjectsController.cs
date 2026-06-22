@@ -194,6 +194,7 @@ public class ProjectsController : Controller
         ViewBag.VisibleProjectTasks = GetVisibleProjectTasks(project);
         ViewBag.TaskHierarchyLabels = CreateTaskHierarchyLabels(project.Tasks);
         ViewBag.Materials = await _lookupService.GetMaterialsAsync(cancellationToken);
+        ViewBag.Suppliers = await _lookupService.GetSuppliersAsync(cancellationToken);
         return View(new ProjectDetailsViewModel
         {
             Project = project,

@@ -417,6 +417,7 @@ public class PurchaseOrdersController : Controller
         }
 
         await FillLookupsAsync(cancellationToken);
+        await PopulateReferenceInputNamesAsync(prefilledOrder, cancellationToken);
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(prefilledOrder ?? new PurchaseOrder
         {
@@ -462,6 +463,8 @@ public class PurchaseOrdersController : Controller
             ModelState.AddModelError(string.Empty, "Kaydedilecek en az bir sipariş satırı girin.");
         }
 
+        NormalizeQuickCreateInput(model);
+
         if (!ModelState.IsValid)
         {
             EnsureQuickRows(model);
@@ -480,11 +483,29 @@ public class PurchaseOrdersController : Controller
             var orderNumber = await GenerateOrderNumberAsync(cancellationToken, reservedOrderNumbers);
             reservedOrderNumbers.Add(orderNumber);
 
+            var supplierId = await ResolveSupplierIdAsync(line.SupplierId, line.SupplierName, cancellationToken);
+            if (!ModelState.IsValid)
+            {
+                EnsureQuickRows(model);
+                await FillQuickCreateLookupsAsync(cancellationToken);
+                ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+                return View(model);
+            }
+
+            var materialId = await ResolveMaterialIdAsync(line.MaterialId, line.MaterialName, line.Unit, cancellationToken);
+            if (!ModelState.IsValid)
+            {
+                EnsureQuickRows(model);
+                await FillQuickCreateLookupsAsync(cancellationToken);
+                ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+                return View(model);
+            }
+
             var order = new PurchaseOrder
             {
                 ProjectId = model.ProjectId,
-                SupplierId = model.SupplierId,
-                MaterialId = line.MaterialId,
+                SupplierId = supplierId,
+                MaterialId = materialId,
                 OrderNumber = orderNumber,
                 Visibility = User.NormalizeRecordVisibility(model.Visibility),
                 Scope = model.ProjectId.HasValue ? PurchaseOrderScope.Project : model.Scope,
@@ -507,7 +528,7 @@ public class PurchaseOrdersController : Controller
                 UnitPrice = line.UnitPrice,
                 UnitPriceText = line.UnitPrice.HasValue ? $"{line.UnitPrice.Value:N2} {model.Currency}" : null,
                 OrderTotal = line.UnitPrice.HasValue && line.Quantity.HasValue ? line.UnitPrice.Value * line.Quantity.Value : line.OrderTotal,
-                Currency = string.IsNullOrWhiteSpace(model.Currency) ? "TRY" : model.Currency.Trim().ToUpperInvariant(),
+                Currency = CurrencyMetadata.NormalizeInput(model.Currency),
                 Notes = line.Notes?.Trim(),
                 IsActive = true
             };
@@ -559,6 +580,15 @@ public class PurchaseOrdersController : Controller
             return View(order);
         }
 
+        order.SupplierId = await ResolveSupplierIdAsync(order.SupplierId, order.SupplierNameInput, cancellationToken);
+        order.MaterialId = await ResolveMaterialIdAsync(order.MaterialId, order.MaterialNameInput, order.Unit, cancellationToken);
+        if (!ModelState.IsValid)
+        {
+            await FillLookupsAsync(cancellationToken);
+            ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+            return View(order);
+        }
+
         var currentUser = await _userManager.GetUserAsync(User);
         if (await _context.PurchaseOrders.AnyAsync(x => x.OrderNumber == order.OrderNumber, cancellationToken))
         {
@@ -585,6 +615,7 @@ public class PurchaseOrdersController : Controller
         }
 
         await FillLookupsAsync(cancellationToken);
+        await PopulateReferenceInputNamesAsync(order, cancellationToken);
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(order);
     }
@@ -613,6 +644,15 @@ public class PurchaseOrdersController : Controller
             }
         }
 
+        if (!ModelState.IsValid)
+        {
+            await FillLookupsAsync(cancellationToken);
+            ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+            return View(order);
+        }
+
+        order.SupplierId = await ResolveSupplierIdAsync(order.SupplierId, order.SupplierNameInput, cancellationToken);
+        order.MaterialId = await ResolveMaterialIdAsync(order.MaterialId, order.MaterialNameInput, order.Unit, cancellationToken);
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken);
@@ -883,16 +923,27 @@ public class PurchaseOrdersController : Controller
             return model;
         }
 
-        model.SupplierId = template.DefaultSupplierId;
         model.Scope = projectId.HasValue ? PurchaseOrderScope.Project : template.DefaultScope;
         model.Status = template.DefaultStatus;
         model.Currency = string.IsNullOrWhiteSpace(template.DefaultCurrency) ? "TRY" : template.DefaultCurrency;
         model.PaymentTerm = template.DefaultPaymentTerm;
+        var materialIds = template.Lines
+            .Where(x => x.MaterialId.HasValue)
+            .Select(x => x.MaterialId!.Value)
+            .Distinct()
+            .ToList();
+        var materialNames = await _context.Materials
+            .AsNoTracking()
+            .Where(x => materialIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
         model.Lines = template.Lines
             .OrderBy(x => x.SortOrder)
             .Select(x => new QuickPurchaseOrderLineViewModel
             {
+                SupplierId = x.SupplierId ?? template.DefaultSupplierId,
+                SupplierName = x.Supplier?.Name ?? template.DefaultSupplier?.Name,
                 MaterialId = x.MaterialId,
+                MaterialName = x.MaterialId.HasValue && materialNames.TryGetValue(x.MaterialId.Value, out var materialName) ? materialName : null,
                 Content = x.Content,
                 Quantity = x.Quantity,
                 QuantityText = x.QuantityText,
@@ -910,10 +961,110 @@ public class PurchaseOrdersController : Controller
 
     private static void EnsureQuickRows(QuickPurchaseOrderViewModel model)
     {
+        model.Currency = CurrencyMetadata.NormalizeInput(model.Currency);
+
         while (model.Lines.Count < 2)
         {
             model.Lines.Add(new QuickPurchaseOrderLineViewModel());
         }
+    }
+
+    private static void NormalizeQuickCreateInput(QuickPurchaseOrderViewModel model)
+    {
+        model.Currency = CurrencyMetadata.NormalizeInput(model.Currency);
+    }
+
+    private async Task PopulateReferenceInputNamesAsync(PurchaseOrder? order, CancellationToken cancellationToken)
+    {
+        if (order is null)
+        {
+            return;
+        }
+
+        if (order.SupplierId.HasValue && string.IsNullOrWhiteSpace(order.SupplierNameInput))
+        {
+            order.SupplierNameInput = await _context.Suppliers
+                .AsNoTracking()
+                .Where(x => x.Id == order.SupplierId.Value)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (order.MaterialId.HasValue && string.IsNullOrWhiteSpace(order.MaterialNameInput))
+        {
+            order.MaterialNameInput = await _context.Materials
+                .AsNoTracking()
+                .Where(x => x.Id == order.MaterialId.Value)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+    }
+
+    private async Task<Guid?> ResolveSupplierIdAsync(Guid? supplierId, string? supplierName, CancellationToken cancellationToken)
+    {
+        if (supplierId.HasValue)
+        {
+            return supplierId;
+        }
+
+        var normalizedName = string.IsNullOrWhiteSpace(supplierName) ? null : supplierName.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            return null;
+        }
+
+        var existingId = await _context.Suppliers
+            .AsNoTracking()
+            .Where(x => x.Name == normalizedName)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingId.HasValue)
+        {
+            return existingId.Value;
+        }
+
+        var supplier = new Supplier
+        {
+            Name = normalizedName
+        };
+
+        _context.Suppliers.Add(supplier);
+        return supplier.Id;
+    }
+
+    private async Task<Guid?> ResolveMaterialIdAsync(Guid? materialId, string? materialName, string? unit, CancellationToken cancellationToken)
+    {
+        if (materialId.HasValue)
+        {
+            return materialId;
+        }
+
+        var normalizedName = string.IsNullOrWhiteSpace(materialName) ? null : materialName.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            return null;
+        }
+
+        var existingId = await _context.Materials
+            .AsNoTracking()
+            .Where(x => x.Name == normalizedName)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingId.HasValue)
+        {
+            return existingId.Value;
+        }
+
+        var material = new Material
+        {
+            Name = normalizedName,
+            Unit = string.IsNullOrWhiteSpace(unit) ? null : unit.Trim()
+        };
+
+        _context.Materials.Add(material);
+        return material.Id;
     }
 
     private IActionResult RedirectToLocal(string? returnUrl, object? fallbackRouteValues = null)
