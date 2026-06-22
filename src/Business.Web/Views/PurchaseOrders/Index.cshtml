@@ -284,6 +284,7 @@
                         <th>Kalite</th>
                         <th>Veren</th>
                         <th>Tedarikçi</th>
+                        <th>Malzeme</th>
                         <th>Tarih</th>
                         <th>Durum</th>
                         <th>Birim fiyat</th>
@@ -316,6 +317,7 @@
                             <td>@(order.Quality ?? "-")</td>
                             <td>@(order.RequestedBy ?? "-")</td>
                             <td>@(order.Supplier?.Name ?? "-")</td>
+                            <td>@(order.Material?.Name ?? "-")</td>
                             <td>@(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-")</td>
                             <td>
                                 @if (canChangeOrderStatus && !isArchiveList)

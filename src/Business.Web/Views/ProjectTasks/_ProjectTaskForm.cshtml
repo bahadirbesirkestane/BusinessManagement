@@ -1,6 +1,7 @@
 @model ProjectTask
 @{
     var returnUrl = ViewBag.ReturnUrl as string;
+    var isCreateMode = string.Equals(ViewContext.RouteData.Values["action"]?.ToString(), "Create", StringComparison.OrdinalIgnoreCase);
 }
 
 <section class="panel-block form-panel">
@@ -10,7 +11,7 @@
             <h2>@ViewData["Title"]</h2>
         </div>
     </div>
-    <form method="post" class="app-form" id="taskForm">
+    <form method="post" enctype="multipart/form-data" class="app-form" id="taskForm" data-file-upload-form>
         <input type="hidden" asp-for="Id" />
         <input type="hidden" name="returnUrl" value="@returnUrl" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
@@ -108,6 +109,28 @@
                 <label asp-for="Notes" class="form-label">Not</label>
                 <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
             </div>
+            @if (isCreateMode)
+            {
+                <div class="mb-3 wide">
+                    <label class="form-label">Dosyalar</label>
+                    <input type="file"
+                           name="files"
+                           class="form-control"
+                           multiple
+                           data-file-upload-input
+                           data-max-file-size="52428800"
+                           data-max-file-size-label="50 MB"
+                           accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.mp4,.dwg,.dxf" />
+                    <small class="text-muted">Her bir dosya en fazla 50 MB olabilir.</small>
+                    <div class="file-upload-status" data-file-upload-status hidden>
+                        <div class="file-upload-status-text" data-file-upload-text></div>
+                        <div class="file-upload-progress" data-file-upload-progress hidden>
+                            <div class="file-upload-progress-bar" data-file-upload-progress-bar></div>
+                        </div>
+                        <div class="file-upload-list" data-file-upload-list></div>
+                    </div>
+                </div>
+            }
         </div>
         <div class="form-actions">
             @if (!string.IsNullOrWhiteSpace(returnUrl))

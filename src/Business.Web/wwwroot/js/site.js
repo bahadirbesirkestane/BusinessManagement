@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     initSearchableSelects();
     initFreeTextLookups();
+    initFileUploadForms();
     initRowLinks();
     initBulkSelection();
     initCompactPreview();
@@ -671,6 +672,171 @@ function initSideNav() {
                             : group.open;
                 });
             }
+        });
+    });
+}
+
+function initFileUploadForms() {
+    document.querySelectorAll('form[data-file-upload-form]').forEach(function (form) {
+        if (form.dataset.fileUploadReady === 'true') {
+            return;
+        }
+
+        form.dataset.fileUploadReady = 'true';
+
+        var fileInput = form.querySelector('[data-file-upload-input]');
+        var status = form.querySelector('[data-file-upload-status]');
+        var text = form.querySelector('[data-file-upload-text]');
+        var list = form.querySelector('[data-file-upload-list]');
+        var progress = form.querySelector('[data-file-upload-progress]');
+        var progressBar = form.querySelector('[data-file-upload-progress-bar]');
+        var submitButton = form.querySelector('button[type="submit"]');
+        var maxFileSize = Number(fileInput && fileInput.dataset.maxFileSize ? fileInput.dataset.maxFileSize : '0');
+        var maxFileSizeLabel = fileInput && fileInput.dataset.maxFileSizeLabel
+            ? fileInput.dataset.maxFileSizeLabel
+            : '50 MB';
+        var requireFile = form.dataset.requireFile === 'true';
+
+        if (!fileInput || !status || !text || !list || !progress || !progressBar || !submitButton) {
+            return;
+        }
+
+        function formatSize(size) {
+            if (!size) {
+                return '0 KB';
+            }
+
+            if (size >= 1024 * 1024) {
+                return (size / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+
+            return Math.max(1, Math.round(size / 1024)) + ' KB';
+        }
+
+        function setStatus(message, isError) {
+            status.hidden = false;
+            text.textContent = message;
+            text.classList.toggle('is-error', Boolean(isError));
+        }
+
+        function resetProgress() {
+            progress.hidden = true;
+            progressBar.style.width = '0%';
+        }
+
+        function renderSelectedFiles() {
+            var files = Array.from(fileInput.files || []);
+            list.innerHTML = '';
+
+            if (files.length === 0) {
+                if (requireFile) {
+                    setStatus('Henüz dosya seçilmedi.', false);
+                }
+                else {
+                    status.hidden = true;
+                }
+
+                resetProgress();
+                submitButton.disabled = false;
+                return true;
+            }
+
+            var isValid = true;
+            files.forEach(function (file) {
+                var item = document.createElement('div');
+                item.className = 'file-upload-item';
+                item.textContent = file.name + ' (' + formatSize(file.size) + ')';
+
+                if (maxFileSize > 0 && file.size > maxFileSize) {
+                    item.classList.add('is-error');
+                    isValid = false;
+                }
+
+                list.appendChild(item);
+            });
+
+            if (!isValid) {
+                setStatus('Seçilen dosyalardan biri ' + maxFileSizeLabel + ' sınırını aşıyor.', true);
+                resetProgress();
+                submitButton.disabled = true;
+                return false;
+            }
+
+            setStatus(files.length + ' dosya seçildi.', false);
+            resetProgress();
+            submitButton.disabled = false;
+            return true;
+        }
+
+        fileInput.addEventListener('change', renderSelectedFiles);
+
+        form.addEventListener('submit', function (event) {
+            var files = Array.from(fileInput.files || []);
+            var isValid = renderSelectedFiles();
+
+            if (!isValid) {
+                event.preventDefault();
+                return;
+            }
+
+            if (requireFile && files.length === 0) {
+                event.preventDefault();
+                setStatus('Lütfen en az bir dosya seçin.', true);
+                return;
+            }
+
+            if (files.length === 0) {
+                return;
+            }
+
+            event.preventDefault();
+
+            var xhr = new XMLHttpRequest();
+            xhr.open(form.method || 'POST', form.action);
+            xhr.responseType = 'document';
+
+            xhr.upload.addEventListener('progress', function (progressEvent) {
+                if (!progressEvent.lengthComputable) {
+                    return;
+                }
+
+                var percent = Math.max(0, Math.min(100, Math.round((progressEvent.loaded / progressEvent.total) * 100)));
+                progress.hidden = false;
+                progressBar.style.width = percent + '%';
+                setStatus('Dosyalar yükleniyor... %' + percent, false);
+            });
+
+            xhr.addEventListener('load', function () {
+                submitButton.disabled = false;
+
+                if (xhr.status >= 200 && xhr.status < 400) {
+                    if (xhr.response && xhr.response.documentElement) {
+                        document.open();
+                        document.write(xhr.response.documentElement.outerHTML);
+                        document.close();
+                    }
+                    else {
+                        window.location.href = xhr.responseURL || window.location.href;
+                    }
+
+                    return;
+                }
+
+                progress.hidden = true;
+                setStatus('Yükleme sırasında bir hata oluştu.', true);
+            });
+
+            xhr.addEventListener('error', function () {
+                submitButton.disabled = false;
+                progress.hidden = true;
+                setStatus('Yükleme sırasında bağlantı hatası oluştu.', true);
+            });
+
+            submitButton.disabled = true;
+            progress.hidden = false;
+            progressBar.style.width = '0%';
+            setStatus('Dosyalar yükleniyor...', false);
+            xhr.send(new FormData(form));
         });
     });
 }

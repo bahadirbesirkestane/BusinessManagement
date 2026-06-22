@@ -2,6 +2,7 @@ using Business.Application.Services;
 using Business.Domain.Entities;
 using Business.Domain.Enums;
 using Business.Infrastructure.Identity;
+using Business.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,35 +11,19 @@ namespace Business.Web.Controllers;
 [Authorize]
 public class RecordActivityController : Controller
 {
-    private const long MaxUploadSize = 25 * 1024 * 1024;
-    private static readonly IReadOnlyDictionary<string, string[]> AllowedUploadTypes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-    {
-        [".pdf"] = ["application/pdf"],
-        [".jpg"] = ["image/jpeg"],
-        [".jpeg"] = ["image/jpeg"],
-        [".png"] = ["image/png"],
-        [".webp"] = ["image/webp"],
-        [".gif"] = ["image/gif"],
-        [".doc"] = ["application/msword"],
-        [".docx"] = ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
-        [".xls"] = ["application/vnd.ms-excel"],
-        [".xlsx"] = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-        [".csv"] = ["text/csv", "application/csv", "application/vnd.ms-excel", "text/plain"],
-        [".txt"] = ["text/plain"],
-        [".dwg"] = ["image/vnd.dwg", "application/acad", "application/x-acad", "application/autocad_dwg", "application/octet-stream"],
-        [".dxf"] = ["image/vnd.dxf", "application/dxf", "application/x-dxf", "application/octet-stream"]
-    };
-
     private readonly IRecordActivityService _recordActivityService;
+    private readonly IRecordFileUploadService _recordFileUploadService;
     private readonly IWebHostEnvironment _environment;
     private readonly IProjectTimelineService _projectTimelineService;
 
     public RecordActivityController(
         IRecordActivityService recordActivityService,
+        IRecordFileUploadService recordFileUploadService,
         IWebHostEnvironment environment,
         IProjectTimelineService projectTimelineService)
     {
         _recordActivityService = recordActivityService;
+        _recordFileUploadService = recordFileUploadService;
         _environment = environment;
         _projectTimelineService = projectTimelineService;
     }
@@ -70,7 +55,7 @@ public class RecordActivityController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddFile(RecordOwnerType ownerType, Guid ownerId, IFormFile? file, string? description, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> AddFile(RecordOwnerType ownerType, Guid ownerId, List<IFormFile>? files, string? description, string? returnUrl, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrWhiteSpace(description) && description.Length > 500)
         {
@@ -78,53 +63,32 @@ public class RecordActivityController : Controller
             return RedirectToLocal(returnUrl);
         }
 
-        if (file is not null && file.Length > 0)
+        var validFiles = files?
+            .Where(file => file is not null && file.Length > 0)
+            .ToList() ?? [];
+
+        if (validFiles.Count == 0)
         {
-            if (file.Length > MaxUploadSize)
-            {
-                TempData["Error"] = "Dosya boyutu en fazla 25 MB olabilir.";
-                return RedirectToLocal(returnUrl);
-            }
+            TempData["Error"] = "Lütfen en az bir dosya seçin.";
+            return RedirectToLocal(returnUrl);
+        }
 
-            var originalFileName = Path.GetFileName(file.FileName);
-            if (originalFileName.Length > 260)
-            {
-                TempData["Error"] = "Dosya adı çok uzun.";
-                return RedirectToLocal(returnUrl);
-            }
+        if (!_recordFileUploadService.TryValidateFiles(validFiles, out var errorMessage))
+        {
+            TempData["Error"] = errorMessage;
+            return RedirectToLocal(returnUrl);
+        }
 
-            var extension = Path.GetExtension(originalFileName).ToLowerInvariant();
-            if (!IsAllowedUploadType(extension, file.ContentType))
-            {
-                TempData["Error"] = $"Bu dosya turu yuklenemez. Izin verilen turler: {GetAllowedExtensionsText()}";
-                return RedirectToLocal(returnUrl);
-            }
+        var savedFiles = await _recordFileUploadService.SaveFilesAsync(ownerType, ownerId, validFiles, description, cancellationToken);
+        foreach (var savedFile in savedFiles)
+        {
+            await _recordActivityService.AddFileAsync(savedFile, cancellationToken);
+            await AddTimelineForActivityAsync(ownerType, ownerId, "Dosya eklendi", savedFile.OriginalFileName, cancellationToken);
+        }
 
-            var uploadRoot = Path.Combine(_environment.WebRootPath, "uploads", ownerType.ToString(), ownerId.ToString("N"));
-            Directory.CreateDirectory(uploadRoot);
-
-            var storedFileName = $"{Guid.NewGuid():N}{extension}";
-            var physicalPath = Path.Combine(uploadRoot, storedFileName);
-
-            await using (var stream = System.IO.File.Create(physicalPath))
-            {
-                await file.CopyToAsync(stream, cancellationToken);
-            }
-
-            var relativePath = $"/uploads/{ownerType}/{ownerId:N}/{storedFileName}";
-            await _recordActivityService.AddFileAsync(new RecordFile
-            {
-                OwnerType = ownerType,
-                OwnerId = ownerId,
-                OriginalFileName = originalFileName,
-                StoredFileName = storedFileName,
-                RelativePath = relativePath,
-                ContentType = file.ContentType,
-                Size = file.Length,
-                Description = description
-            }, cancellationToken);
-
-            await AddTimelineForActivityAsync(ownerType, ownerId, "Dosya eklendi", originalFileName, cancellationToken);
+        if (savedFiles.Count > 1)
+        {
+            TempData["Success"] = $"{savedFiles.Count} dosya yüklendi.";
         }
 
         return RedirectToLocal(returnUrl);
@@ -163,26 +127,6 @@ public class RecordActivityController : Controller
         return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
             ? Redirect(returnUrl)
             : RedirectToAction("Index", "Dashboard");
-    }
-
-    private static bool IsAllowedUploadType(string extension, string? contentType)
-    {
-        if (string.IsNullOrWhiteSpace(extension) || !AllowedUploadTypes.TryGetValue(extension, out var allowedContentTypes))
-        {
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(contentType))
-        {
-            return true;
-        }
-
-        return allowedContentTypes.Contains(contentType.Trim(), StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static string GetAllowedExtensionsText()
-    {
-        return string.Join(", ", AllowedUploadTypes.Keys.Order(StringComparer.OrdinalIgnoreCase));
     }
 
     private async Task AddTimelineForActivityAsync(RecordOwnerType ownerType, Guid ownerId, string title, string description, CancellationToken cancellationToken)

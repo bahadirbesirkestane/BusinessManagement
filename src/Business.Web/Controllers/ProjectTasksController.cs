@@ -20,17 +20,20 @@ public class ProjectTasksController : Controller
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IRecordActivityService _recordActivityService;
+    private readonly IRecordFileUploadService _recordFileUploadService;
     private readonly IProjectTimelineService _projectTimelineService;
 
     public ProjectTasksController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         IRecordActivityService recordActivityService,
+        IRecordFileUploadService recordFileUploadService,
         IProjectTimelineService projectTimelineService)
     {
         _context = context;
         _userManager = userManager;
         _recordActivityService = recordActivityService;
+        _recordFileUploadService = recordFileUploadService;
         _projectTimelineService = projectTimelineService;
     }
 
@@ -367,10 +370,13 @@ public class ProjectTasksController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanCreateTasks)]
-    public async Task<IActionResult> Create(ProjectTask task, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(ProjectTask task, string? returnUrl, List<IFormFile>? files, CancellationToken cancellationToken)
     {
         task.Visibility = User.NormalizeRecordVisibility(task.Visibility);
         NormalizeTaskRelation(task);
+        var validFiles = files?
+            .Where(file => file is not null && file.Length > 0)
+            .ToList() ?? [];
         if (task.ProjectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -381,6 +387,11 @@ public class ProjectTasksController : Controller
             {
                 ModelState.AddModelError(nameof(task.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
             }
+        }
+
+        if (!_recordFileUploadService.TryValidateFiles(validFiles, out var fileErrorMessage))
+        {
+            ModelState.AddModelError(string.Empty, fileErrorMessage);
         }
 
         if (!ModelState.IsValid)
@@ -394,6 +405,32 @@ public class ProjectTasksController : Controller
         await _context.SaveChangesAsync(cancellationToken);
         await SyncAssignmentsAsync(task.Id, Request.Form["AssignedUserIds"].Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!), cancellationToken);
         await _projectTimelineService.AddForTaskAsync(task.Id, "Görev eklendi", task.Title, cancellationToken);
+        if (validFiles.Count > 0)
+        {
+            try
+            {
+                var savedFiles = await _recordFileUploadService.SaveFilesAsync(RecordOwnerType.ProjectTask, task.Id, validFiles, null, cancellationToken);
+                foreach (var savedFile in savedFiles)
+                {
+                    await _recordActivityService.AddFileAsync(savedFile, cancellationToken);
+                    await _projectTimelineService.AddForTaskAsync(task.Id, "Dosya eklendi", savedFile.OriginalFileName, cancellationToken);
+                }
+
+                if (savedFiles.Count > 1)
+                {
+                    TempData["Success"] = $"{savedFiles.Count} dosya yüklendi.";
+                }
+            }
+            catch (IOException)
+            {
+                TempData["Error"] = "Görev kaydedildi fakat dosyalar yüklenirken bir hata oluştu.";
+            }
+            catch (UnauthorizedAccessException)
+            {
+                TempData["Error"] = "Görev kaydedildi fakat dosyalar yüklenemedi.";
+            }
+        }
+
         return RedirectToLocal(returnUrl, fallbackRouteValues: task.ProjectId.HasValue ? new { projectId = task.ProjectId } : null);
     }
 

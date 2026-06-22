@@ -64,11 +64,26 @@
         </div>
 
         <div>
-            <form asp-controller="RecordActivity" asp-action="AddFile" method="post" enctype="multipart/form-data" class="activity-form">
+            <form asp-controller="RecordActivity" asp-action="AddFile" method="post" enctype="multipart/form-data" class="activity-form" data-file-upload-form data-require-file="true">
                 <input type="hidden" name="ownerType" value="@Model.OwnerType" />
                 <input type="hidden" name="ownerId" value="@Model.OwnerId" />
                 <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-                <input type="file" name="file" class="form-control" />
+                <input type="file"
+                       name="files"
+                       class="form-control"
+                       multiple
+                       data-file-upload-input
+                       data-max-file-size="52428800"
+                       data-max-file-size-label="50 MB"
+                       accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.mp4,.dwg,.dxf" />
+                <small class="text-muted">Birden fazla dosya seçebilirsiniz. Her bir dosya en fazla 50 MB olabilir. Zip ve MP4 dosyası yüklenebilir.</small>
+                <div class="file-upload-status" data-file-upload-status hidden>
+                    <div class="file-upload-status-text" data-file-upload-text></div>
+                    <div class="file-upload-progress" data-file-upload-progress hidden>
+                        <div class="file-upload-progress-bar" data-file-upload-progress-bar></div>
+                    </div>
+                    <div class="file-upload-list" data-file-upload-list></div>
+                </div>
                 <input type="text" name="description" class="form-control" placeholder="Açıklama" />
                 <button class="btn btn-outline-primary" type="submit">Dosya Ekle</button>
             </form>

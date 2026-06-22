@@ -156,7 +156,7 @@
                     <a class="list-row list-row-link" asp-controller="PurchaseOrders" asp-action="Details" asp-route-id="@order.Id">
                         <span>
                             <strong>@order.Content</strong>
-                            <small>@order.QuantityText · @(order.Supplier?.Name ?? "Tedarikçi yok")</small>
+                            <small>@order.QuantityText · @(order.Supplier?.Name ?? "Tedarikçi yok") · @(order.Material?.Name ?? "Malzeme yok")</small>
                         </span>
                         <span class="status-pill">@order.Status.ToDisplayName()</span>
                     </a>

@@ -900,19 +900,8 @@ a:hover {
 }
 
 .table-responsive::after {
-  content: "Yatay kaydırılabilir";
-  position: sticky;
-  left: calc(100% - 148px);
-  display: block;
-  width: fit-content;
-  margin: 0 10px 8px auto;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(248, 250, 252, .92);
-  color: var(--muted);
-  font-size: .72rem;
-  font-weight: 800;
-  pointer-events: none;
+  content: none;
+  display: none;
 }
 
 .calendar-toolbar {
@@ -1545,6 +1534,55 @@ a:hover {
 .activity-form {
   display: grid;
   gap: 10px;
+}
+
+.file-upload-status {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.file-upload-status-text {
+  font-size: 0.88rem;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+.file-upload-status-text.is-error {
+  color: #b91c1c;
+}
+
+.file-upload-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: #dbeafe;
+  overflow: hidden;
+}
+
+.file-upload-progress-bar {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #38bdf8);
+  transition: width .18s ease;
+}
+
+.file-upload-list {
+  display: grid;
+  gap: 4px;
+}
+
+.file-upload-item {
+  font-size: 0.82rem;
+  color: #334155;
+  word-break: break-word;
+}
+
+.file-upload-item.is-error {
+  color: #b91c1c;
+  font-weight: 600;
 }
 
 .project-header-actions {
