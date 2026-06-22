@@ -963,7 +963,7 @@ public class PurchaseOrdersController : Controller
     {
         model.Currency = CurrencyMetadata.NormalizeInput(model.Currency);
 
-        while (model.Lines.Count < 2)
+        while (model.Lines.Count < 4)
         {
             model.Lines.Add(new QuickPurchaseOrderLineViewModel());
         }

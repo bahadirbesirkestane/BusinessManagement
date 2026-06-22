@@ -80,7 +80,7 @@
 
         <input asp-for="Scope" type="hidden" data-scope-input />
 
-        <div class="quick-order-sheet-wrap">
+        <div class="quick-order-sheet-wrap quick-order-sheet-wrap-tall">
             <table class="quick-order-sheet">
                 <thead>
                     <tr>
@@ -103,11 +103,11 @@
                         <td class="row-number">@(i + 1)</td>
                         <td><input asp-for="Lines[i].Content" class="form-control form-control-sm quick-cell main-cell" autocomplete="off" /></td>
                         <td>
-                            <input asp-for="Lines[i].SupplierName" class="form-control form-control-sm quick-cell" placeholder="Tedarikçi yazın" autocomplete="off" />
+                            <input asp-for="Lines[i].SupplierName" class="form-control form-control-sm quick-cell" data-free-text-select data-target-id="Lines_@(i)__SupplierId" data-list-id="quickCreateSupplierOptions" placeholder="Tedarikçi ara veya yeni ekle" autocomplete="off" />
                             <input asp-for="Lines[i].SupplierId" type="hidden" />
                         </td>
                         <td>
-                            <input asp-for="Lines[i].MaterialName" class="form-control form-control-sm quick-cell" placeholder="Malzeme yazın" autocomplete="off" />
+                            <input asp-for="Lines[i].MaterialName" class="form-control form-control-sm quick-cell" data-free-text-select data-target-id="Lines_@(i)__MaterialId" data-list-id="quickCreateMaterialOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
                             <input asp-for="Lines[i].MaterialId" type="hidden" />
                         </td>
                         <td><input asp-for="Lines[i].Quantity" type="text" inputmode="decimal" class="form-control form-control-sm quick-cell quantity-cell" /></td>
@@ -135,6 +135,20 @@
         </div>
     </form>
 </section>
+
+<datalist id="quickCreateSupplierOptions">
+    @foreach (var supplier in ViewBag.Suppliers)
+    {
+        <option value="@supplier.Name" data-id="@supplier.Id"></option>
+    }
+</datalist>
+
+<datalist id="quickCreateMaterialOptions">
+    @foreach (var material in ViewBag.Materials)
+    {
+        <option value="@material.Name" data-id="@material.Id"></option>
+    }
+</datalist>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
@@ -189,6 +203,11 @@
                 row.querySelectorAll('input, select').forEach(input => {
                     input.name = input.name.replace(/Lines\[\d+\]/, `Lines[${nextIndex}]`);
                     input.id = input.id.replace(/Lines_\d+__/, `Lines_${nextIndex}__`);
+
+                    if (input.dataset && input.dataset.targetId) {
+                        input.dataset.targetId = input.dataset.targetId.replace(/Lines_\d+__/, `Lines_${nextIndex}__`);
+                    }
+
                     if (input.tagName === 'SELECT') {
                         input.selectedIndex = 0;
                     } else {
@@ -197,6 +216,9 @@
                 });
 
                 tbody.appendChild(row);
+                if (window.initFreeTextLookups) {
+                    window.initFreeTextLookups(row);
+                }
                 return row;
             };
 

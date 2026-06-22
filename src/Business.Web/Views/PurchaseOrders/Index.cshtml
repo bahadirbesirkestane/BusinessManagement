@@ -169,12 +169,12 @@
                 </div>
                 <div>
                     <label class="form-label">Tedarikçi</label>
-                    <input name="SupplierNameInput" class="form-control" list="inlineOrderSupplierOptions" data-free-text-select data-target-id="InlineSupplierId" placeholder="Tedarikçi ara veya yeni ekle" autocomplete="off" />
+                    <input name="SupplierNameInput" class="form-control" data-free-text-select data-target-id="InlineSupplierId" data-list-id="inlineOrderSupplierOptions" placeholder="Tedarikçi ara veya yeni ekle" autocomplete="off" />
                     <input id="InlineSupplierId" name="SupplierId" type="hidden" />
                 </div>
                 <div>
                     <label class="form-label">Malzeme</label>
-                    <input name="MaterialNameInput" class="form-control" list="inlineOrderMaterialOptions" data-free-text-select data-target-id="InlineMaterialId" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
+                    <input name="MaterialNameInput" class="form-control" data-free-text-select data-target-id="InlineMaterialId" data-list-id="inlineOrderMaterialOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
                     <input id="InlineMaterialId" name="MaterialId" type="hidden" />
                 </div>
                 <div>
@@ -438,3 +438,17 @@
         unitPriceInput.addEventListener('input', updateTotal);
     });
 </script>
+
+<datalist id="inlineOrderSupplierOptions">
+    @foreach (var supplier in ViewBag.Suppliers)
+    {
+        <option value="@supplier.Name" data-id="@supplier.Id"></option>
+    }
+</datalist>
+
+<datalist id="inlineOrderMaterialOptions">
+    @foreach (var material in ViewBag.Materials)
+    {
+        <option value="@material.Name" data-id="@material.Id"></option>
+    }
+</datalist>

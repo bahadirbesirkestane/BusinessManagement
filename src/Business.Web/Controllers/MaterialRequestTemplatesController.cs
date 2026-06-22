@@ -198,6 +198,8 @@ public class MaterialRequestTemplatesController : Controller
             return View(nameof(Details), invalidModel);
         }
 
+        model.MaterialId = await ResolveMaterialIdAsync(model.MaterialId, model.MaterialName, model.Unit, cancellationToken);
+
         var line = new MaterialRequestTemplateLine
         {
             MaterialRequestTemplateId = model.MaterialRequestTemplateId,
@@ -237,6 +239,8 @@ public class MaterialRequestTemplatesController : Controller
             var invalidModel = await BuildDetailsViewModelAsync(model.MaterialRequestTemplateId, model, true, "edit", cancellationToken);
             return View(nameof(Details), invalidModel);
         }
+
+        model.MaterialId = await ResolveMaterialIdAsync(model.MaterialId, model.MaterialName, model.Unit, cancellationToken);
 
         line.MaterialId = model.MaterialId;
         line.RequestedItem = model.RequestedItem.Trim();
@@ -317,6 +321,15 @@ public class MaterialRequestTemplatesController : Controller
             lineForm.MaterialRequestTemplateId = template.Id;
         }
 
+        if (lineForm.MaterialId.HasValue && string.IsNullOrWhiteSpace(lineForm.MaterialName))
+        {
+            lineForm.MaterialName = await _context.Materials
+                .AsNoTracking()
+                .Where(x => x.Id == lineForm.MaterialId.Value)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         ViewBag.Breadcrumbs = new Dictionary<string, string?>
         {
             ["İhtiyaç Şablonları"] = Url.Action(nameof(Index)),
@@ -381,5 +394,39 @@ public class MaterialRequestTemplatesController : Controller
     private static string? Normalize(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private async Task<Guid?> ResolveMaterialIdAsync(Guid? materialId, string? materialName, string? unit, CancellationToken cancellationToken)
+    {
+        if (materialId.HasValue)
+        {
+            return materialId;
+        }
+
+        var normalizedName = Normalize(materialName);
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            return null;
+        }
+
+        var existingId = await _context.Materials
+            .AsNoTracking()
+            .Where(x => x.Name == normalizedName)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingId.HasValue)
+        {
+            return existingId.Value;
+        }
+
+        var material = new Material
+        {
+            Name = normalizedName,
+            Unit = Normalize(unit)
+        };
+
+        _context.Materials.Add(material);
+        return material.Id;
     }
 }

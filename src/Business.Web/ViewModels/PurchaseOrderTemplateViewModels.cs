@@ -32,11 +32,11 @@ public class PurchaseOrderTemplateFormViewModel
     public PurchaseOrderScope DefaultScope { get; set; } = PurchaseOrderScope.General;
     public PurchaseOrderStatus DefaultStatus { get; set; } = PurchaseOrderStatus.Requested;
     public Guid? DefaultSupplierId { get; set; }
+    public string? DefaultSupplierName { get; set; }
 
     [StringLength(80, ErrorMessage = "Vade en fazla 80 karakter olabilir.")]
     public string? DefaultPaymentTerm { get; set; }
 
-    [StringLength(3, MinimumLength = 3, ErrorMessage = "Para birimi 3 karakter olmalıdır.")]
     public string DefaultCurrency { get; set; } = "TRY";
 
     [Range(0, 100, ErrorMessage = "KDV oranı 0 ile 100 arasında olmalıdır.")]
@@ -50,7 +50,9 @@ public class PurchaseOrderTemplateLineFormViewModel
     public Guid? Id { get; set; }
     public Guid PurchaseOrderTemplateId { get; set; }
     public Guid? SupplierId { get; set; }
+    public string? SupplierName { get; set; }
     public Guid? MaterialId { get; set; }
+    public string? MaterialName { get; set; }
 
     [Required(ErrorMessage = "Sipariş içeriği zorunludur.")]
     [StringLength(600, ErrorMessage = "Sipariş içeriği en fazla 600 karakter olabilir.")]

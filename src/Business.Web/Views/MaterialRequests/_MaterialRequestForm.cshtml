@@ -26,14 +26,9 @@
                 </select>
             </div>
             <div class="mb-3">
-                <label asp-for="MaterialId" class="form-label">Malzeme sınıfı</label>
-                <select asp-for="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
-                    <option value="">Seçilmedi</option>
-                    @foreach (var material in ViewBag.Materials)
-                    {
-                        <option value="@material.Id">@material.Name</option>
-                    }
-                </select>
+                <label asp-for="MaterialNameInput" class="form-label">Malzeme</label>
+                <input asp-for="MaterialNameInput" class="form-control" data-free-text-select data-target-id="MaterialId" data-list-id="materialRequestMaterialOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
+                <input asp-for="MaterialId" type="hidden" />
             </div>
             <div class="mb-3 wide">
                 <label asp-for="RequestedItem" class="form-label">İstenen malzeme</label>
@@ -81,3 +76,10 @@
         </div>
     </form>
 </section>
+
+<datalist id="materialRequestMaterialOptions">
+    @foreach (var material in ViewBag.Materials)
+    {
+        <option value="@material.Name" data-id="@material.Id"></option>
+    }
+</datalist>

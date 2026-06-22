@@ -108,12 +108,12 @@
                         </div>
                         <div>
                             <label class="form-label">Tedarikçi</label>
-                            <input name="SupplierNameInput" class="form-control" placeholder="Tedarikçi yazın" autocomplete="off" />
+                            <input name="SupplierNameInput" class="form-control" data-free-text-select data-free-text-hide-empty="true" data-target-id="ProjectInlineSupplierId" data-list-id="projectInlineSupplierOptions" placeholder="Tedarikçi ara veya yeni ekle" autocomplete="off" />
                             <input id="ProjectInlineSupplierId" name="SupplierId" type="hidden" />
                         </div>
                         <div>
                             <label class="form-label">Malzeme</label>
-                            <input name="MaterialNameInput" class="form-control" placeholder="Malzeme yazın" autocomplete="off" />
+                            <input name="MaterialNameInput" class="form-control" data-free-text-select data-free-text-hide-empty="true" data-target-id="ProjectInlineMaterialId" data-list-id="projectInlineMaterialOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
                             <input id="ProjectInlineMaterialId" name="MaterialId" type="hidden" />
                         </div>
                         <div>
@@ -199,13 +199,8 @@
                     </div>
                     <div>
                         <label class="form-label">Malzeme sınıfı</label>
-                        <select name="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
-                            <option value="">Seçilmedi</option>
-                            @foreach (var material in ViewBag.Materials)
-                            {
-                                <option value="@material.Id">@material.Name</option>
-                            }
-                        </select>
+                        <input name="MaterialNameInput" class="form-control" data-free-text-select data-free-text-hide-empty="true" data-target-id="ProjectRequestInlineMaterialId" data-list-id="projectInlineMaterialOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
+                        <input id="ProjectRequestInlineMaterialId" name="MaterialId" type="hidden" />
                     </div>
                     <div>
                         <label class="form-label">Miktar</label>
@@ -342,3 +337,17 @@
         });
     });
 </script>
+
+<datalist id="projectInlineSupplierOptions">
+    @foreach (var supplier in ViewBag.Suppliers)
+    {
+        <option value="@supplier.Name" data-id="@supplier.Id"></option>
+    }
+</datalist>
+
+<datalist id="projectInlineMaterialOptions">
+    @foreach (var material in ViewBag.Materials)
+    {
+        <option value="@material.Name" data-id="@material.Id"></option>
+    }
+</datalist>

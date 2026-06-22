@@ -1,6 +1,7 @@
 using Business.Domain.Common;
 using Business.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Business.Domain.Entities;
 
@@ -11,6 +12,9 @@ public class MaterialRequest : BaseEntity
 
     public Guid? MaterialId { get; set; }
     public Material? Material { get; set; }
+
+    [NotMapped]
+    public string? MaterialNameInput { get; set; }
 
     [Required(ErrorMessage = "İhtiyaç kalemi zorunludur.")]
     [StringLength(420, ErrorMessage = "İhtiyaç kalemi en fazla 420 karakter olabilir.")]

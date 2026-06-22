@@ -37,15 +37,13 @@
             </div>
             <div class="mb-3">
                 <label asp-for="SupplierNameInput" class="form-label">Tedarikçi</label>
-                <input asp-for="SupplierNameInput" class="form-control" placeholder="Tedarikçi yazın" autocomplete="off" />
+                <input asp-for="SupplierNameInput" class="form-control" data-free-text-select data-target-id="SupplierId" data-list-id="purchaseOrderSupplierOptions" placeholder="Tedarikçi ara veya yeni ekle" autocomplete="off" />
                 <input asp-for="SupplierId" type="hidden" />
-                
             </div>
             <div class="mb-3">
                 <label asp-for="MaterialNameInput" class="form-label">Malzeme</label>
-                <input asp-for="MaterialNameInput" class="form-control" placeholder="Malzeme adını yazın" autocomplete="off" />
+                <input asp-for="MaterialNameInput" class="form-control" data-free-text-select data-target-id="MaterialId" data-list-id="purchaseOrderMaterialOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
                 <input asp-for="MaterialId" type="hidden" />
-                
             </div>
             <div class="mb-3">
                 <label asp-for="Status" class="form-label">Durum</label>
@@ -123,6 +121,20 @@
         </div>
     </form>
 </section>
+
+<datalist id="purchaseOrderSupplierOptions">
+    @foreach (var supplier in ViewBag.Suppliers)
+    {
+        <option value="@supplier.Name" data-id="@supplier.Id"></option>
+    }
+</datalist>
+
+<datalist id="purchaseOrderMaterialOptions">
+    @foreach (var material in ViewBag.Materials)
+    {
+        <option value="@material.Name" data-id="@material.Id"></option>
+    }
+</datalist>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

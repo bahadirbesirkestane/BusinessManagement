@@ -24,7 +24,6 @@ public class PurchaseOrderTemplate : BaseEntity
     [StringLength(80, ErrorMessage = "Vade en fazla 80 karakter olabilir.")]
     public string? DefaultPaymentTerm { get; set; }
 
-    [StringLength(3, MinimumLength = 3, ErrorMessage = "Para birimi 3 karakter olmalıdır.")]
     public string DefaultCurrency { get; set; } = "TRY";
 
     [Range(0, 100, ErrorMessage = "KDV oranı 0 ile 100 arasında olmalıdır.")]

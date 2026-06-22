@@ -38,6 +38,7 @@ public class MaterialRequestTemplateLineFormViewModel
     public Guid? Id { get; set; }
     public Guid MaterialRequestTemplateId { get; set; }
     public Guid? MaterialId { get; set; }
+    public string? MaterialName { get; set; }
 
     [Required(ErrorMessage = "İhtiyaç kalemi zorunludur.")]
     [StringLength(420, ErrorMessage = "İhtiyaç kalemi en fazla 420 karakter olabilir.")]

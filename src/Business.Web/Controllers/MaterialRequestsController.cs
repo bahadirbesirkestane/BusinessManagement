@@ -176,6 +176,7 @@ public class MaterialRequestsController : Controller
     {
         returnUrl = NormalizeReturnUrl(returnUrl);
         NormalizeMaterialRequestInput(request);
+        request.MaterialId = await ResolveMaterialIdAsync(request.MaterialId, request.MaterialNameInput, request.Unit, cancellationToken);
 
         if (!ModelState.IsValid)
         {
@@ -207,6 +208,7 @@ public class MaterialRequestsController : Controller
             return NotFound();
         }
 
+        await PopulateMaterialInputNameAsync(request, cancellationToken);
         await FillLookupsAsync(cancellationToken, NormalizeReturnUrl(returnUrl));
         return View(request);
     }
@@ -223,6 +225,7 @@ public class MaterialRequestsController : Controller
 
         returnUrl = NormalizeReturnUrl(returnUrl);
         NormalizeMaterialRequestInput(request);
+        request.MaterialId = await ResolveMaterialIdAsync(request.MaterialId, request.MaterialNameInput, request.Unit, cancellationToken);
 
         if (!ModelState.IsValid)
         {
@@ -374,6 +377,52 @@ public class MaterialRequestsController : Controller
                 ? quantityText
                 : $"{quantityText} {request.Unit}";
         }
+    }
+
+    private async Task PopulateMaterialInputNameAsync(MaterialRequest request, CancellationToken cancellationToken)
+    {
+        if (request.MaterialId.HasValue && string.IsNullOrWhiteSpace(request.MaterialNameInput))
+        {
+            request.MaterialNameInput = await _context.Materials
+                .AsNoTracking()
+                .Where(x => x.Id == request.MaterialId.Value)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+    }
+
+    private async Task<Guid?> ResolveMaterialIdAsync(Guid? materialId, string? materialName, string? unit, CancellationToken cancellationToken)
+    {
+        if (materialId.HasValue)
+        {
+            return materialId;
+        }
+
+        var normalizedName = string.IsNullOrWhiteSpace(materialName) ? null : materialName.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            return null;
+        }
+
+        var existingId = await _context.Materials
+            .AsNoTracking()
+            .Where(x => x.Name == normalizedName)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingId.HasValue)
+        {
+            return existingId.Value;
+        }
+
+        var material = new Material
+        {
+            Name = normalizedName,
+            Unit = string.IsNullOrWhiteSpace(unit) ? null : unit.Trim()
+        };
+
+        _context.Materials.Add(material);
+        return material.Id;
     }
 
     private static string? NormalizeReturnUrl(string? returnUrl)

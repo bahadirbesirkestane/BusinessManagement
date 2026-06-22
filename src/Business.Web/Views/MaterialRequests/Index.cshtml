@@ -103,13 +103,8 @@
                 </div>
                 <div>
                     <label class="form-label">Malzeme sınıfı</label>
-                    <select name="MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
-                        <option value="">Seçilmedi</option>
-                        @foreach (var material in ViewBag.Materials)
-                        {
-                            <option value="@material.Id">@material.Name</option>
-                        }
-                    </select>
+                    <input name="MaterialNameInput" class="form-control" data-free-text-select data-target-id="InlineMaterialRequestId" data-list-id="inlineMaterialRequestOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
+                    <input id="InlineMaterialRequestId" name="MaterialId" type="hidden" />
                 </div>
                 <div>
                     <label class="form-label">Miktar</label>
@@ -286,3 +281,10 @@
     <p class="list-preview-meta" data-preview-meta></p>
     <p class="list-preview-description" data-preview-description></p>
 </div>
+
+<datalist id="inlineMaterialRequestOptions">
+    @foreach (var material in ViewBag.Materials)
+    {
+        <option value="@material.Name" data-id="@material.Id"></option>
+    }
+</datalist>

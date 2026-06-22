@@ -25,14 +25,9 @@
         <select asp-for="DefaultStatus" asp-items="Html.GetEnumSelectList<PurchaseOrderStatus>()" class="form-select"></select>
     </div>
     <div class="mb-3">
-        <label asp-for="DefaultSupplierId" class="form-label">Varsayılan tedarikçi</label>
-        <select asp-for="DefaultSupplierId" class="form-select" data-searchable-select data-search-placeholder="Tedarikçi ara veya seç">
-            <option value="">Seçilmedi</option>
-            @foreach (var supplier in ViewBag.Suppliers)
-            {
-                <option value="@supplier.Id">@supplier.Name</option>
-            }
-        </select>
+        <label asp-for="DefaultSupplierName" class="form-label">Varsayılan tedarikçi</label>
+        <input asp-for="DefaultSupplierName" class="form-control" data-free-text-select data-target-id="DefaultSupplierId" data-list-id="templateDefaultSupplierOptions" placeholder="Tedarikçi ara veya yeni ekle" autocomplete="off" />
+        <input asp-for="DefaultSupplierId" type="hidden" />
     </div>
     <div class="mb-3">
         <label asp-for="DefaultPaymentTerm" class="form-label">Varsayılan vade</label>
@@ -54,3 +49,10 @@
         <span>Şablon aktif olarak kullanılsın</span>
     </label>
 </div>
+
+<datalist id="templateDefaultSupplierOptions">
+    @foreach (var supplier in ViewBag.Suppliers)
+    {
+        <option value="@supplier.Name" data-id="@supplier.Id"></option>
+    }
+</datalist>

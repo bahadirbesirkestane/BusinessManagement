@@ -8,6 +8,7 @@
     {
         id = x.Id.ToString(),
         materialId = x.MaterialId?.ToString(),
+        materialName = x.MaterialName,
         requestedItem = x.RequestedItem,
         quantity = x.Quantity,
         quantityText = x.QuantityText,
@@ -208,14 +209,9 @@
                                 <span asp-validation-for="LineForm.RequestedItem" class="text-danger"></span>
                             </div>
                             <div class="mb-3">
-                                <label asp-for="LineForm.MaterialId" class="form-label">Malzeme</label>
-                                <select asp-for="LineForm.MaterialId" class="form-select" data-searchable-select data-search-placeholder="Malzeme ara veya seç">
-                                    <option value="">Seçilmedi</option>
-                                    @foreach (var material in Model.Materials)
-                                    {
-                                        <option value="@material.Value">@material.Text</option>
-                                    }
-                                </select>
+                                <label asp-for="LineForm.MaterialName" class="form-label">Malzeme</label>
+                                <input asp-for="LineForm.MaterialName" class="form-control" data-free-text-select data-target-id="LineForm_MaterialId" data-list-id="materialTemplateLineOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
+                                <input asp-for="LineForm.MaterialId" type="hidden" />
                             </div>
                             <div class="mb-3">
                                 <label asp-for="LineForm.Quantity" class="form-label">Miktar</label>
@@ -253,6 +249,13 @@
     </div>
 }
 
+<datalist id="materialTemplateLineOptions">
+    @foreach (var material in Model.Materials)
+    {
+        <option value="@material.Text" data-id="@material.Value"></option>
+    }
+</datalist>
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
@@ -281,6 +284,7 @@
                 form.action = addUrl;
                 setField('LineForm.Id', '');
                 setField('LineForm.MaterialId', '');
+                setField('LineForm.MaterialName', '');
                 setField('LineForm.RequestedItem', '');
                 setField('LineForm.Quantity', '');
                 setField('LineForm.QuantityText', '');
@@ -301,6 +305,7 @@
                 form.action = updateUrl;
                 setField('LineForm.Id', line.id);
                 setField('LineForm.MaterialId', line.materialId || '');
+                setField('LineForm.MaterialName', line.materialName || '');
                 setField('LineForm.RequestedItem', line.requestedItem || '');
                 setField('LineForm.Quantity', line.quantity ?? '');
                 setField('LineForm.QuantityText', line.quantityText || '');

@@ -3449,6 +3449,10 @@ a:hover {
   background: #fff;
 }
 
+.quick-order-sheet-wrap.quick-order-sheet-wrap-tall {
+  min-height: 420px;
+}
+
 .quick-order-sheet {
   width: 100%;
   min-width: 1120px;

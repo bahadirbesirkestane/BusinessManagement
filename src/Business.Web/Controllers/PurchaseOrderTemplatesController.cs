@@ -76,6 +76,9 @@ public class PurchaseOrderTemplatesController : Controller
     [Authorize(Policy = AppPolicies.CanManagePurchasing)]
     public async Task<IActionResult> Create(PurchaseOrderTemplateFormViewModel model, CancellationToken cancellationToken)
     {
+        model.DefaultCurrency = CurrencyMetadata.NormalizeInput(model.DefaultCurrency);
+        ModelState.Remove(nameof(model.DefaultCurrency));
+
         if (await _context.PurchaseOrderTemplates.AnyAsync(x => x.Name == model.Name.Trim(), cancellationToken))
         {
             ModelState.AddModelError(nameof(model.Name), "Aynı isimde bir şablon zaten var.");
@@ -86,6 +89,8 @@ public class PurchaseOrderTemplatesController : Controller
             await FillSuppliersAsync(cancellationToken);
             return View(model);
         }
+
+        model.DefaultSupplierId = await ResolveSupplierIdAsync(model.DefaultSupplierId, model.DefaultSupplierName, cancellationToken);
 
         var template = new PurchaseOrderTemplate
         {
@@ -132,6 +137,7 @@ public class PurchaseOrderTemplatesController : Controller
             DefaultScope = template.DefaultScope,
             DefaultStatus = template.DefaultStatus,
             DefaultSupplierId = template.DefaultSupplierId,
+            DefaultSupplierName = template.DefaultSupplier?.Name,
             DefaultPaymentTerm = template.DefaultPaymentTerm,
             DefaultCurrency = template.DefaultCurrency,
             DefaultVatRate = template.DefaultVatRate,
@@ -144,6 +150,9 @@ public class PurchaseOrderTemplatesController : Controller
     [Authorize(Policy = AppPolicies.CanManagePurchasing)]
     public async Task<IActionResult> Edit(Guid id, PurchaseOrderTemplateFormViewModel model, CancellationToken cancellationToken)
     {
+        model.DefaultCurrency = CurrencyMetadata.NormalizeInput(model.DefaultCurrency);
+        ModelState.Remove(nameof(model.DefaultCurrency));
+
         if (model.Id != id)
         {
             return BadRequest();
@@ -165,6 +174,8 @@ public class PurchaseOrderTemplatesController : Controller
             await FillSuppliersAsync(cancellationToken);
             return View(model);
         }
+
+        model.DefaultSupplierId = await ResolveSupplierIdAsync(model.DefaultSupplierId, model.DefaultSupplierName, cancellationToken);
 
         template.Name = model.Name.Trim();
         template.Code = Normalize(model.Code);
@@ -215,6 +226,9 @@ public class PurchaseOrderTemplatesController : Controller
             return View(nameof(Details), invalidModel);
         }
 
+        model.SupplierId = await ResolveSupplierIdAsync(model.SupplierId, model.SupplierName, cancellationToken);
+        model.MaterialId = await ResolveMaterialIdAsync(model.MaterialId, model.MaterialName, model.Unit, cancellationToken);
+
         var line = new PurchaseOrderTemplateLine
         {
             PurchaseOrderTemplateId = model.PurchaseOrderTemplateId,
@@ -257,6 +271,9 @@ public class PurchaseOrderTemplatesController : Controller
             var invalidModel = await BuildDetailsViewModelAsync(model.PurchaseOrderTemplateId, model, true, "edit", cancellationToken);
             return View(nameof(Details), invalidModel);
         }
+
+        model.SupplierId = await ResolveSupplierIdAsync(model.SupplierId, model.SupplierName, cancellationToken);
+        model.MaterialId = await ResolveMaterialIdAsync(model.MaterialId, model.MaterialName, model.Unit, cancellationToken);
 
         line.SupplierId = model.SupplierId;
         line.MaterialId = model.MaterialId;
@@ -331,6 +348,24 @@ public class PurchaseOrderTemplatesController : Controller
         if (lineForm.PurchaseOrderTemplateId == Guid.Empty)
         {
             lineForm.PurchaseOrderTemplateId = template.Id;
+        }
+
+        if (lineForm.SupplierId.HasValue && string.IsNullOrWhiteSpace(lineForm.SupplierName))
+        {
+            lineForm.SupplierName = await _context.Suppliers
+                .AsNoTracking()
+                .Where(x => x.Id == lineForm.SupplierId.Value)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (lineForm.MaterialId.HasValue && string.IsNullOrWhiteSpace(lineForm.MaterialName))
+        {
+            lineForm.MaterialName = await _context.Materials
+                .AsNoTracking()
+                .Where(x => x.Id == lineForm.MaterialId.Value)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(cancellationToken);
         }
 
         ViewBag.Breadcrumbs = new Dictionary<string, string?>
@@ -415,6 +450,73 @@ public class PurchaseOrderTemplatesController : Controller
     private async Task FillSuppliersAsync(CancellationToken cancellationToken)
     {
         ViewBag.Suppliers = await _lookupService.GetSuppliersAsync(cancellationToken);
+    }
+
+    private async Task<Guid?> ResolveSupplierIdAsync(Guid? supplierId, string? supplierName, CancellationToken cancellationToken)
+    {
+        if (supplierId.HasValue)
+        {
+            return supplierId;
+        }
+
+        var normalizedName = Normalize(supplierName);
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            return null;
+        }
+
+        var existingId = await _context.Suppliers
+            .AsNoTracking()
+            .Where(x => x.Name == normalizedName)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingId.HasValue)
+        {
+            return existingId.Value;
+        }
+
+        var supplier = new Supplier
+        {
+            Name = normalizedName
+        };
+
+        _context.Suppliers.Add(supplier);
+        return supplier.Id;
+    }
+
+    private async Task<Guid?> ResolveMaterialIdAsync(Guid? materialId, string? materialName, string? unit, CancellationToken cancellationToken)
+    {
+        if (materialId.HasValue)
+        {
+            return materialId;
+        }
+
+        var normalizedName = Normalize(materialName);
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            return null;
+        }
+
+        var existingId = await _context.Materials
+            .AsNoTracking()
+            .Where(x => x.Name == normalizedName)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingId.HasValue)
+        {
+            return existingId.Value;
+        }
+
+        var material = new Material
+        {
+            Name = normalizedName,
+            Unit = Normalize(unit)
+        };
+
+        _context.Materials.Add(material);
+        return material.Id;
     }
 
     private static string? Normalize(string? value)
