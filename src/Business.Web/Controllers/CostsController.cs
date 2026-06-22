@@ -480,7 +480,6 @@ public class CostsController : Controller
         }
 
         await _context.SaveChangesAsync(cancellationToken);
-        await _projectTimelineService.AddAsync(project.Id, "Bütçe ve kur bilgileri güncellendi", $"{project.Budget:N2} {project.Currency}", cancellationToken);
         TempData["Success"] = "Bütçe ve kur bilgileri güncellendi.";
         return RedirectToAction(nameof(Details), new { id });
     }

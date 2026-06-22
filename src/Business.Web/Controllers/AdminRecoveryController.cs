@@ -26,12 +26,15 @@ public class AdminRecoveryController : Controller
         _recoveryCodeService = recoveryCodeService;
     }
 
+    [HttpGet("/admin")]
+    [HttpGet("/panel")]
     public IActionResult Reset()
     {
         return View(new AdminRecoveryResetViewModel());
     }
 
-    [HttpPost]
+    [HttpPost("/admin")]
+    [HttpPost("/panel")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Reset(AdminRecoveryResetViewModel model, CancellationToken cancellationToken)
     {
