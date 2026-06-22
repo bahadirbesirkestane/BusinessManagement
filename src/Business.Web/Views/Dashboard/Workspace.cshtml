@@ -1,0 +1,97 @@
+@model DashboardWorkspaceViewModel
+@{
+    ViewData["Title"] = "İşlerim";
+}
+
+<div class="metric-grid">
+    <div class="metric-card">
+        <span>Açık görevler</span>
+        <strong>@Model.OpenTaskCount</strong>
+        <small>Sorumlu olduğunuz veya size atanan tüm açık işler</small>
+    </div>
+    <div class="metric-card">
+        <span>Gecikenler</span>
+        <strong>@Model.OverdueTaskCount</strong>
+        <small>Öncelikli müdahale gerektiren görevler</small>
+    </div>
+    <div class="metric-card">
+        <span>Bugün terminli</span>
+        <strong>@Model.DueTodayCount</strong>
+        <small>Bugün tamamlanması beklenen görevler</small>
+    </div>
+    <div class="metric-card">
+        <span>Kontrol bekleyen</span>
+        <strong>@Model.WaitingReviewCount</strong>
+        <small>İnceleme veya geri bildirim bekleyen işler</small>
+    </div>
+</div>
+
+<div class="dashboard-grid dashboard-grid-single">
+    <section class="panel-block">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Tek liste</p>
+                <h2>Sorumlu olduğunuz ve size atanan görevler</h2>
+            </div>
+            <a asp-controller="ProjectTasks" asp-action="AssignedToMe">Tam liste</a>
+        </div>
+        <div class="list-stack">
+            @if (!Model.Tasks.Any())
+            {
+                <p class="empty-note">Sorumlu olduğunuz veya size atanmış açık görev görünmüyor.</p>
+            }
+            else
+            {
+                @foreach (var task in Model.Tasks)
+                {
+                    <a class="list-row list-row-link" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id" asp-route-returnUrl="@Context.Request.Path">
+                        <span>
+                            <strong>@task.Title</strong>
+                            <small>@task.Context · @task.RoleText</small>
+                        </span>
+                        <span class="dashboard-task-meta">
+                            <span class="priority-pill priority-@task.PriorityCss">@task.PriorityText</span>
+                            <span class="status-pill status-@task.StatusCss">@task.StatusText</span>
+                            <small class="@(task.IsOverdue ? "text-danger" : string.Empty)">@(task.DueDate?.ToString("dd.MM.yyyy") ?? "Termin yok")</small>
+                        </span>
+                    </a>
+                }
+            }
+        </div>
+    </section>
+
+    <section class="panel-block">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Hızlı erişim</p>
+                <h2>Pratik işlemler</h2>
+            </div>
+        </div>
+        <div class="list-stack">
+            <a class="list-row list-row-link" asp-controller="ProjectTasks" asp-action="AssignedToMe">
+                <span>
+                    <strong>Bana atanan görevler</strong>
+                    <small>Filtreli görev listesine doğrudan geçin</small>
+                </span>
+            </a>
+            <a class="list-row list-row-link" asp-action="Today">
+                <span>
+                    <strong>Bugünkü işler</strong>
+                    <small>Tarihi bugün olan kayıtları açın</small>
+                </span>
+            </a>
+            <a class="list-row list-row-link" asp-action="Overdue">
+                <span>
+                    <strong>Geciken işler</strong>
+                    <small>Tarihi geçmiş kayıtları toplu görün</small>
+                </span>
+            </a>
+            <a class="list-row list-row-link" asp-action="CriticalAlerts">
+                <span>
+                    <strong>Kritik uyarılar</strong>
+                    <small>Kritik görev ve yaklaşan siparişleri kontrol edin</small>
+                </span>
+            </a>
+        </div>
+    </section>
+</div>

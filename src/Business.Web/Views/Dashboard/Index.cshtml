@@ -26,29 +26,88 @@
     </div>
 </div>
 
-<div class="dashboard-grid">
-    <section class="panel-block">
-        <div class="panel-heading">
-            <div>
-                <p class="section-kicker">Proje akışı</p>
-                <h2>Son projeler</h2>
+<section class="welcome-panel dashboard-focus-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Görev özeti</p>
+            <h2>@Model.MyTaskBannerTitle</h2>
+            <p class="dashboard-focus-copy">@Model.MyTaskBannerMessage</p>
+        </div>
+        <div class="dashboard-focus-toolbar">
+            <div class="dashboard-focus-actions">
+                <a class="btn btn-primary btn-sm" asp-action="Workspace">İşlerim ekranını aç</a>
+                <a class="btn btn-outline-secondary btn-sm" asp-controller="ProjectTasks" asp-action="AssignedToMe">Bana atananlar</a>
             </div>
-            <a asp-controller="Projects" asp-action="Index">Tümünü gör</a>
+            <div class="dashboard-stats-strip">
+                <div class="dashboard-stat-chip">
+                    <strong>@Model.MyOpenTaskCount</strong>
+                    <span>Açık görev</span>
+                </div>
+                <div class="dashboard-stat-chip">
+                    <strong>@Model.MyOverdueTaskCount</strong>
+                    <span>Geciken</span>
+                </div>
+                <div class="dashboard-stat-chip">
+                    <strong>@Model.MyDueSoonTaskCount</strong>
+                    <span>Yaklaşan</span>
+                </div>
+            </div>
         </div>
-        <div class="list-stack">
-            @foreach (var project in Model.RecentProjects)
-            {
-                <a class="list-row" asp-controller="Projects" asp-action="Details" asp-route-id="@project.Id">
-                    <span>
-                        <strong>@project.Code</strong>
-                        <small>@project.Name</small>
-                    </span>
-                    <span class="status-pill">@project.Status.ToDisplayName()</span>
-                </a>
-            }
-        </div>
-    </section>
+    </div>
 
+    <div class="dashboard-focus-content">
+        <div class="dashboard-task-list-block">
+            <p class="section-kicker">Görev listesi</p>
+            <div class="list-stack">
+                @if (!Model.MyTasks.Any())
+                {
+                    <p class="empty-note">Size atanmış veya sorumlu olduğunuz açık görev görünmüyor.</p>
+                }
+                else
+                {
+                    @foreach (var task in Model.MyTasks)
+                    {
+                        <a class="list-row list-row-link dashboard-task-row" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id" asp-route-returnUrl="@Context.Request.Path">
+                            <span class="dashboard-task-main">
+                                <strong>@task.Title</strong>
+                                <small>@task.Context · @task.RoleText</small>
+                            </span>
+                            <span class="dashboard-task-meta">
+                                <span class="priority-pill priority-@task.PriorityCss">@task.PriorityText</span>
+                                <span class="status-pill status-@task.StatusCss">@task.StatusText</span>
+                                <small class="@(task.IsOverdue ? "text-danger" : string.Empty)">@(task.DueDate?.ToString("dd.MM.yyyy") ?? "Termin yok")</small>
+                            </span>
+                        </a>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block dashboard-project-flow">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Proje akışı</p>
+            <h2>Son projeler</h2>
+        </div>
+        <a asp-controller="Projects" asp-action="Index">Tümünü gör</a>
+    </div>
+    <div class="list-stack">
+        @foreach (var project in Model.RecentProjects)
+        {
+            <a class="list-row" asp-controller="Projects" asp-action="Details" asp-route-id="@project.Id">
+                <span>
+                    <strong>@project.Code</strong>
+                    <small>@project.Name</small>
+                </span>
+                <span class="status-pill">@project.Status.ToDisplayName()</span>
+            </a>
+        }
+    </div>
+</section>
+
+<div class="dashboard-grid dashboard-grid-secondary">
     @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingView))
     {
         <section class="panel-block">
