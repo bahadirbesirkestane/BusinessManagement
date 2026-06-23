@@ -106,7 +106,7 @@ public class DashboardController : Controller
                 model.MyTaskBannerTitle = "Açık görevleriniz var";
                 model.MyTaskBannerMessage = model.MyOverdueTaskCount > 0
                     ? $"{model.MyOverdueTaskCount} görevinizin tarihi geçmiş görünüyor. Öncelikli işleri aşağıdan hızlıca açabilirsiniz."
-                    : "Sorumlu olduğunuz ve size atanan işleri tek ekranda izleyebilirsiniz.";
+                    : "Sorumlu olduğunuz ve size atanan işler";
             }
             else
             {
@@ -170,7 +170,7 @@ public class DashboardController : Controller
     public async Task<IActionResult> CriticalAlerts(CancellationToken cancellationToken)
     {
         ViewData["Title"] = "Kritik Uyarılar";
-        ViewData["InfoText"] = "Kritik öncelikli açık görevler, çok yaklaşan açık siparişler ve kritik stok uyarıları yetkinize göre listelenir.";
+        ViewData["InfoText"] = "Kritik öncelikli açık görevler, çok yaklaşan açık siparişler ve kritik stok uyarıları listelenir.";
         var today = DateTime.Today;
         var soonDate = today.AddDays(3).Date;
         var items = new List<DashboardWorkItemViewModel>();
