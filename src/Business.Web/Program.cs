@@ -20,6 +20,7 @@ builder.Services.AddDataProtection()
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IRecordFileUploadService, RecordFileUploadService>();
+builder.Services.AddScoped<IProjectDriveUploadService, ProjectDriveUploadService>();
 builder.Services.Configure<SmtpEmailOptions>(builder.Configuration.GetSection("Email:Smtp"));
 builder.Services.Configure<AdminTwoFactorOptions>(builder.Configuration.GetSection("Security:AdminTwoFactor"));
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
