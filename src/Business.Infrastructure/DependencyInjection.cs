@@ -160,6 +160,7 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         services.AddScoped(typeof(ICrudService<>), typeof(CrudService<>));
         services.AddScoped<IProjectService, ProjectService>();
+        services.AddScoped<IProjectDriveService, ProjectDriveService>();
         services.AddScoped<IProjectTemplateService, ProjectTemplateService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IPurchaseOrderTemplateService, PurchaseOrderTemplateService>();
