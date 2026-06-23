@@ -29,6 +29,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ProjectUpdate> ProjectUpdates => Set<ProjectUpdate>();
     public DbSet<ProjectTaskUpdate> ProjectTaskUpdates => Set<ProjectTaskUpdate>();
     public DbSet<ProjectCostItem> ProjectCostItems => Set<ProjectCostItem>();
+    public DbSet<ProjectFolder> ProjectFolders => Set<ProjectFolder>();
+    public DbSet<ProjectDriveFile> ProjectDriveFiles => Set<ProjectDriveFile>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderTemplate> PurchaseOrderTemplates => Set<PurchaseOrderTemplate>();
     public DbSet<PurchaseOrderTemplateLine> PurchaseOrderTemplateLines => Set<PurchaseOrderTemplateLine>();
@@ -175,6 +177,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasMany(x => x.Updates).WithOne(x => x.Project).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
             entity.HasMany(x => x.CostItems).WithOne(x => x.Project).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.SetNull);
             entity.HasMany(x => x.Invoices).WithOne(x => x.Project).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasMany(x => x.DriveFolders).WithOne(x => x.Project).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.DriveFiles).WithOne(x => x.Project).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
 
         foreach (var entityType in builder.Model.GetEntityTypes()
@@ -268,6 +272,36 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Currency).HasMaxLength(3);
             entity.Property(x => x.Visibility).HasDefaultValue(RecordVisibility.General);
             entity.HasOne(x => x.PurchaseOrder).WithMany().HasForeignKey(x => x.PurchaseOrderId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<ProjectFolder>(entity =>
+        {
+            entity.HasIndex(x => new { x.ProjectId, x.Name })
+                .IsUnique()
+                .HasFilter("[ParentFolderId] IS NULL");
+            entity.HasIndex(x => new { x.ProjectId, x.ParentFolderId, x.Name })
+                .IsUnique()
+                .HasFilter("[ParentFolderId] IS NOT NULL");
+            entity.HasIndex(x => new { x.ProjectId, x.ParentFolderId, x.SortOrder });
+            entity.Property(x => x.Name).HasMaxLength(180).IsRequired();
+            entity.HasOne(x => x.ParentFolder)
+                .WithMany(x => x.ChildFolders)
+                .HasForeignKey(x => x.ParentFolderId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<ProjectDriveFile>(entity =>
+        {
+            entity.HasIndex(x => new { x.ProjectId, x.FolderId, x.CreatedAt });
+            entity.Property(x => x.OriginalFileName).HasMaxLength(260).IsRequired();
+            entity.Property(x => x.StoredFileName).HasMaxLength(260).IsRequired();
+            entity.Property(x => x.RelativePath).HasMaxLength(520).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(160);
+            entity.Property(x => x.Description).HasMaxLength(500);
+            entity.HasOne(x => x.Folder)
+                .WithMany(x => x.Files)
+                .HasForeignKey(x => x.FolderId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         builder.Entity<PurchaseOrder>(entity =>

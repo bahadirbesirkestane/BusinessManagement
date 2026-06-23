@@ -51,6 +51,8 @@ public class Project : BaseEntity, IValidatableObject
     public ICollection<ProjectUpdate> Updates { get; set; } = new List<ProjectUpdate>();
     public ICollection<ProjectCostItem> CostItems { get; set; } = new List<ProjectCostItem>();
     public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
+    public ICollection<ProjectFolder> DriveFolders { get; set; } = new List<ProjectFolder>();
+    public ICollection<ProjectDriveFile> DriveFiles { get; set; } = new List<ProjectDriveFile>();
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
