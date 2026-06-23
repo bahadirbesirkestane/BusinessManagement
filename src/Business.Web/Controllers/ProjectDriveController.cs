@@ -277,6 +277,7 @@ public class ProjectDriveController : Controller
                 {
                     Id = x.Id,
                     OriginalFileName = x.OriginalFileName,
+                    RelativePath = x.RelativePath,
                     Description = x.Description,
                     ContentType = x.ContentType,
                     Size = x.Size,

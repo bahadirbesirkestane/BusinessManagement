@@ -1,0 +1,44 @@
+@model ProjectTask
+@{
+    ViewData["Title"] = "Güncelleme Geçmişi";
+    var canDeleteTaskUpdates = ViewBag.CanDeleteTaskUpdates is true;
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">@Model.Title</p>
+            <h2>Güncelleme Geçmişi</h2>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Details" asp-route-id="@Model.Id">Göreve Dön</a>
+    </div>
+
+    @if (!Model.Updates.Any())
+    {
+        <p class="empty-note">Bu görev için henüz güncelleme kaydı yok.</p>
+    }
+    else
+    {
+        <div class="list-stack">
+            @foreach (var update in Model.Updates.OrderByDescending(x => x.CreatedAt))
+            {
+                <div class="list-row">
+                    <span>
+                        <strong>@update.Title</strong>
+                        <small>@(string.IsNullOrWhiteSpace(update.Description) ? "Ek açıklama yok." : update.Description)</small>
+                        <small>@update.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+                    </span>
+                    @if (canDeleteTaskUpdates)
+                    {
+                        <form asp-action="DeleteUpdate" method="post" class="inline-form">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@update.Id" />
+                            <input type="hidden" name="taskId" value="@Model.Id" />
+                            <button class="link-button text-danger" type="submit">Sil</button>
+                        </form>
+                    }
+                </div>
+            }
+        </div>
+    }
+</section>

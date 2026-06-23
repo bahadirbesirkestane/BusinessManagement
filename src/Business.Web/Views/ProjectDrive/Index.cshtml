@@ -166,7 +166,7 @@
                             {
                                 <div class="list-row">
                                     <span>
-                                        <strong>@file.OriginalFileName</strong>
+                                        <strong><a href="@file.RelativePath" target="_blank" rel="noopener">@file.OriginalFileName</a></strong>
                                         <small>@file.CreatedAtText · @FormatFileSize(file.Size) · @(string.IsNullOrWhiteSpace(file.Description) ? "Açıklama yok" : file.Description)</small>
                                     </span>
                                     <span class="project-drive-inline-actions">

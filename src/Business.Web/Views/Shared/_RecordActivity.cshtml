@@ -76,7 +76,6 @@
                        data-max-file-size="52428800"
                        data-max-file-size-label="50 MB"
                        accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.mp4,.dwg,.dxf" />
-                @* <small class="text-muted">Birden fazla dosya seçebilirsiniz. Her bir dosya en fazla 50 MB olabilir.</small> *@
                 <div class="file-upload-status" data-file-upload-status hidden>
                     <div class="file-upload-status-text" data-file-upload-text></div>
                     <div class="file-upload-progress" data-file-upload-progress hidden>
@@ -94,16 +93,32 @@
                     var creator = await GetDisplayNameAsync(file.CreatedByUserId);
                     <div class="list-row">
                         <span>
-                            <strong><a href="@file.RelativePath" target="_blank">@file.OriginalFileName</a></strong>
+                            <strong><a href="@file.RelativePath" target="_blank" rel="noopener">@file.OriginalFileName</a></strong>
                             <small>@creator · @file.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm") · @(file.Description ?? "-")</small>
                         </span>
-                        @if (User.IsInRole(AppRoles.Admin))
-                        {
-                            <form asp-controller="RecordActivity" asp-action="DeleteFile" asp-route-id="@file.Id" method="post" class="inline-form">
-                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-                                <button class="link-button text-danger" type="submit">Sil</button>
-                            </form>
-                        }
+                        <span class="project-drive-inline-actions">
+                            @if (Model.ShowDownloadButton)
+                            {
+                                <a class="btn btn-outline-primary btn-sm"
+                                   asp-controller="RecordActivity"
+                                   asp-action="DownloadFile"
+                                   asp-route-id="@file.Id">
+                                    İndir
+                                </a>
+                            }
+                            else
+                            {
+                                <a class="btn btn-outline-primary btn-sm" href="@file.RelativePath" target="_blank" rel="noopener">Aç</a>
+                            }
+
+                            @if (User.IsInRole(AppRoles.Admin))
+                            {
+                                <form asp-controller="RecordActivity" asp-action="DeleteFile" asp-route-id="@file.Id" method="post" class="inline-form">
+                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                    <button class="link-button text-danger" type="submit">Sil</button>
+                                </form>
+                            }
+                        </span>
                     </div>
                 }
                 @if (!Model.Files.Any())

@@ -339,6 +339,65 @@ public class ProjectTasksController : Controller
         return View(task);
     }
 
+    public async Task<IActionResult> Updates(Guid id, CancellationToken cancellationToken)
+    {
+        var task = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .ThenInclude(x => x!.Customer)
+            .Include(x => x.Customer)
+            .Include(x => x.Updates)
+            .Include(x => x.Assignments)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        if (!task.IsVisibleTo(User) || !CanAccessTask(task))
+        {
+            return NotFound();
+        }
+
+        ViewBag.Breadcrumbs = await CreateTaskUpdateBreadcrumbsAsync(task, cancellationToken);
+        ViewBag.CanDeleteTaskUpdates = CanDeleteTaskUpdates();
+        return View(task);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteUpdate(Guid id, Guid taskId, CancellationToken cancellationToken)
+    {
+        if (!CanDeleteTaskUpdates())
+        {
+            return Forbid();
+        }
+
+        var task = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .Include(x => x.Assignments)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == taskId, cancellationToken);
+
+        if (task is null || !task.IsVisibleTo(User) || !CanAccessTask(task))
+        {
+            return NotFound();
+        }
+
+        var update = await _context.ProjectTaskUpdates
+            .FirstOrDefaultAsync(x => x.Id == id && x.ProjectTaskId == taskId, cancellationToken);
+
+        if (update is null)
+        {
+            return NotFound();
+        }
+
+        _context.ProjectTaskUpdates.Remove(update);
+        await _context.SaveChangesAsync(cancellationToken);
+        return RedirectToAction(nameof(Updates), new { id = taskId });
+    }
+
     [Authorize(Policy = AppPolicies.CanCreateTasks)]
     public async Task<IActionResult> Create(Guid? projectId, string? returnUrl, CancellationToken cancellationToken)
     {
@@ -797,6 +856,12 @@ public class ProjectTasksController : Controller
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     }
 
+    private bool CanDeleteTaskUpdates()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage);
+    }
+
     private async Task<IReadOnlyList<KeyValuePair<string, string?>>> CreateTaskBreadcrumbsAsync(ProjectTask task, CancellationToken cancellationToken)
     {
         var breadcrumbs = new List<KeyValuePair<string, string?>>();
@@ -818,6 +883,18 @@ public class ProjectTasksController : Controller
         }
 
         breadcrumbs.Add(new(task.Title, null));
+        return breadcrumbs;
+    }
+
+    private async Task<IReadOnlyList<KeyValuePair<string, string?>>> CreateTaskUpdateBreadcrumbsAsync(ProjectTask task, CancellationToken cancellationToken)
+    {
+        var breadcrumbs = (await CreateTaskBreadcrumbsAsync(task, cancellationToken)).ToList();
+        if (breadcrumbs.Count > 0)
+        {
+            breadcrumbs[^1] = new KeyValuePair<string, string?>(task.Title, Url.Action(nameof(Details), new { id = task.Id }));
+        }
+
+        breadcrumbs.Add(new KeyValuePair<string, string?>("Güncelleme Geçmişi", null));
         return breadcrumbs;
     }
 

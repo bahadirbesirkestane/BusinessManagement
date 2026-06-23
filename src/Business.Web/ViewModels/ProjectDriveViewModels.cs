@@ -36,6 +36,7 @@ public class ProjectDriveFileListItemViewModel
 {
     public Guid Id { get; set; }
     public string OriginalFileName { get; set; } = string.Empty;
+    public string RelativePath { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? ContentType { get; set; }
     public long Size { get; set; }
