@@ -1,0 +1,29 @@
+@model IReadOnlyList<ProjectDriveFolderTreeItemViewModel>
+@{
+    var projectId = (Guid)ViewData["ProjectId"]!;
+}
+
+@if (Model.Any())
+{
+    <ul class="project-drive-tree">
+        @foreach (var node in Model)
+        {
+            <li>
+                <a class="@(node.IsSelected ? "is-active" : null)"
+                   asp-action="Index"
+                   asp-route-projectId="@projectId"
+                   asp-route-folderId="@node.Id">
+                    @node.Name
+                </a>
+
+                @if (node.Children.Any())
+                {
+                    @await Html.PartialAsync("_FolderTree", node.Children, new ViewDataDictionary(ViewData)
+                    {
+                        ["ProjectId"] = projectId
+                    })
+                }
+            </li>
+        }
+    </ul>
+}

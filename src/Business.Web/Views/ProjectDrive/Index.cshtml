@@ -1,0 +1,237 @@
+@model ProjectDriveIndexViewModel
+@{
+    ViewData["Title"] = $"{Model.ProjectCode} Dosyalar";
+    ViewData["ProjectId"] = Model.ProjectId;
+}
+
+@functions {
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024)
+        {
+            return $"{bytes} B";
+        }
+
+        if (bytes < 1024 * 1024)
+        {
+            return $"{bytes / 1024d:0.#} KB";
+        }
+
+        return $"{bytes / 1024d / 1024d:0.#} MB";
+    }
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">Proje dosya alanı</p>
+        <h2>@Model.ProjectCode - @Model.ProjectName</h2>
+        <p>Bu ekranda proje klasörlerini yönetin, dosya yükleyin ve kayıtlı dosyaları güvenli şekilde görüntüleyin.</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Seçili klasör</span>
+            <strong>@Model.CurrentFolderName</strong>
+        </div>
+        <div>
+            <span>Alt klasör</span>
+            <strong>@Model.Folders.Count</strong>
+        </div>
+        <div>
+            <span>Dosya</span>
+            <strong>@Model.Files.Count</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Gezinme</p>
+            <h2>Klasör yolu</h2>
+        </div>
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="Projects" asp-action="Details" asp-route-id="@Model.ProjectId">Proje detayına dön</a>
+        </div>
+    </div>
+
+    <nav class="project-drive-breadcrumbs" aria-label="Klasör yolu">
+        @foreach (var item in Model.Breadcrumbs)
+        {
+            if (item.IsActive)
+            {
+                <span class="is-active">@item.Label</span>
+            }
+            else
+            {
+                <a asp-action="Index" asp-route-projectId="@Model.ProjectId" asp-route-folderId="@item.FolderId">@item.Label</a>
+            }
+        }
+    </nav>
+</section>
+
+<div class="project-drive-layout">
+    <section class="panel-block project-drive-sidebar">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Klasör ağacı</p>
+                <h2>Proje yapısı</h2>
+            </div>
+        </div>
+
+        <div class="project-drive-tree-shell">
+            <a class="project-drive-root-link @(Model.CurrentFolderId is null ? "is-active" : null)"
+               asp-action="Index"
+               asp-route-projectId="@Model.ProjectId">
+                Kök klasör
+            </a>
+
+            @if (Model.FolderTree.Any())
+            {
+                @await Html.PartialAsync("_FolderTree", Model.FolderTree, ViewData)
+            }
+            else
+            {
+                <p class="empty-note">Henüz klasör oluşturulmamış.</p>
+            }
+        </div>
+    </section>
+
+    <div class="project-drive-main">
+        @if (Model.CanManage)
+        {
+            <section class="panel-block">
+                <div class="panel-heading">
+                    <div>
+                        <p class="section-kicker">Hızlı işlemler</p>
+                        <h2>Klasör ve dosya yönetimi</h2>
+                    </div>
+                </div>
+
+                <div class="project-drive-actions-grid">
+                    <form asp-action="CreateFolder" asp-route-projectId="@Model.ProjectId" method="post" class="activity-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="parentFolderId" value="@Model.CurrentFolderId" />
+                        <label class="form-label">Yeni klasör adı</label>
+                        <input name="name" class="form-control" maxlength="180" placeholder="Örnek: Teknik Çizimler" />
+                        <button class="btn btn-primary btn-sm" type="submit">Klasör oluştur</button>
+                    </form>
+
+                    <form asp-action="UploadFiles" asp-route-projectId="@Model.ProjectId" method="post" enctype="multipart/form-data" class="activity-form" data-file-upload-form data-require-file="true">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="folderId" value="@Model.CurrentFolderId" />
+                        <label class="form-label">Dosya yükle</label>
+                        <input type="file"
+                               name="files"
+                               class="form-control"
+                               multiple
+                               data-file-upload-input
+                               data-max-file-size="@Model.MaxUploadSizeBytes"
+                               data-max-file-size-label="50 MB" />
+                        <div class="file-upload-status" data-file-upload-status hidden>
+                            <div class="file-upload-status-text" data-file-upload-text></div>
+                            <div class="file-upload-progress" data-file-upload-progress hidden>
+                                <div class="file-upload-progress-bar" data-file-upload-progress-bar></div>
+                            </div>
+                            <div class="file-upload-list" data-file-upload-list></div>
+                        </div>
+                        <input name="description" class="form-control" maxlength="500" placeholder="Açıklama (isteğe bağlı)" />
+                        <small class="text-muted">İzin verilen türler: @Model.AllowedExtensionsText. Her dosya en fazla 50 MB olabilir.</small>
+                        <button class="btn btn-outline-primary btn-sm" type="submit">Dosyaları yükle</button>
+                    </form>
+                </div>
+            </section>
+        }
+
+        <section class="panel-block">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Klasör içeriği</p>
+                    <h2>@Model.CurrentFolderName</h2>
+                </div>
+            </div>
+
+            <div class="project-drive-content-grid">
+                <div>
+                    <h3 class="project-drive-subtitle">Alt klasörler</h3>
+                    @if (!Model.Folders.Any())
+                    {
+                        <p class="empty-note">Bu klasörün altında alt klasör yok.</p>
+                    }
+                    else
+                    {
+                        <div class="list-stack">
+                            @foreach (var folder in Model.Folders)
+                            {
+                                <div class="list-row">
+                                    <span>
+                                        <strong>
+                                            <a asp-action="Index" asp-route-projectId="@Model.ProjectId" asp-route-folderId="@folder.Id">@folder.Name</a>
+                                        </strong>
+                                        <small>Klasör</small>
+                                    </span>
+                                    @if (Model.CanManage)
+                                    {
+                                        <span class="project-drive-inline-actions">
+                                            <form asp-action="RenameFolder" asp-route-projectId="@Model.ProjectId" method="post" class="inline-form project-drive-rename-form">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="folderId" value="@folder.Id" />
+                                                <input type="hidden" name="returnFolderId" value="@Model.CurrentFolderId" />
+                                                <input name="name" class="form-control form-control-sm" maxlength="180" value="@folder.Name" />
+                                                <button class="btn btn-outline-secondary btn-sm" type="submit">Yeniden adlandır</button>
+                                            </form>
+                                            <form asp-action="DeleteFolder" asp-route-projectId="@Model.ProjectId" method="post" class="inline-form">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="folderId" value="@folder.Id" />
+                                                <input type="hidden" name="returnFolderId" value="@Model.CurrentFolderId" />
+                                                <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu klasörü silmek istiyor musunuz?');">Sil</button>
+                                            </form>
+                                        </span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div>
+                    <h3 class="project-drive-subtitle">Dosyalar</h3>
+                    @if (!Model.Files.Any())
+                    {
+                        <p class="empty-note">Bu klasörde henüz dosya yok.</p>
+                    }
+                    else
+                    {
+                        <div class="list-stack">
+                            @foreach (var file in Model.Files)
+                            {
+                                <div class="list-row">
+                                    <span>
+                                        <strong>@file.OriginalFileName</strong>
+                                        <small>@file.CreatedAtText · @FormatFileSize(file.Size) · @(string.IsNullOrWhiteSpace(file.Description) ? "Açıklama yok" : file.Description)</small>
+                                    </span>
+                                    <span class="project-drive-inline-actions">
+                                        <a class="btn btn-outline-primary btn-sm"
+                                           asp-action="DownloadFile"
+                                           asp-route-projectId="@Model.ProjectId"
+                                           asp-route-fileId="@file.Id">
+                                            İndir
+                                        </a>
+                                        @if (Model.CanManage)
+                                        {
+                                            <form asp-action="DeleteFile" asp-route-projectId="@Model.ProjectId" method="post" class="inline-form">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="fileId" value="@file.Id" />
+                                                <input type="hidden" name="folderId" value="@Model.CurrentFolderId" />
+                                                <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu dosyayı silmek istiyor musunuz?');">Sil</button>
+                                            </form>
+                                        }
+                                    </span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    </div>
+</div>

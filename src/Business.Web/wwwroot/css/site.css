@@ -3943,3 +3943,125 @@ a:hover {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+.project-drive-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.project-drive-sidebar {
+  position: sticky;
+  top: 1rem;
+}
+
+.project-drive-main {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.project-drive-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+}
+
+.project-drive-breadcrumbs a,
+.project-drive-breadcrumbs span {
+  padding: .35rem .7rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .06);
+  text-decoration: none;
+  color: inherit;
+}
+
+.project-drive-breadcrumbs .is-active {
+  background: rgba(37, 99, 235, .12);
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.project-drive-tree-shell {
+  display: grid;
+  gap: .75rem;
+}
+
+.project-drive-root-link,
+.project-drive-tree a {
+  display: block;
+  padding: .45rem .7rem;
+  border-radius: .75rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.project-drive-root-link:hover,
+.project-drive-tree a:hover {
+  background: rgba(15, 23, 42, .05);
+}
+
+.project-drive-root-link.is-active,
+.project-drive-tree a.is-active {
+  background: rgba(37, 99, 235, .12);
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.project-drive-tree {
+  list-style: none;
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: .3rem;
+}
+
+.project-drive-tree > li {
+  display: grid;
+  gap: .25rem;
+}
+
+.project-drive-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.project-drive-content-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.project-drive-subtitle {
+  font-size: 1rem;
+  margin-bottom: .9rem;
+}
+
+.project-drive-inline-actions {
+  display: inline-flex;
+  gap: .5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.project-drive-rename-form {
+  display: inline-flex;
+  gap: .5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 991.98px) {
+  .project-drive-layout,
+  .project-drive-content-grid,
+  .project-drive-actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-drive-sidebar {
+    position: static;
+  }
+}
