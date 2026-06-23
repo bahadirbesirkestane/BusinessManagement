@@ -40,6 +40,12 @@ public static class DependencyInjection
             .AddErrorDescriber<TurkishIdentityErrorDescriber>()
             .AddDefaultUI();
 
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.LoginPath = "/Identity/Account/Login";
+            options.AccessDeniedPath = "/Identity/Account/AccessDenied";
+        });
+
         services.AddScoped<SignInManager<ApplicationUser>, ApplicationSignInManager>();
 
         services.AddAuthorization(options =>

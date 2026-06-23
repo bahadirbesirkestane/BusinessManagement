@@ -1,0 +1,16 @@
+@page
+@{
+    ViewData["Title"] = "Erişim Reddedildi";
+}
+
+<section class="panel-block error-panel">
+    <div>
+        <p class="section-kicker">Yetki</p>
+        <h2>Erişim reddedildi</h2>
+        <p>Bu sayfayı görüntülemek veya bu işlemi yapmak için gerekli yetkiye sahip değilsiniz.</p>
+    </div>
+    <div class="form-actions">
+        <a class="btn btn-outline-secondary" href="javascript:history.back()">Geri Dön</a>
+        <a class="btn btn-primary" asp-controller="Dashboard" asp-action="Index">Panele Git</a>
+    </div>
+</section>
