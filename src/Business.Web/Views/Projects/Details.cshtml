@@ -20,6 +20,7 @@
     </div>
     <div class="project-header-actions">
         <span class="status-pill">@Model.Project.Status.ToDisplayName()</span>
+        <a class="btn btn-outline-primary btn-sm" asp-controller="ProjectDrive" asp-action="Index" asp-route-projectId="@Model.Project.Id">Dosyaları Yönet</a>
         <a class="btn btn-outline-secondary btn-sm" asp-controller="PersonalNotes" asp-action="Create" asp-route-projectId="@Model.Project.Id">Bana özel not ekle</a>
         <a class="btn btn-outline-secondary btn-sm" asp-controller="PersonalTasks" asp-action="Create" asp-route-projectId="@Model.Project.Id">Bana özel görev ekle</a>
         @if (User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsUpdate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage))

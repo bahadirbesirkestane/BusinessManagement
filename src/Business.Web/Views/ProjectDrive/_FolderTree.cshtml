@@ -1,6 +1,8 @@
 @model IReadOnlyList<ProjectDriveFolderTreeItemViewModel>
 @{
     var projectId = (Guid)ViewData["ProjectId"]!;
+    var currentFolderId = ViewData["CurrentFolderId"] as Guid?;
+    var canManage = ViewData["CanManage"] is true;
 }
 
 @if (Model.Any())
@@ -8,19 +10,83 @@
     <ul class="project-drive-tree">
         @foreach (var node in Model)
         {
+            var renamePanelId = $"rename-folder-{node.Id}";
+            var returnFolderId = node.IsSelected ? node.ParentFolderId : currentFolderId;
+
             <li>
-                <a class="@(node.IsSelected ? "is-active" : null)"
-                   asp-action="Index"
-                   asp-route-projectId="@projectId"
-                   asp-route-folderId="@node.Id">
-                    @node.Name
-                </a>
+                <div class="project-drive-tree-row @(node.IsSelected ? "is-active" : null)">
+                    <div class="project-drive-tree-row-main">
+                        <a class="project-drive-tree-link @(node.IsSelected ? "is-active" : null)"
+                           asp-action="Index"
+                           asp-route-projectId="@projectId"
+                           asp-route-folderId="@node.Id">
+                            @node.Name
+                        </a>
+
+                        @if (canManage)
+                        {
+                            <div class="project-drive-tree-actions">
+                                <button type="button"
+                                        class="project-drive-icon-button"
+                                        data-rename-toggle
+                                        data-target-id="@renamePanelId"
+                                        aria-expanded="false"
+                                        aria-controls="@renamePanelId"
+                                        title="Klasörü yeniden adlandır"
+                                        aria-label="Klasörü yeniden adlandır">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="M4 17.25V20h2.75L17.81 8.94l-2.75-2.75L4 17.25zm15.71-9.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.29 1.29 3.75 3.75 1.46-1.46z" />
+                                    </svg>
+                                </button>
+
+                                <form asp-action="DeleteFolder" asp-route-projectId="@projectId" method="post" class="inline-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="folderId" value="@node.Id" />
+                                    <input type="hidden" name="returnFolderId" value="@returnFolderId" />
+                                    <button class="project-drive-icon-button project-drive-icon-button-danger"
+                                            type="submit"
+                                            title="Klasörü sil"
+                                            aria-label="Klasörü sil"
+                                            onclick="return confirm('Bu klasörü silmek istiyor musunuz? Dolu klasörler silinmez.');">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7zm3-4h6l1 2h4v2H4V5h4l1-2z" />
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+
+                    @if (canManage)
+                    {
+                        <div id="@renamePanelId" class="project-drive-rename-panel" data-rename-panel hidden>
+                            <form asp-action="RenameFolder" asp-route-projectId="@projectId" method="post" class="project-drive-tree-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="folderId" value="@node.Id" />
+                                <input type="hidden" name="returnFolderId" value="@returnFolderId" />
+                                <input name="name" class="form-control form-control-sm" maxlength="180" value="@node.Name" />
+                                <div class="project-drive-rename-actions">
+                                    <button class="btn btn-outline-secondary btn-sm" type="submit">Yeniden adlandır</button>
+                                    <button type="button"
+                                            class="btn btn-link btn-sm project-drive-rename-cancel"
+                                            data-rename-toggle
+                                            data-target-id="@renamePanelId"
+                                            aria-expanded="true">
+                                        Vazgeç
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    }
+                </div>
 
                 @if (node.Children.Any())
                 {
                     @await Html.PartialAsync("_FolderTree", node.Children, new ViewDataDictionary(ViewData)
                     {
-                        ["ProjectId"] = projectId
+                        ["ProjectId"] = projectId,
+                        ["CurrentFolderId"] = currentFolderId,
+                        ["CanManage"] = canManage
                     })
                 }
             </li>

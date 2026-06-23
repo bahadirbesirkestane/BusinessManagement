@@ -3989,7 +3989,7 @@ a:hover {
 }
 
 .project-drive-root-link,
-.project-drive-tree a {
+.project-drive-tree-link {
   display: block;
   padding: .45rem .7rem;
   border-radius: .75rem;
@@ -3998,12 +3998,13 @@ a:hover {
 }
 
 .project-drive-root-link:hover,
-.project-drive-tree a:hover {
+.project-drive-tree-link:hover {
   background: rgba(15, 23, 42, .05);
 }
 
 .project-drive-root-link.is-active,
-.project-drive-tree a.is-active {
+.project-drive-tree-link.is-active,
+.project-drive-tree-row.is-active {
   background: rgba(37, 99, 235, .12);
   color: #1d4ed8;
   font-weight: 700;
@@ -4022,6 +4023,86 @@ a:hover {
   gap: .25rem;
 }
 
+.project-drive-tree-row {
+  display: grid;
+  gap: .5rem;
+  padding: .45rem;
+  border-radius: .9rem;
+}
+
+.project-drive-tree-row-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+}
+
+.project-drive-tree-actions {
+  display: flex;
+  gap: .35rem;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.project-drive-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(15, 23, 42, .12);
+  border-radius: .7rem;
+  background: #fff;
+  color: var(--muted);
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.project-drive-icon-button:hover,
+.project-drive-icon-button[aria-expanded="true"] {
+  border-color: rgba(37, 99, 235, .28);
+  background: rgba(37, 99, 235, .08);
+  color: #1d4ed8;
+}
+
+.project-drive-icon-button svg {
+  width: 1rem;
+  height: 1rem;
+  fill: currentColor;
+}
+
+.project-drive-icon-button-danger:hover {
+  border-color: rgba(220, 38, 38, .25);
+  background: rgba(220, 38, 38, .08);
+  color: #b91c1c;
+}
+
+.project-drive-rename-panel {
+  padding-top: .1rem;
+}
+
+.project-drive-rename-actions {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.project-drive-rename-cancel {
+  padding-left: 0;
+  padding-right: 0;
+  text-decoration: none;
+}
+
+.project-drive-tree-form {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  align-items: stretch;
+}
+
+.project-drive-tree-form .form-control {
+  max-width: 100%;
+}
+
 .project-drive-actions-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4030,7 +4111,7 @@ a:hover {
 
 .project-drive-content-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
 }
 
@@ -4047,21 +4128,18 @@ a:hover {
   justify-content: flex-end;
 }
 
-.project-drive-rename-form {
-  display: inline-flex;
-  gap: .5rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
 @media (max-width: 991.98px) {
   .project-drive-layout,
-  .project-drive-content-grid,
   .project-drive-actions-grid {
     grid-template-columns: 1fr;
   }
 
   .project-drive-sidebar {
     position: static;
+  }
+
+  .project-drive-tree-row-main {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

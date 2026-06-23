@@ -194,20 +194,9 @@ public class ProjectDriveController : Controller
     [Authorize(Policy = AppPolicies.CanUpdateProjects)]
     public async Task<IActionResult> DeleteFile(Guid projectId, Guid fileId, Guid? folderId, CancellationToken cancellationToken)
     {
-        var file = await _context.ProjectDriveFiles
-            .Include(x => x.Project)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == fileId && x.ProjectId == projectId, cancellationToken);
-
-        if (file is null || !file.Project.IsVisibleTo(User))
-        {
-            return NotFound();
-        }
-
         try
         {
-            await _projectDriveService.DeleteFileAsync(fileId, User.CanViewAdminOnlyRecords(), cancellationToken);
-            await _projectDriveUploadService.DeletePhysicalFileIfExistsAsync(file, cancellationToken);
+            await _projectDriveUploadService.DeleteFileAsync(fileId, User.CanViewAdminOnlyRecords(), cancellationToken);
             TempData["Success"] = "Dosya silindi.";
             return RedirectToAction(nameof(Index), new { projectId, folderId });
         }
@@ -218,6 +207,11 @@ public class ProjectDriveController : Controller
         catch (UnauthorizedAccessException)
         {
             return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Index), new { projectId, folderId });
         }
     }
 
@@ -274,17 +268,9 @@ public class ProjectDriveController : Controller
             CanManage = CanManageDrive(),
             MaxUploadSizeBytes = _projectDriveUploadService.MaxUploadSizeBytes,
             AllowedExtensionsText = _projectDriveUploadService.GetAllowedExtensionsText(),
+            SubFolderCount = content.Folders.Count,
             Breadcrumbs = BuildFolderBreadcrumbs(tree, content.FolderId),
             FolderTree = tree.Select(node => MapTreeNode(node, content.FolderId)).ToList(),
-            Folders = content.Folders
-                .OrderBy(x => x.SortOrder)
-                .ThenBy(x => x.Name)
-                .Select(x => new ProjectDriveFolderListItemViewModel
-                {
-                    Id = x.Id,
-                    Name = x.Name
-                })
-                .ToList(),
             Files = content.Files
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new ProjectDriveFileListItemViewModel
@@ -305,6 +291,7 @@ public class ProjectDriveController : Controller
         return new ProjectDriveFolderTreeItemViewModel
         {
             Id = node.Id,
+            ParentFolderId = node.ParentFolderId,
             Name = node.Name,
             IsSelected = node.Id == currentFolderId,
             Children = node.Children.Select(child => MapTreeNode(child, currentFolderId)).ToList()

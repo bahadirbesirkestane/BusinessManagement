@@ -15,5 +15,5 @@ public interface IProjectDriveUploadService
         string? description,
         bool canViewAdminOnlyRecords,
         CancellationToken cancellationToken = default);
-    Task DeletePhysicalFileIfExistsAsync(ProjectDriveFile file, CancellationToken cancellationToken = default);
+    Task DeleteFileAsync(Guid fileId, bool canViewAdminOnlyRecords, CancellationToken cancellationToken = default);
 }

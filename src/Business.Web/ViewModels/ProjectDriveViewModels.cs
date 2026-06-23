@@ -10,9 +10,9 @@ public class ProjectDriveIndexViewModel
     public bool CanManage { get; set; }
     public long MaxUploadSizeBytes { get; set; }
     public string AllowedExtensionsText { get; set; } = string.Empty;
+    public int SubFolderCount { get; set; }
     public IReadOnlyList<ProjectDriveBreadcrumbItemViewModel> Breadcrumbs { get; set; } = [];
     public IReadOnlyList<ProjectDriveFolderTreeItemViewModel> FolderTree { get; set; } = [];
-    public IReadOnlyList<ProjectDriveFolderListItemViewModel> Folders { get; set; } = [];
     public IReadOnlyList<ProjectDriveFileListItemViewModel> Files { get; set; } = [];
 }
 
@@ -26,15 +26,10 @@ public class ProjectDriveBreadcrumbItemViewModel
 public class ProjectDriveFolderTreeItemViewModel
 {
     public Guid Id { get; set; }
+    public Guid? ParentFolderId { get; set; }
     public string Name { get; set; } = string.Empty;
     public bool IsSelected { get; set; }
     public IReadOnlyList<ProjectDriveFolderTreeItemViewModel> Children { get; set; } = [];
-}
-
-public class ProjectDriveFolderListItemViewModel
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
 }
 
 public class ProjectDriveFileListItemViewModel

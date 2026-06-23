@@ -2,6 +2,8 @@
 @{
     ViewData["Title"] = $"{Model.ProjectCode} Dosyalar";
     ViewData["ProjectId"] = Model.ProjectId;
+    ViewData["CurrentFolderId"] = Model.CurrentFolderId;
+    ViewData["CanManage"] = Model.CanManage;
 }
 
 @functions {
@@ -34,7 +36,7 @@
         </div>
         <div>
             <span>Alt klasör</span>
-            <strong>@Model.Folders.Count</strong>
+            <strong>@Model.SubFolderCount</strong>
         </div>
         <div>
             <span>Dosya</span>
@@ -152,48 +154,6 @@
 
             <div class="project-drive-content-grid">
                 <div>
-                    <h3 class="project-drive-subtitle">Alt klasörler</h3>
-                    @if (!Model.Folders.Any())
-                    {
-                        <p class="empty-note">Bu klasörün altında alt klasör yok.</p>
-                    }
-                    else
-                    {
-                        <div class="list-stack">
-                            @foreach (var folder in Model.Folders)
-                            {
-                                <div class="list-row">
-                                    <span>
-                                        <strong>
-                                            <a asp-action="Index" asp-route-projectId="@Model.ProjectId" asp-route-folderId="@folder.Id">@folder.Name</a>
-                                        </strong>
-                                        <small>Klasör</small>
-                                    </span>
-                                    @if (Model.CanManage)
-                                    {
-                                        <span class="project-drive-inline-actions">
-                                            <form asp-action="RenameFolder" asp-route-projectId="@Model.ProjectId" method="post" class="inline-form project-drive-rename-form">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="folderId" value="@folder.Id" />
-                                                <input type="hidden" name="returnFolderId" value="@Model.CurrentFolderId" />
-                                                <input name="name" class="form-control form-control-sm" maxlength="180" value="@folder.Name" />
-                                                <button class="btn btn-outline-secondary btn-sm" type="submit">Yeniden adlandır</button>
-                                            </form>
-                                            <form asp-action="DeleteFolder" asp-route-projectId="@Model.ProjectId" method="post" class="inline-form">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="folderId" value="@folder.Id" />
-                                                <input type="hidden" name="returnFolderId" value="@Model.CurrentFolderId" />
-                                                <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu klasörü silmek istiyor musunuz?');">Sil</button>
-                                            </form>
-                                        </span>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
-
-                <div>
                     <h3 class="project-drive-subtitle">Dosyalar</h3>
                     @if (!Model.Files.Any())
                     {
@@ -235,3 +195,43 @@
         </section>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const toggleButtons = document.querySelectorAll('[data-rename-toggle]');
+
+            function setPanelState(panel, isOpen) {
+                panel.hidden = !isOpen;
+
+                document.querySelectorAll('[data-rename-toggle][data-target-id="' + panel.id + '"]').forEach(function (button) {
+                    button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                });
+
+                if (isOpen) {
+                    const input = panel.querySelector('input[name="name"]');
+                    input?.focus();
+                    input?.select();
+                }
+            }
+
+            toggleButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const panelId = button.getAttribute('data-target-id');
+                    const panel = panelId ? document.getElementById(panelId) : null;
+                    if (!panel) {
+                        return;
+                    }
+
+                    const shouldOpen = panel.hidden;
+
+                    document.querySelectorAll('[data-rename-panel]').forEach(function (otherPanel) {
+                        setPanelState(otherPanel, false);
+                    });
+
+                    setPanelState(panel, shouldOpen);
+                });
+            });
+        })();
+    </script>
+}

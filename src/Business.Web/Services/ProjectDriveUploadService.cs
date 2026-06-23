@@ -1,5 +1,6 @@
 using Business.Application.Services;
 using Business.Domain.Entities;
+using Business.Domain.Enums;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
@@ -167,17 +168,53 @@ public class ProjectDriveUploadService : IProjectDriveUploadService
         }
     }
 
-    public Task DeletePhysicalFileIfExistsAsync(ProjectDriveFile file, CancellationToken cancellationToken = default)
+    public async Task DeleteFileAsync(Guid fileId, bool canViewAdminOnlyRecords, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(file);
+        var file = await _context.ProjectDriveFiles
+            .Include(x => x.Project)
+            .FirstOrDefaultAsync(x => x.Id == fileId, cancellationToken)
+            ?? throw new KeyNotFoundException("Dosya bulunamadı.");
 
-        var physicalPath = GetSafePhysicalPath(file.RelativePath);
-        if (File.Exists(physicalPath))
+        if (!canViewAdminOnlyRecords && file.Project.Visibility != RecordVisibility.General)
         {
-            File.Delete(physicalPath);
+            throw new UnauthorizedAccessException("Bu projeye erişim yetkiniz yok.");
         }
 
-        return Task.CompletedTask;
+        var physicalPath = GetSafePhysicalPath(file.RelativePath);
+        string? quarantinePath = null;
+
+        if (File.Exists(physicalPath))
+        {
+            var trashRoot = Path.Combine(_environment.WebRootPath, "uploads", "project-drive", ".trash");
+            Directory.CreateDirectory(trashRoot);
+            quarantinePath = Path.Combine(trashRoot, $"{Guid.NewGuid():N}_{Path.GetFileName(physicalPath)}");
+            File.Move(physicalPath, quarantinePath);
+        }
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            _context.ProjectDriveFiles.Remove(file);
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(quarantinePath) && File.Exists(quarantinePath))
+            {
+                File.Delete(quarantinePath);
+            }
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(quarantinePath) && File.Exists(quarantinePath) && !File.Exists(physicalPath))
+            {
+                File.Move(quarantinePath, physicalPath);
+            }
+
+            throw;
+        }
     }
 
     private string GetProjectUploadRoot(Guid projectId)
