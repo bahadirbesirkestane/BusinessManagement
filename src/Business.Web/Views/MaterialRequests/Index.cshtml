@@ -3,6 +3,7 @@
     ViewData["Title"] = "Malzeme İhtiyaçları";
     var canManageRequest = User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage);
     var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
+    var canUseBulkSelection = canManageRequest || canCreateOrder;
     var currentReturnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
     var defaultProjectId = ViewBag.ProjectId?.ToString();
     var requestedByNames = ViewBag.RequestedByNames as IReadOnlyDictionary<string, string> ?? new Dictionary<string, string>();
@@ -19,6 +20,7 @@
             <a class="btn btn-outline-secondary btn-sm" asp-controller="MaterialRequestTemplates" asp-action="Index">Şablonlar</a>
             @if (canManageRequest)
             {
+                <a class="btn btn-outline-secondary btn-sm" asp-action="QuickCreate" asp-route-projectId="@ViewBag.ProjectId" asp-route-returnUrl="@currentReturnUrl">Hızlı ihtiyaç</a>
                 <a class="btn btn-primary btn-sm" asp-action="Create" asp-route-projectId="@ViewBag.ProjectId" asp-route-returnUrl="@currentReturnUrl">Yeni ihtiyaç</a>
             }
         </div>
@@ -137,13 +139,20 @@
         </details>
     }
 
-    @if (canManageRequest)
+    @if (canUseBulkSelection)
     {
-        <form id="bulkDeleteForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+        <form id="bulkRequestSelectionForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
             @Html.AntiForgeryToken()
             <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
-            <span class="bulk-selection-count" data-bulk-count="bulkDeleteForm">0 kayıt seçildi</span>
-            <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkDeleteForm">Seçilenleri sil</button>
+            <span class="bulk-selection-count" data-bulk-count="bulkRequestSelectionForm">0 kayıt seçildi</span>
+            @if (canCreateOrder)
+            {
+                <button class="btn btn-outline-primary btn-sm" type="submit" formaction="@Url.Action("TransferToQuickOrder")" data-bulk-submit="bulkRequestSelectionForm">Seçilenleri siparişe aktar</button>
+            }
+            @if (canManageRequest)
+            {
+                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkRequestSelectionForm">Seçilenleri sil</button>
+            }
         </form>
     }
 
@@ -167,10 +176,10 @@
                 <thead>
                     <tr>
                         <th>Malzeme</th>
-                        @if (canManageRequest)
+                        @if (canUseBulkSelection)
                         {
                             <th class="bulk-check-cell">
-                                <input type="checkbox" data-bulk-toggle="bulkDeleteForm" aria-label="Tüm ihtiyaç kayıtlarını seç" />
+                                <input type="checkbox" data-bulk-toggle="bulkRequestSelectionForm" aria-label="Tüm ihtiyaç kayıtlarını seç" />
                             </th>
                         }
                         <th>Proje</th>
@@ -211,9 +220,9 @@
                                 <strong>@request.RequestedItem</strong>
                                 <small class="d-block text-muted table-note-clamp">@request.Material?.Name</small>
                             </td>
-                            @if (canManageRequest)
+                            @if (canUseBulkSelection)
                             {
-                                <td><input type="checkbox" name="ids" value="@request.Id" form="bulkDeleteForm" /></td>
+                                <td><input type="checkbox" name="ids" value="@request.Id" form="bulkRequestSelectionForm" /></td>
                             }
                             <td>@(request.Project?.Code ?? "Genel")</td>
                             <td>@quantityDisplay</td>

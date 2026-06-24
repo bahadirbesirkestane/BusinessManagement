@@ -180,6 +180,7 @@
                 <a class="btn btn-outline-primary btn-sm" asp-controller="MaterialRequests" asp-action="Index" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
                 @if (canManageMaterialRequests)
                 {
+                    <a class="btn btn-outline-secondary btn-sm" asp-controller="MaterialRequests" asp-action="QuickCreate" asp-route-projectId="@Model.Project.Id" asp-route-returnUrl="@currentReturnUrl">Hızlı ihtiyaç</a>
                     <a class="btn btn-primary btn-sm" asp-controller="MaterialRequests" asp-action="Create" asp-route-projectId="@Model.Project.Id" asp-route-returnUrl="@currentReturnUrl">Yeni ekle</a>
                 }
             </div>

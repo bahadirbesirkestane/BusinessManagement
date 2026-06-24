@@ -429,9 +429,9 @@ public class PurchaseOrdersController : Controller
     }
 
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
-    public async Task<IActionResult> QuickCreate(Guid? projectId, Guid? templateId, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> QuickCreate(Guid? projectId, Guid? templateId, Guid[]? materialRequestIds, string? returnUrl, CancellationToken cancellationToken)
     {
-        var model = await BuildQuickCreateModelAsync(projectId, templateId, cancellationToken);
+        var model = await BuildQuickCreateModelAsync(projectId, templateId, materialRequestIds, cancellationToken);
         await FillQuickCreateLookupsAsync(cancellationToken);
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(model);
@@ -889,7 +889,7 @@ public class PurchaseOrdersController : Controller
             .ToListAsync(cancellationToken);
     }
 
-    private async Task<QuickPurchaseOrderViewModel> BuildQuickCreateModelAsync(Guid? projectId, Guid? templateId, CancellationToken cancellationToken)
+    private async Task<QuickPurchaseOrderViewModel> BuildQuickCreateModelAsync(Guid? projectId, Guid? templateId, Guid[]? materialRequestIds, CancellationToken cancellationToken)
     {
         if (projectId.HasValue)
         {
@@ -912,6 +912,59 @@ public class PurchaseOrdersController : Controller
             OrderDate = DateTime.Today,
             Currency = "TRY"
         };
+
+        var selectedRequestIds = materialRequestIds?
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        if (selectedRequestIds is { Count: > 0 })
+        {
+            var requests = await _context.MaterialRequests
+                .Include(x => x.Material)
+                .AsNoTracking()
+                .Where(x => selectedRequestIds.Contains(x.Id))
+                .OrderBy(x => x.NeededBy)
+                .ThenBy(x => x.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            if (requests.Count > 0)
+            {
+                var requestProjectIds = requests
+                    .Select(x => x.ProjectId)
+                    .Distinct()
+                    .ToList();
+
+                if (requestProjectIds.Count == 1)
+                {
+                    model.ProjectId = requestProjectIds[0];
+                    model.Scope = model.ProjectId.HasValue ? PurchaseOrderScope.Project : PurchaseOrderScope.General;
+                }
+
+                model.ExpectedArrivalDate = requests
+                    .OrderBy(x => x.NeededBy)
+                    .Select(x => (DateTime?)x.NeededBy)
+                    .FirstOrDefault();
+
+                model.Lines = requests
+                    .Select(x => new QuickPurchaseOrderLineViewModel
+                    {
+                        Currency = model.Currency,
+                        MaterialId = x.MaterialId,
+                        MaterialName = x.Material?.Name,
+                        Content = x.RequestedItem,
+                        Quantity = x.Quantity,
+                        QuantityText = x.QuantityText,
+                        Unit = x.Unit,
+                        Quality = x.Quality,
+                        Notes = x.Notes
+                    })
+                    .ToList();
+
+                EnsureQuickRows(model);
+                return model;
+            }
+        }
 
         if (!templateId.HasValue)
         {

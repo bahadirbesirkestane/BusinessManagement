@@ -4,6 +4,7 @@ using Business.Domain.Enums;
 using Business.Infrastructure.Data;
 using Business.Infrastructure.Identity;
 using Business.Web.Extensions;
+using Business.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -169,6 +170,32 @@ public class MaterialRequestsController : Controller
         return View(model);
     }
 
+    [Authorize(Policy = AppPolicies.CanRequestMaterials)]
+    public async Task<IActionResult> QuickCreate(Guid? projectId, string? returnUrl, CancellationToken cancellationToken)
+    {
+        if (projectId.HasValue)
+        {
+            var projectExists = await _context.Projects
+                .AsNoTracking()
+                .AnyAsync(x => x.Id == projectId.Value, cancellationToken);
+            if (!projectExists)
+            {
+                return NotFound();
+            }
+        }
+
+        var model = new QuickMaterialRequestViewModel
+        {
+            ProjectId = projectId,
+            NeededBy = DateTime.Today.AddDays(3),
+            Status = MaterialRequestStatus.Requested
+        };
+
+        EnsureQuickRows(model);
+        await FillLookupsAsync(cancellationToken, NormalizeReturnUrl(returnUrl));
+        return View(model);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
@@ -196,6 +223,94 @@ public class MaterialRequestsController : Controller
                 cancellationToken);
         }
 
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanRequestMaterials)]
+    public async Task<IActionResult> QuickCreate(QuickMaterialRequestViewModel model, string? returnUrl, CancellationToken cancellationToken)
+    {
+        returnUrl = NormalizeReturnUrl(returnUrl);
+        NormalizeQuickCreateInput(model);
+
+        if (model.ProjectId.HasValue)
+        {
+            var projectExists = await _context.Projects
+                .AsNoTracking()
+                .AnyAsync(x => x.Id == model.ProjectId.Value, cancellationToken);
+            if (!projectExists)
+            {
+                ModelState.AddModelError(nameof(model.ProjectId), "Seçilen proje bulunamadı.");
+            }
+        }
+
+        var validLines = model.Lines
+            .Where(x => !string.IsNullOrWhiteSpace(x.RequestedItem))
+            .ToList();
+
+        if (validLines.Count == 0)
+        {
+            ModelState.AddModelError(string.Empty, "Kaydedilecek en az bir ihtiyaç satırı girin.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            EnsureQuickRows(model);
+            await FillLookupsAsync(cancellationToken, returnUrl);
+            return View(model);
+        }
+
+        var requestedByUserId = _userManager.GetUserId(User);
+        var createdRequests = new List<MaterialRequest>();
+
+        foreach (var line in validLines)
+        {
+            var materialId = await ResolveMaterialIdAsync(line.MaterialId, line.MaterialName, line.Unit, cancellationToken);
+            if (!ModelState.IsValid)
+            {
+                EnsureQuickRows(model);
+                await FillLookupsAsync(cancellationToken, returnUrl);
+                return View(model);
+            }
+
+            createdRequests.Add(new MaterialRequest
+            {
+                ProjectId = model.ProjectId,
+                MaterialId = materialId,
+                MaterialNameInput = line.MaterialName,
+                RequestedItem = line.RequestedItem!.Trim(),
+                Quantity = line.Quantity,
+                QuantityText = string.IsNullOrWhiteSpace(line.QuantityText) && line.Quantity.HasValue
+                    ? string.IsNullOrWhiteSpace(line.Unit)
+                        ? line.Quantity.Value.ToString("0.####")
+                        : $"{line.Quantity.Value:0.####} {line.Unit!.Trim()}"
+                    : line.QuantityText?.Trim(),
+                Unit = line.Unit?.Trim(),
+                Quality = line.Quality?.Trim(),
+                Status = model.Status,
+                NeededBy = model.NeededBy,
+                RequestedByUserId = requestedByUserId,
+                Notes = line.Notes?.Trim()
+            });
+        }
+
+        _context.MaterialRequests.AddRange(createdRequests);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        if (model.ProjectId.HasValue)
+        {
+            foreach (var request in createdRequests)
+            {
+                await _projectTimelineService.AddAsync(
+                    model.ProjectId.Value,
+                    "Hızlı ihtiyaç kaydı oluşturuldu",
+                    request.RequestedItem,
+                    cancellationToken);
+            }
+        }
+
+        TempData["Success"] = $"{createdRequests.Count} ihtiyaç kaydı oluşturuldu.";
         return RedirectToLocal(returnUrl);
     }
 
@@ -320,6 +435,52 @@ public class MaterialRequestsController : Controller
         return RedirectToLocal(returnUrl);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
+    public async Task<IActionResult> TransferToQuickOrder(Guid[] ids, string? returnUrl, CancellationToken cancellationToken)
+    {
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count == 0)
+        {
+            TempData["Error"] = "Siparişe aktarmak için en az bir ihtiyaç seçin.";
+            return RedirectToLocal(returnUrl);
+        }
+
+        var requests = await _context.MaterialRequests
+            .AsNoTracking()
+            .Where(x => selectedIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.ProjectId })
+            .ToListAsync(cancellationToken);
+
+        if (requests.Count == 0)
+        {
+            TempData["Error"] = "Seçilen ihtiyaç kayıtları bulunamadı.";
+            return RedirectToLocal(returnUrl);
+        }
+
+        var projectIds = requests
+            .Select(x => x.ProjectId)
+            .Distinct()
+            .ToList();
+
+        if (projectIds.Count > 1)
+        {
+            TempData["Error"] = "Hızlı siparişe aktarım için seçilen ihtiyaçların aynı projeye bağlı olması gerekir.";
+            return RedirectToLocal(returnUrl);
+        }
+
+        return RedirectToAction(
+            "QuickCreate",
+            "PurchaseOrders",
+            new
+            {
+                projectId = projectIds[0],
+                materialRequestIds = requests.Select(x => x.Id).ToArray(),
+                returnUrl
+            });
+    }
+
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
@@ -388,6 +549,27 @@ public class MaterialRequestsController : Controller
                 .Where(x => x.Id == request.MaterialId.Value)
                 .Select(x => x.Name)
                 .FirstOrDefaultAsync(cancellationToken);
+        }
+    }
+
+    private static void EnsureQuickRows(QuickMaterialRequestViewModel model)
+    {
+        while (model.Lines.Count < 4)
+        {
+            model.Lines.Add(new QuickMaterialRequestLineViewModel());
+        }
+    }
+
+    private static void NormalizeQuickCreateInput(QuickMaterialRequestViewModel model)
+    {
+        foreach (var line in model.Lines)
+        {
+            line.MaterialName = string.IsNullOrWhiteSpace(line.MaterialName) ? null : line.MaterialName.Trim();
+            line.RequestedItem = string.IsNullOrWhiteSpace(line.RequestedItem) ? null : line.RequestedItem.Trim();
+            line.QuantityText = string.IsNullOrWhiteSpace(line.QuantityText) ? null : line.QuantityText.Trim();
+            line.Unit = string.IsNullOrWhiteSpace(line.Unit) ? null : line.Unit.Trim();
+            line.Quality = string.IsNullOrWhiteSpace(line.Quality) ? null : line.Quality.Trim();
+            line.Notes = string.IsNullOrWhiteSpace(line.Notes) ? null : line.Notes.Trim();
         }
     }
 

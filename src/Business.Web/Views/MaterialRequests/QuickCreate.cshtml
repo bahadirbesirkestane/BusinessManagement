@@ -1,0 +1,185 @@
+@model QuickMaterialRequestViewModel
+@{
+    ViewData["Title"] = "Hızlı İhtiyaç Ekle";
+    var returnUrl = ViewBag.ReturnUrl as string;
+}
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Atölye ve proje ekibi</p>
+            <h2>Hızlı malzeme ihtiyaç ekleme</h2>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(returnUrl))
+        {
+            <a class="btn btn-outline-secondary btn-sm" href="@returnUrl">Geri dön</a>
+        }
+        else
+        {
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">İhtiyaç listesi</a>
+        }
+    </div>
+
+    <form asp-action="QuickCreate" method="post" class="app-form quick-material-form" data-quick-material-form novalidate>
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <div asp-validation-summary="All" class="text-danger"></div>
+
+        <div class="quick-order-context">
+            <div class="mb-3">
+                <label asp-for="ProjectId" class="form-label">Proje bağı</label>
+                <select asp-for="ProjectId" class="form-select" data-searchable-select data-search-placeholder="Proje ara veya seç">
+                    <option value="">Genel ihtiyaç</option>
+                    @foreach (var project in ViewBag.Projects)
+                    {
+                        <option value="@project.Id">@project.Code - @project.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Status" class="form-label">Durum</label>
+                <select asp-for="Status" asp-items="Html.GetEnumSelectList<MaterialRequestStatus>()" class="form-select"></select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="NeededBy" class="form-label">Gerekli tarih</label>
+                <input asp-for="NeededBy" type="date" class="form-control" />
+            </div>
+        </div>
+
+        <div class="quick-order-sheet-wrap quick-order-sheet-wrap-tall">
+            <table class="quick-order-sheet">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>İstenen malzeme</th>
+                        <th>Tanımlı malzeme</th>
+                        <th>Adet</th>
+                        <th>Birim</th>
+                        <th>Kalite</th>
+                        <th>Not</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @for (var i = 0; i < Model.Lines.Count; i++)
+                {
+                    <tr data-row-index="@i">
+                        <td class="row-number">@(i + 1)</td>
+                        <td><input asp-for="Lines[i].RequestedItem" class="form-control form-control-sm quick-cell main-cell" autocomplete="off" /></td>
+                        <td>
+                            <input asp-for="Lines[i].MaterialName" class="form-control form-control-sm quick-cell" data-free-text-select data-target-id="Lines_@(i)__MaterialId" data-list-id="quickMaterialRequestOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
+                            <input asp-for="Lines[i].MaterialId" type="hidden" />
+                        </td>
+                        <td><input asp-for="Lines[i].Quantity" type="text" inputmode="decimal" class="form-control form-control-sm quick-cell" /></td>
+                        <td><input asp-for="Lines[i].Unit" class="form-control form-control-sm quick-cell" /></td>
+                        <td><input asp-for="Lines[i].Quality" class="form-control form-control-sm quick-cell" /></td>
+                        <td><input asp-for="Lines[i].Notes" class="form-control form-control-sm quick-cell" /></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-actions">
+            @if (!string.IsNullOrWhiteSpace(returnUrl))
+            {
+                <a class="btn btn-outline-secondary" href="@returnUrl">Vazgeç</a>
+            }
+            else
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
+            }
+            <button class="btn btn-primary" type="submit">İhtiyaçları Kaydet</button>
+        </div>
+    </form>
+</section>
+
+<datalist id="quickMaterialRequestOptions">
+    @foreach (var material in ViewBag.Materials)
+    {
+        <option value="@material.Name" data-id="@material.Id"></option>
+    }
+</datalist>
+
+@section Scripts {
+    <script>
+        (() => {
+            const form = document.querySelector('[data-quick-material-form]');
+            if (!form) return;
+
+            const tbody = form.querySelector('tbody');
+
+            const addRow = () => {
+                const rows = [...tbody.querySelectorAll('tr')];
+                const last = rows[rows.length - 1];
+                const nextIndex = rows.length;
+                const row = last.cloneNode(true);
+
+                row.querySelectorAll('.free-text-searchable').forEach(wrapper => {
+                    const input = wrapper.querySelector('[data-free-text-select]');
+                    if (!input || !wrapper.parentElement) {
+                        return;
+                    }
+
+                    delete input.dataset.freeTextReady;
+                    input.removeAttribute('aria-expanded');
+                    wrapper.parentElement.insertBefore(input, wrapper);
+                    wrapper.remove();
+                });
+
+                row.dataset.rowIndex = nextIndex;
+                row.querySelector('.row-number').textContent = nextIndex + 1;
+                row.querySelectorAll('input').forEach(input => {
+                    input.name = input.name.replace(/Lines\[\d+\]/, `Lines[${nextIndex}]`);
+                    input.id = input.id.replace(/Lines_\d+__/, `Lines_${nextIndex}__`);
+
+                    if (input.dataset && input.dataset.targetId) {
+                        input.dataset.targetId = input.dataset.targetId.replace(/Lines_\d+__/, `Lines_${nextIndex}__`);
+                    }
+
+                    input.value = '';
+                });
+
+                tbody.appendChild(row);
+                if (window.initFreeTextLookups) {
+                    window.initFreeTextLookups(row);
+                }
+
+                return row;
+            };
+
+            const activateNextRow = row => {
+                let next = row.nextElementSibling;
+                if (!next) {
+                    next = addRow();
+                }
+
+                next.querySelector('.main-cell')?.focus();
+            };
+
+            form.addEventListener('keydown', event => {
+                if (event.key !== 'Enter') return;
+
+                const cell = event.target.closest('.quick-cell');
+                if (!cell) return;
+
+                event.preventDefault();
+
+                const row = event.target.closest('tr');
+                if (event.target.classList.contains('main-cell') && event.target.value.trim()) {
+                    activateNextRow(row);
+                    return;
+                }
+
+                const cells = [...row.querySelectorAll('.quick-cell')];
+                const index = cells.indexOf(event.target);
+                const nextCell = cells[index + 1];
+
+                if (nextCell) {
+                    nextCell.focus();
+                } else {
+                    activateNextRow(row);
+                }
+            });
+        })();
+    </script>
+}
