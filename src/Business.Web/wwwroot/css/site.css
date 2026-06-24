@@ -1198,6 +1198,118 @@ a:hover {
   margin: 0;
 }
 
+.file-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.image-preview-open {
+  overflow: hidden;
+}
+
+.image-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+}
+
+.image-preview-overlay[hidden] {
+  display: none;
+}
+
+.image-preview-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, .74);
+}
+
+.image-preview-dialog {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  width: min(1080px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  margin: 16px auto;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 24px 54px rgba(15, 23, 42, .28);
+  overflow: auto;
+}
+
+.image-preview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.image-preview-header h3,
+.image-preview-meta,
+.image-preview-description,
+.image-preview-counter {
+  margin: 0;
+}
+
+.image-preview-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.image-preview-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 420px;
+  padding: 18px 52px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, .04), rgba(37, 99, 235, .08));
+}
+
+.image-preview-stage img {
+  max-width: 100%;
+  max-height: min(72vh, 760px);
+  border-radius: 12px;
+  object-fit: contain;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, .18);
+}
+
+.image-preview-nav {
+  position: absolute;
+  top: 50%;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, .45);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .66);
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.image-preview-nav.prev {
+  left: 12px;
+}
+
+.image-preview-nav.next {
+  right: 12px;
+}
+
+.image-preview-nav:hover {
+  background: rgba(15, 23, 42, .84);
+}
+
+.image-preview-meta,
+.image-preview-counter {
+  color: var(--muted);
+}
+
 .action-menu {
   position: relative;
 }
@@ -3824,6 +3936,24 @@ a:hover {
   .list-preview-panel {
     position: static;
     order: -1;
+  }
+
+  .file-preview-toolbar,
+  .image-preview-header,
+  .image-preview-header-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .image-preview-dialog {
+    width: calc(100vw - 20px);
+    margin: 10px auto;
+    padding: 14px;
+  }
+
+  .image-preview-stage {
+    min-height: 260px;
+    padding: 16px 42px;
   }
 
   .bulk-action-bar.smart-bulk-bar {

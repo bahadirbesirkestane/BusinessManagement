@@ -7,6 +7,17 @@
 }
 
 @functions {
+    private static readonly HashSet<string> PreviewableImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".bmp",
+        ".svg"
+    };
+
     private static string FormatFileSize(long bytes)
     {
         if (bytes < 1024)
@@ -21,6 +32,22 @@
 
         return $"{bytes / 1024d / 1024d:0.#} MB";
     }
+
+    private static bool IsPreviewableImage(string fileName, string? contentType)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType) && contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return PreviewableImageExtensions.Contains(System.IO.Path.GetExtension(fileName));
+    }
+}
+
+@{
+    var previewableFiles = Model.Files
+        .Where(file => IsPreviewableImage(file.OriginalFileName, file.ContentType))
+        .ToList();
 }
 
 <section class="diagram-hero">
@@ -161,7 +188,20 @@
                     }
                     else
                     {
-                        <div class="list-stack">
+                        @if (previewableFiles.Any())
+                        {
+                            <div class="file-preview-toolbar">
+                                <small class="text-muted">@previewableFiles.Count görsel tek ekranda önizlenebilir.</small>
+                                <button type="button"
+                                        class="btn btn-outline-secondary btn-sm"
+                                        data-image-preview-open-group="project-drive-files-@Model.ProjectId-@(Model.CurrentFolderId?.ToString() ?? "root")"
+                                        data-image-preview-start-index="0">
+                                    Görselleri Önizle
+                                </button>
+                            </div>
+                        }
+
+                        <div class="list-stack" data-image-preview-gallery="project-drive-files-@Model.ProjectId-@(Model.CurrentFolderId?.ToString() ?? "root")">
                             @foreach (var file in Model.Files)
                             {
                                 <div class="list-row">
@@ -170,6 +210,21 @@
                                         <small>@file.CreatedAtText · @FormatFileSize(file.Size) · @(string.IsNullOrWhiteSpace(file.Description) ? "Açıklama yok" : file.Description)</small>
                                     </span>
                                     <span class="project-drive-inline-actions">
+                                        @if (IsPreviewableImage(file.OriginalFileName, file.ContentType))
+                                        {
+                                            var previewIndex = previewableFiles.FindIndex(x => x.Id == file.Id);
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-sm"
+                                                    data-image-preview-open-group="project-drive-files-@Model.ProjectId-@(Model.CurrentFolderId?.ToString() ?? "root")"
+                                                    data-image-preview-start-index="@previewIndex"
+                                                    data-image-preview-item
+                                                    data-image-preview-src="@file.RelativePath"
+                                                    data-image-preview-title="@file.OriginalFileName"
+                                                    data-image-preview-meta="@file.CreatedAtText · @FormatFileSize(file.Size)"
+                                                    data-image-preview-description="@(string.IsNullOrWhiteSpace(file.Description) ? "Açıklama yok" : file.Description)">
+                                                Önizle
+                                            </button>
+                                        }
                                         <a class="btn btn-outline-primary btn-sm"
                                            asp-action="DownloadFile"
                                            asp-route-projectId="@Model.ProjectId"

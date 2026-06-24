@@ -3,6 +3,17 @@
 @inject UserManager<ApplicationUser> UserManager
 
 @functions {
+    private static readonly HashSet<string> PreviewableImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".bmp",
+        ".svg"
+    };
+
     private async Task<string> GetDisplayNameAsync(string? userId)
     {
         if (string.IsNullOrWhiteSpace(userId))
@@ -18,6 +29,22 @@
         var user = await UserManager.FindByIdAsync(userId);
         return user?.FullName ?? user?.Email ?? "Bilinmeyen kullanıcı";
     }
+
+    private static bool IsPreviewableImage(string fileName, string? contentType)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType) && contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return PreviewableImageExtensions.Contains(System.IO.Path.GetExtension(fileName));
+    }
+}
+
+@{
+    var previewableFiles = Model.Files
+        .Where(file => IsPreviewableImage(file.OriginalFileName, file.ContentType))
+        .ToList();
 }
 
 <section class="panel-block activity-panel">
@@ -87,7 +114,20 @@
                 <button class="btn btn-outline-primary" type="submit">Dosya Ekle</button>
             </form>
 
-            <div class="list-stack mt-3">
+            @if (previewableFiles.Any())
+            {
+                <div class="file-preview-toolbar mt-3">
+                    <small class="text-muted">@previewableFiles.Count görsel tek ekranda önizlenebilir.</small>
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            data-image-preview-open-group="record-files-@Model.OwnerId"
+                            data-image-preview-start-index="0">
+                        Görselleri Önizle
+                    </button>
+                </div>
+            }
+
+            <div class="list-stack mt-3" data-image-preview-gallery="record-files-@Model.OwnerId">
                 @foreach (var file in Model.Files)
                 {
                     var creator = await GetDisplayNameAsync(file.CreatedByUserId);
@@ -97,6 +137,21 @@
                             <small>@creator · @file.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm") · @(file.Description ?? "-")</small>
                         </span>
                         <span class="project-drive-inline-actions">
+                            @if (IsPreviewableImage(file.OriginalFileName, file.ContentType))
+                            {
+                                var previewIndex = previewableFiles.FindIndex(x => x.Id == file.Id);
+                                <button type="button"
+                                        class="btn btn-outline-secondary btn-sm"
+                                        data-image-preview-open-group="record-files-@Model.OwnerId"
+                                        data-image-preview-start-index="@previewIndex"
+                                        data-image-preview-item
+                                        data-image-preview-src="@file.RelativePath"
+                                        data-image-preview-title="@file.OriginalFileName"
+                                        data-image-preview-meta="@creator · @file.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")"
+                                        data-image-preview-description="@(file.Description ?? "-")">
+                                    Önizle
+                                </button>
+                            }
                             @if (Model.ShowDownloadButton)
                             {
                                 <a class="btn btn-outline-primary btn-sm"

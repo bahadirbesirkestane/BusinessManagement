@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initRowLinks();
     initBulkSelection();
     initCompactPreview();
+    initImagePreviewGallery();
     initActionMenus();
     initFilterSummaries();
     initSideNav();
@@ -968,6 +969,169 @@ function initTaskProgressAuto() {
 
         statusSelect.addEventListener('change', syncProgress);
         syncProgress();
+    });
+}
+
+function initImagePreviewGallery() {
+    var galleries = Array.from(document.querySelectorAll('[data-image-preview-gallery]'));
+    if (galleries.length === 0) {
+        return;
+    }
+
+    var overlay = document.querySelector('[data-image-preview-overlay]');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'image-preview-overlay';
+        overlay.hidden = true;
+        overlay.setAttribute('data-image-preview-overlay', '');
+        overlay.innerHTML = [
+            '<div class="image-preview-backdrop" data-image-preview-close></div>',
+            '<div class="image-preview-dialog" role="dialog" aria-modal="true" aria-label="Görsel önizleme">',
+            '<div class="image-preview-header">',
+            '<div>',
+            '<p class="section-kicker">Görsel Önizleme</p>',
+            '<h3 data-image-preview-title>Dosya</h3>',
+            '<p class="image-preview-meta" data-image-preview-meta></p>',
+            '</div>',
+            '<div class="image-preview-header-actions">',
+            '<a class="btn btn-outline-primary btn-sm" href="#" target="_blank" rel="noopener" data-image-preview-open-link>Yeni sekmede aç</a>',
+            '<button type="button" class="btn btn-outline-secondary btn-sm" data-image-preview-close>Kapat</button>',
+            '</div>',
+            '</div>',
+            '<div class="image-preview-stage">',
+            '<button type="button" class="image-preview-nav prev" data-image-preview-prev aria-label="Önceki görsel">‹</button>',
+            '<img alt="" data-image-preview-image />',
+            '<button type="button" class="image-preview-nav next" data-image-preview-next aria-label="Sonraki görsel">›</button>',
+            '</div>',
+            '<p class="image-preview-description" data-image-preview-description></p>',
+            '<p class="image-preview-counter" data-image-preview-counter></p>',
+            '</div>'
+        ].join('');
+        document.body.appendChild(overlay);
+    }
+
+    var title = overlay.querySelector('[data-image-preview-title]');
+    var meta = overlay.querySelector('[data-image-preview-meta]');
+    var description = overlay.querySelector('[data-image-preview-description]');
+    var counter = overlay.querySelector('[data-image-preview-counter]');
+    var image = overlay.querySelector('[data-image-preview-image]');
+    var openLink = overlay.querySelector('[data-image-preview-open-link]');
+    var prevButton = overlay.querySelector('[data-image-preview-prev]');
+    var nextButton = overlay.querySelector('[data-image-preview-next]');
+    var closeButtons = overlay.querySelectorAll('[data-image-preview-close]');
+    var galleryMap = new Map();
+
+    galleries.forEach(function (gallery) {
+        var groupName = gallery.dataset.imagePreviewGallery;
+        var items = Array.from(gallery.querySelectorAll('[data-image-preview-item]')).map(function (item) {
+            return {
+                src: item.dataset.imagePreviewSrc,
+                title: item.dataset.imagePreviewTitle || 'Görsel',
+                meta: item.dataset.imagePreviewMeta || '',
+                description: item.dataset.imagePreviewDescription || ''
+            };
+        }).filter(function (item) {
+            return Boolean(item.src);
+        });
+
+        if (groupName && items.length > 0) {
+            galleryMap.set(groupName, items);
+        }
+    });
+
+    var activeGroup = null;
+    var activeIndex = 0;
+
+    function render() {
+        var items = activeGroup ? galleryMap.get(activeGroup) : null;
+        if (!items || items.length === 0) {
+            return;
+        }
+
+        var item = items[activeIndex];
+        image.src = item.src;
+        image.alt = item.title;
+        title.textContent = item.title;
+        meta.textContent = item.meta;
+        description.textContent = item.description;
+        counter.textContent = items.length > 1 ? (activeIndex + 1) + ' / ' + items.length : '1 / 1';
+        openLink.href = item.src;
+        var multiple = items.length > 1;
+        prevButton.hidden = !multiple;
+        nextButton.hidden = !multiple;
+    }
+
+    function open(groupName, index) {
+        var items = galleryMap.get(groupName);
+        if (!items || items.length === 0) {
+            return;
+        }
+
+        activeGroup = groupName;
+        activeIndex = Math.max(0, Math.min(index, items.length - 1));
+        render();
+        overlay.hidden = false;
+        document.body.classList.add('image-preview-open');
+    }
+
+    function close() {
+        overlay.hidden = true;
+        document.body.classList.remove('image-preview-open');
+        image.removeAttribute('src');
+    }
+
+    function move(step) {
+        var items = activeGroup ? galleryMap.get(activeGroup) : null;
+        if (!items || items.length === 0) {
+            return;
+        }
+
+        activeIndex = (activeIndex + step + items.length) % items.length;
+        render();
+    }
+
+    document.querySelectorAll('[data-image-preview-open-group]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var groupName = button.dataset.imagePreviewOpenGroup;
+            var startIndex = Number(button.dataset.imagePreviewStartIndex || '0');
+            if (!groupName) {
+                return;
+            }
+
+            open(groupName, Number.isFinite(startIndex) ? startIndex : 0);
+        });
+    });
+
+    closeButtons.forEach(function (button) {
+        button.addEventListener('click', close);
+    });
+
+    prevButton?.addEventListener('click', function () {
+        move(-1);
+    });
+
+    nextButton?.addEventListener('click', function () {
+        move(1);
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (overlay.hidden) {
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            close();
+            return;
+        }
+
+        if (event.key === 'ArrowLeft') {
+            move(-1);
+            return;
+        }
+
+        if (event.key === 'ArrowRight') {
+            move(1);
+        }
     });
 }
 
