@@ -33,6 +33,9 @@ public class QuickPurchaseOrderViewModel
 
 public class QuickPurchaseOrderLineViewModel
 {
+    [StringLength(3, MinimumLength = 3, ErrorMessage = "Para birimi 3 karakter olmalıdır.")]
+    public string Currency { get; set; } = "TRY";
+
     public Guid? SupplierId { get; set; }
 
     [StringLength(220, ErrorMessage = "Tedarikçi adı en fazla 220 karakter olabilir.")]

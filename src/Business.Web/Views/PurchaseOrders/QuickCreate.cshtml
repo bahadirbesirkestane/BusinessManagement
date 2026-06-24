@@ -47,7 +47,7 @@
         @Html.AntiForgeryToken()
         <input asp-for="TemplateId" type="hidden" />
         <input type="hidden" name="returnUrl" value="@returnUrl" />
-        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div asp-validation-summary="All" class="text-danger"></div>
 
         <div class="quick-order-context">
             <div class="mb-3">
@@ -76,6 +76,10 @@
                 <label asp-for="PaymentTerm" class="form-label">Vade</label>
                 <input asp-for="PaymentTerm" class="form-control" />
             </div>
+            @* <div class="mb-3">
+                <label asp-for="Currency" class="form-label">Varsayılan para birimi</label>
+                <select asp-for="Currency" class="form-select" asp-items="CurrencyMetadata.GetSelectList()" data-quick-order-currency></select>
+            </div> *@
         </div>
 
         <input asp-for="Scope" type="hidden" data-scope-input />
@@ -91,6 +95,7 @@
                         <th>Adet</th>
                         <th>Birim</th>
                         <th>Kalite</th>
+                        <th>Para birimi</th>
                         <th>Birim fiyat</th>
                         <th>Sipariş tutarı</th>
                         <th>Not</th>
@@ -103,16 +108,19 @@
                         <td class="row-number">@(i + 1)</td>
                         <td><input asp-for="Lines[i].Content" class="form-control form-control-sm quick-cell main-cell" autocomplete="off" /></td>
                         <td>
-                            <input asp-for="Lines[i].SupplierName" class="form-control form-control-sm quick-cell" data-free-text-select data-target-id="Lines_@(i)__SupplierId" data-list-id="quickCreateSupplierOptions" placeholder="Tedarikçi ara veya yeni ekle" autocomplete="off" />
+                            <input asp-for="Lines[i].SupplierName" class="form-control form-control-sm quick-cell" data-free-text-select data-target-id="Lines_@(i)__SupplierId" data-list-id="quickCreateSupplierOptions" placeholder="Tedarikçi ara veya yeni ekle" autocomplete="on" />
                             <input asp-for="Lines[i].SupplierId" type="hidden" />
                         </td>
                         <td>
                             <input asp-for="Lines[i].MaterialName" class="form-control form-control-sm quick-cell" data-free-text-select data-target-id="Lines_@(i)__MaterialId" data-list-id="quickCreateMaterialOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
                             <input asp-for="Lines[i].MaterialId" type="hidden" />
                         </td>
-                        <td><input asp-for="Lines[i].Quantity" type="text" inputmode="decimal" class="form-control form-control-sm quick-cell quantity-cell" /></td>
+                        <td><input asp-for="Lines[i].Quantity" type="text" inputmode="decimal" class="form-control form-control-sm quick-cell quantity-cell"  /></td>
                         <td><input asp-for="Lines[i].Unit" class="form-control form-control-sm quick-cell" /></td>
                         <td><input asp-for="Lines[i].Quality" class="form-control form-control-sm quick-cell" /></td>
+                        <td>
+                            <select asp-for="Lines[i].Currency" class="form-select form-select-sm quick-cell currency-cell" asp-items="CurrencyMetadata.GetSelectList()"></select>
+                        </td>
                         <td><input asp-for="Lines[i].UnitPrice" type="text" inputmode="decimal" class="form-control form-control-sm quick-cell unit-price-cell" /></td>
                         <td><input asp-for="Lines[i].OrderTotal" type="text" inputmode="decimal" class="form-control form-control-sm quick-cell total-cell" /></td>
                         <td><input asp-for="Lines[i].Notes" class="form-control form-control-sm quick-cell" /></td>
@@ -121,6 +129,10 @@
                 </tbody>
             </table>
         </div>
+
+       @*  <div class="form-text mt-2">
+            Adet, birim fiyat ve sipariş tutarı alanlarında virgüllü değer girebilirsiniz. Sistem değerleri en fazla 4 ondalık basamakla işler.
+        </div> *@
 
         <div class="form-actions">
             @if (!string.IsNullOrWhiteSpace(returnUrl))
@@ -151,7 +163,6 @@
 </datalist>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
     <script>
         (() => {
             const form = document.querySelector('[data-quick-order-form]');
@@ -160,6 +171,7 @@
             const tbody = form.querySelector('tbody');
             const projectSelect = form.querySelector('[data-project-select]');
             const scopeInput = form.querySelector('[data-scope-input]');
+            const currencySelect = form.querySelector('[data-quick-order-currency]');
 
             const updateScope = () => {
                 if (scopeInput) {
@@ -167,13 +179,27 @@
                 }
             };
 
+            const getDefaultCurrency = () => currencySelect?.value || 'TRY';
+
             const parseNumber = (value) => {
                 if (!value) {
                     return NaN;
                 }
+                const normalized = String(value).trim().replace(/\s+/g, '');
+                const lastComma = normalized.lastIndexOf(',');
+                const lastDot = normalized.lastIndexOf('.');
+                const separatorIndex = Math.max(lastComma, lastDot);
 
-                return Number(String(value).replace(',', '.'));
+                if (separatorIndex < 0) {
+                    return Number(normalized);
+                }
+
+                const integerPart = normalized.slice(0, separatorIndex).replace(/[.,]/g, '');
+                const fractionalPart = normalized.slice(separatorIndex + 1).replace(/[.,]/g, '');
+                return Number(`${integerPart}.${fractionalPart}`);
             };
+
+            const formatInputNumber = (value) => Number(value.toFixed(4)).toString().replace('.', ',');
 
             const calculateTotal = (row) => {
                 const quantity = parseNumber(row.querySelector('.quantity-cell')?.value);
@@ -185,7 +211,7 @@
                 }
 
                 if (Number.isFinite(quantity) && Number.isFinite(unitPrice)) {
-                    total.value = Number((quantity * unitPrice).toFixed(4)).toString();
+                    total.value = formatInputNumber(quantity * unitPrice);
                     return;
                 }
 
@@ -214,6 +240,11 @@
                         input.value = '';
                     }
                 });
+
+                const rowCurrency = row.querySelector('.currency-cell');
+                if (rowCurrency) {
+                    rowCurrency.value = getDefaultCurrency();
+                }
 
                 tbody.appendChild(row);
                 if (window.initFreeTextLookups) {

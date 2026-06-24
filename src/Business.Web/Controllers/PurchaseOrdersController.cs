@@ -442,6 +442,8 @@ public class PurchaseOrdersController : Controller
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
     public async Task<IActionResult> QuickCreate(QuickPurchaseOrderViewModel model, string? returnUrl, CancellationToken cancellationToken)
     {
+        NormalizeQuickCreateInput(model);
+
         if (model.ProjectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -463,8 +465,6 @@ public class PurchaseOrdersController : Controller
             ModelState.AddModelError(string.Empty, "Kaydedilecek en az bir sipariş satırı girin.");
         }
 
-        NormalizeQuickCreateInput(model);
-
         if (!ModelState.IsValid)
         {
             EnsureQuickRows(model);
@@ -482,6 +482,7 @@ public class PurchaseOrdersController : Controller
         {
             var orderNumber = await GenerateOrderNumberAsync(cancellationToken, reservedOrderNumbers);
             reservedOrderNumbers.Add(orderNumber);
+            var lineCurrency = CurrencyMetadata.NormalizeInput(line.Currency);
 
             var supplierId = await ResolveSupplierIdAsync(line.SupplierId, line.SupplierName, cancellationToken);
             if (!ModelState.IsValid)
@@ -526,9 +527,9 @@ public class PurchaseOrdersController : Controller
                 RequestedByUserId = currentUser?.Id,
                 PaymentTerm = model.PaymentTerm?.Trim(),
                 UnitPrice = line.UnitPrice,
-                UnitPriceText = line.UnitPrice.HasValue ? $"{line.UnitPrice.Value:#,##0.####} {model.Currency}" : null,
+                UnitPriceText = line.UnitPrice.HasValue ? $"{line.UnitPrice.Value:#,##0.####} {lineCurrency}" : null,
                 OrderTotal = line.UnitPrice.HasValue && line.Quantity.HasValue ? line.UnitPrice.Value * line.Quantity.Value : line.OrderTotal,
-                Currency = CurrencyMetadata.NormalizeInput(model.Currency),
+                Currency = lineCurrency,
                 Notes = line.Notes?.Trim(),
                 IsActive = true
             };
@@ -940,6 +941,7 @@ public class PurchaseOrdersController : Controller
             .OrderBy(x => x.SortOrder)
             .Select(x => new QuickPurchaseOrderLineViewModel
             {
+                Currency = model.Currency,
                 SupplierId = x.SupplierId ?? template.DefaultSupplierId,
                 SupplierName = x.Supplier?.Name ?? template.DefaultSupplier?.Name,
                 MaterialId = x.MaterialId,
@@ -963,15 +965,42 @@ public class PurchaseOrdersController : Controller
     {
         model.Currency = CurrencyMetadata.NormalizeInput(model.Currency);
 
+        foreach (var line in model.Lines)
+        {
+            line.Currency = CurrencyMetadata.NormalizeInput(string.IsNullOrWhiteSpace(line.Currency) ? model.Currency : line.Currency);
+        }
+
         while (model.Lines.Count < 4)
         {
-            model.Lines.Add(new QuickPurchaseOrderLineViewModel());
+            model.Lines.Add(new QuickPurchaseOrderLineViewModel
+            {
+                Currency = model.Currency
+            });
         }
     }
 
     private static void NormalizeQuickCreateInput(QuickPurchaseOrderViewModel model)
     {
         model.Currency = CurrencyMetadata.NormalizeInput(model.Currency);
+        model.PaymentTerm = string.IsNullOrWhiteSpace(model.PaymentTerm) ? null : model.PaymentTerm.Trim();
+        model.Scope = model.ProjectId.HasValue ? PurchaseOrderScope.Project : model.Scope;
+
+        foreach (var line in model.Lines)
+        {
+            line.Currency = CurrencyMetadata.NormalizeInput(string.IsNullOrWhiteSpace(line.Currency) ? model.Currency : line.Currency);
+            line.SupplierName = string.IsNullOrWhiteSpace(line.SupplierName) ? null : line.SupplierName.Trim();
+            line.MaterialName = string.IsNullOrWhiteSpace(line.MaterialName) ? null : line.MaterialName.Trim();
+            line.Content = string.IsNullOrWhiteSpace(line.Content) ? null : line.Content.Trim();
+            line.Unit = string.IsNullOrWhiteSpace(line.Unit) ? null : line.Unit.Trim();
+            line.Quality = string.IsNullOrWhiteSpace(line.Quality) ? null : line.Quality.Trim();
+            line.Notes = string.IsNullOrWhiteSpace(line.Notes) ? null : line.Notes.Trim();
+            line.QuantityText = string.IsNullOrWhiteSpace(line.QuantityText) ? null : line.QuantityText.Trim();
+
+            if (line.UnitPrice.HasValue && line.Quantity.HasValue)
+            {
+                line.OrderTotal = line.UnitPrice.Value * line.Quantity.Value;
+            }
+        }
     }
 
     private async Task PopulateReferenceInputNamesAsync(PurchaseOrder? order, CancellationToken cancellationToken)
