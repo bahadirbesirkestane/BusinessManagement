@@ -224,6 +224,18 @@
                 const nextIndex = rows.length;
                 const row = last.cloneNode(true);
 
+                row.querySelectorAll('.free-text-searchable').forEach(wrapper => {
+                    const input = wrapper.querySelector('[data-free-text-select]');
+                    if (!input || !wrapper.parentElement) {
+                        return;
+                    }
+
+                    delete input.dataset.freeTextReady;
+                    input.removeAttribute('aria-expanded');
+                    wrapper.parentElement.insertBefore(input, wrapper);
+                    wrapper.remove();
+                });
+
                 row.dataset.rowIndex = nextIndex;
                 row.querySelector('.row-number').textContent = nextIndex + 1;
                 row.querySelectorAll('input, select').forEach(input => {
