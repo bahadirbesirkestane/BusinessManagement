@@ -514,8 +514,8 @@ public class PurchaseOrdersController : Controller
                 Quantity = line.Quantity,
                 QuantityText = string.IsNullOrWhiteSpace(line.QuantityText) && line.Quantity.HasValue
                     ? string.IsNullOrWhiteSpace(line.Unit)
-                        ? line.Quantity.Value.ToString("0.###")
-                        : $"{line.Quantity.Value:0.###} {line.Unit.Trim()}"
+                        ? line.Quantity.Value.ToString("0.####")
+                        : $"{line.Quantity.Value:0.####} {line.Unit.Trim()}"
                     : line.QuantityText?.Trim(),
                 Unit = line.Unit?.Trim(),
                 Quality = line.Quality?.Trim(),
@@ -526,7 +526,7 @@ public class PurchaseOrdersController : Controller
                 RequestedByUserId = currentUser?.Id,
                 PaymentTerm = model.PaymentTerm?.Trim(),
                 UnitPrice = line.UnitPrice,
-                UnitPriceText = line.UnitPrice.HasValue ? $"{line.UnitPrice.Value:N2} {model.Currency}" : null,
+                UnitPriceText = line.UnitPrice.HasValue ? $"{line.UnitPrice.Value:#,##0.####} {model.Currency}" : null,
                 OrderTotal = line.UnitPrice.HasValue && line.Quantity.HasValue ? line.UnitPrice.Value * line.Quantity.Value : line.OrderTotal,
                 Currency = CurrencyMetadata.NormalizeInput(model.Currency),
                 Notes = line.Notes?.Trim(),
@@ -1094,8 +1094,8 @@ public class PurchaseOrdersController : Controller
         if (order.Quantity.HasValue)
         {
             order.QuantityText = string.IsNullOrWhiteSpace(order.Unit)
-                ? order.Quantity.Value.ToString("0.###")
-                : $"{order.Quantity.Value:0.###} {order.Unit}";
+                ? order.Quantity.Value.ToString("0.####")
+                : $"{order.Quantity.Value:0.####} {order.Unit}";
         }
         else
         {
@@ -1103,7 +1103,7 @@ public class PurchaseOrdersController : Controller
         }
 
         order.UnitPriceText = order.UnitPrice.HasValue
-            ? $"{order.UnitPrice.Value:N2} {order.Currency}"
+            ? $"{order.UnitPrice.Value:#,##0.####} {order.Currency}"
             : null;
 
         order.OrderTotal = order.UnitPrice.HasValue && order.Quantity.HasValue

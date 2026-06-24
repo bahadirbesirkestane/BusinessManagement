@@ -62,7 +62,7 @@
             </div>
             <div class="mb-3">
                 <label asp-for="Quantity" class="form-label">Adet</label>
-                <input asp-for="Quantity" type="number" step="0.001" class="form-control" />
+                <input asp-for="Quantity" type="number" step="0.0001" class="form-control" />
             </div>
             <div class="mb-3">
                 <label asp-for="Unit" class="form-label">Birim</label>
@@ -70,11 +70,11 @@
             </div>
             <div class="mb-3">
                 <label asp-for="UnitPrice" class="form-label">Birim fiyat</label>
-                <input asp-for="UnitPrice" type="number" step="0.01" class="form-control" />
+                <input asp-for="UnitPrice" type="number" step="0.0001" class="form-control" />
             </div>
             <div class="mb-3">
                 <label asp-for="OrderTotal" class="form-label">Sipariş tutarı</label>
-                <input asp-for="OrderTotal" type="number" step="0.01" class="form-control" />
+                <input asp-for="OrderTotal" type="number" step="0.0001" class="form-control" />
             </div>
             <div class="mb-3">
                 <label asp-for="Quality" class="form-label">Kalite</label>
@@ -159,7 +159,7 @@
             var unitPrice = parseNumber(unitPriceInput.value);
 
             if (Number.isFinite(quantity) && Number.isFinite(unitPrice)) {
-                totalInput.value = (quantity * unitPrice).toFixed(2);
+                totalInput.value = Number((quantity * unitPrice).toFixed(4)).toString();
                 return;
             }
 

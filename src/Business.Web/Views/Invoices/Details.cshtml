@@ -49,7 +49,7 @@
         </div>
         <div class="detail-summary-card total">
             <span>Genel Toplam</span>
-            <strong>@Model.GrandTotal.ToString("N2") @Model.Currency</strong>
+            <strong>@Model.GrandTotal.ToString("#,##0.####") @Model.Currency</strong>
         </div>
     </div>
 </section>
@@ -62,10 +62,10 @@
         </div>
     </div>
     <div class="amount-breakdown">
-        <div><span>Ara toplam</span><strong>@Model.SubTotal.ToString("N2") @Model.Currency</strong></div>
-        <div><span>KDV</span><strong>@Model.VatTotal.ToString("N2") @Model.Currency</strong></div>
-        <div><span>İskonto</span><strong>@Model.DiscountTotal.ToString("N2") @Model.Currency</strong></div>
-        <div class="grand"><span>Genel toplam</span><strong>@Model.GrandTotal.ToString("N2") @Model.Currency</strong></div>
+        <div><span>Ara toplam</span><strong>@Model.SubTotal.ToString("#,##0.####") @Model.Currency</strong></div>
+        <div><span>KDV</span><strong>@Model.VatTotal.ToString("#,##0.####") @Model.Currency</strong></div>
+        <div><span>İskonto</span><strong>@Model.DiscountTotal.ToString("#,##0.####") @Model.Currency</strong></div>
+        <div class="grand"><span>Genel toplam</span><strong>@Model.GrandTotal.ToString("#,##0.####") @Model.Currency</strong></div>
     </div>
     @if (!string.IsNullOrWhiteSpace(Model.Notes))
     {
@@ -111,11 +111,11 @@
                                 }
                             </td>
                             <td>@(line.Material?.Name ?? "-")</td>
-                            <td>@line.Quantity.ToString("N2") @(line.Unit ?? "")</td>
-                            <td>@line.UnitPrice.ToString("N2") @Model.Currency</td>
+                            <td>@line.Quantity.ToString("#,##0.####") @(line.Unit ?? "")</td>
+                            <td>@line.UnitPrice.ToString("#,##0.####") @Model.Currency</td>
                             <td>%@line.VatRate.ToString("N2")</td>
-                            <td>@line.DiscountAmount.ToString("N2") @Model.Currency</td>
-                            <td><strong>@line.LineTotal.ToString("N2") @Model.Currency</strong></td>
+                            <td>@line.DiscountAmount.ToString("#,##0.####") @Model.Currency</td>
+                            <td><strong>@line.LineTotal.ToString("#,##0.####") @Model.Currency</strong></td>
                         </tr>
                     }
                 }

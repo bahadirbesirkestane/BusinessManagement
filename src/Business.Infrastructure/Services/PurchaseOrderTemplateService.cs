@@ -127,7 +127,7 @@ public class PurchaseOrderTemplateService : CrudService<PurchaseOrderTemplate>, 
                 Content = line.Content.Trim(),
                 Quantity = line.Quantity,
                 QuantityText = string.IsNullOrWhiteSpace(line.QuantityText) && line.Quantity.HasValue
-                    ? line.Quantity.Value.ToString("0.###")
+                    ? line.Quantity.Value.ToString("0.####")
                     : line.QuantityText?.Trim(),
                 Unit = line.Unit?.Trim(),
                 Quality = line.Quality?.Trim(),
@@ -138,7 +138,7 @@ public class PurchaseOrderTemplateService : CrudService<PurchaseOrderTemplate>, 
                 RequestedByUserId = requestedByUserId,
                 PaymentTerm = template.DefaultPaymentTerm?.Trim(),
                 UnitPrice = line.UnitPrice,
-                UnitPriceText = line.UnitPrice.HasValue ? $"{line.UnitPrice.Value:N2} {currency}" : null,
+                UnitPriceText = line.UnitPrice.HasValue ? $"{line.UnitPrice.Value:#,##0.####} {currency}" : null,
                 OrderTotal = orderTotal,
                 Currency = currency,
                 VatRate = template.DefaultVatRate,

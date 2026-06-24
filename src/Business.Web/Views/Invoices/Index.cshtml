@@ -118,7 +118,7 @@
                         <td>@(invoice.Project?.Code ?? "-")</td>
                         <td>@invoice.IssueDate.ToString("dd.MM.yyyy")</td>
                         <td>@(invoice.DueDate?.ToString("dd.MM.yyyy") ?? "-")</td>
-                        <td>@invoice.GrandTotal.ToString("N2") @invoice.Currency</td>
+                        <td>@invoice.GrandTotal.ToString("#,##0.####") @invoice.Currency</td>
                         <td><span class="status-pill">@invoice.Status.ToDisplayName()</span></td>
                         <td class="text-end">
                             <a asp-action="Details" asp-route-id="@invoice.Id">Detay</a>

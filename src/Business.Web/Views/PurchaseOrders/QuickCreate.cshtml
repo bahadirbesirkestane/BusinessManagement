@@ -185,7 +185,7 @@
                 }
 
                 if (Number.isFinite(quantity) && Number.isFinite(unitPrice)) {
-                    total.value = (quantity * unitPrice).toFixed(2);
+                    total.value = Number((quantity * unitPrice).toFixed(4)).toString();
                     return;
                 }
 

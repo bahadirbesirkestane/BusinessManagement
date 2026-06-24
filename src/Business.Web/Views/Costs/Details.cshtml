@@ -16,7 +16,7 @@
     <div class="project-header-actions">
         @if (summary.GrandTotalInProjectCurrency.HasValue)
         {
-            <span class="status-pill">@summary.GrandTotalInProjectCurrency.Value.ToString("N2") @summary.ProjectCurrency</span>
+            <span class="status-pill">@summary.GrandTotalInProjectCurrency.Value.ToString("#,##0.####") @summary.ProjectCurrency</span>
         }
         else
         {
@@ -49,7 +49,7 @@
             <dd class="col-sm-7">
                 @foreach (var total in summary.CostItemTotals)
                 {
-                    <div>@total.Amount.ToString("N2") @total.Currency</div>
+                    <div>@total.Amount.ToString("#,##0.####") @total.Currency</div>
                 }
             </dd>
 
@@ -57,7 +57,7 @@
             <dd class="col-sm-7">
                 @foreach (var total in summary.PurchaseOrderTotals)
                 {
-                    <div>@total.Amount.ToString("N2") @total.Currency</div>
+                    <div>@total.Amount.ToString("#,##0.####") @total.Currency</div>
                 }
             </dd>
 
@@ -65,7 +65,7 @@
             <dd class="col-sm-7">
                 @foreach (var total in summary.CombinedTotals)
                 {
-                    <div>@total.Amount.ToString("N2") @total.Currency</div>
+                    <div>@total.Amount.ToString("#,##0.####") @total.Currency</div>
                 }
             </dd>
 
@@ -78,13 +78,13 @@
             @if (summary.GrandTotalInProjectCurrency.HasValue)
             {
                 <dt class="col-sm-5">Dönüştürülmüş toplam</dt>
-                <dd class="col-sm-7"><strong>@summary.GrandTotalInProjectCurrency.Value.ToString("N2") @summary.ProjectCurrency</strong></dd>
+                <dd class="col-sm-7"><strong>@summary.GrandTotalInProjectCurrency.Value.ToString("#,##0.####") @summary.ProjectCurrency</strong></dd>
             }
 
             @if (canViewBudget && summary.RemainingBudgetInProjectCurrency.HasValue)
             {
                 <dt class="col-sm-5">Bütçe farkı</dt>
-                <dd class="col-sm-7"><strong>@summary.RemainingBudgetInProjectCurrency.Value.ToString("N2") @summary.ProjectCurrency</strong></dd>
+                <dd class="col-sm-7"><strong>@summary.RemainingBudgetInProjectCurrency.Value.ToString("#,##0.####") @summary.ProjectCurrency</strong></dd>
             }
         </dl>
 
@@ -160,7 +160,7 @@
                     <td><strong>@order.OrderNumber</strong><small class="d-block text-muted">@order.Content</small></td>
                     <td>@(order.Supplier?.Name ?? "-")</td>
                     <td><span class="status-pill status-@order.Status.ToString().ToLowerInvariant()">@order.Status.ToDisplayName()</span></td>
-                    <td>@amount.ToString("N2") @order.Currency</td>
+                    <td>@amount.ToString("#,##0.####") @order.Currency</td>
                     <td class="text-end"><a asp-controller="PurchaseOrders" asp-action="Details" asp-route-id="@order.Id">Sipariş</a></td>
                 </tr>
             }
@@ -200,7 +200,7 @@
                     <td>@item.Type.ToDisplayName()</td>
                     <td><strong>@item.Description</strong></td>
                     <td>@(item.PurchaseOrder?.OrderNumber ?? "-")</td>
-                    <td>@item.Amount.ToString("N2") @item.Currency</td>
+                    <td>@item.Amount.ToString("#,##0.####") @item.Currency</td>
                     <td>@(item.Notes ?? "-")</td>
                     <td class="text-end">
                         @if (canManageCosts)

@@ -125,6 +125,7 @@ public class InvoicesController : Controller
     public async Task<IActionResult> Create(Invoice invoice, CancellationToken cancellationToken)
     {
         var lines = PrepareInvoiceLines(invoice);
+        var persistedLines = CreatePersistedInvoiceLines(lines);
         ClearInvoiceLineModelState();
         ValidateInvoiceLines(lines);
         if (lines.Count == 0)
@@ -139,8 +140,8 @@ public class InvoicesController : Controller
             return View(invoice);
         }
 
-        invoice.Lines = lines;
-        RecalculateInvoiceTotals(invoice);
+        invoice.Lines = persistedLines;
+        RecalculateInvoiceTotals(invoice, persistedLines);
         _context.Invoices.Add(invoice);
         await _context.SaveChangesAsync(cancellationToken);
         return RedirectToAction(nameof(Index));
@@ -173,6 +174,7 @@ public class InvoicesController : Controller
         }
 
         var lines = PrepareInvoiceLines(invoice);
+        var persistedLines = CreatePersistedInvoiceLines(lines);
         ClearInvoiceLineModelState();
         ValidateInvoiceLines(lines);
         if (lines.Count == 0)
@@ -188,7 +190,6 @@ public class InvoicesController : Controller
         }
 
         var existingInvoice = await _context.Invoices
-            .Include(x => x.Lines)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (existingInvoice is null)
         {
@@ -209,16 +210,23 @@ public class InvoicesController : Controller
         existingInvoice.PaymentTerm = invoice.PaymentTerm;
         existingInvoice.Notes = invoice.Notes;
 
-        var existingLines = existingInvoice.Lines.ToList();
-        _context.InvoiceLines.RemoveRange(existingLines);
-        existingInvoice.Lines.Clear();
-        foreach (var line in lines)
+        RecalculateInvoiceTotals(existingInvoice, persistedLines);
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await _context.InvoiceLines
+            .Where(x => x.InvoiceId == existingInvoice.Id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        foreach (var line in persistedLines)
         {
-            existingInvoice.Lines.Add(line);
+            line.InvoiceId = existingInvoice.Id;
         }
 
-        RecalculateInvoiceTotals(existingInvoice);
+        _context.InvoiceLines.AddRange(persistedLines);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return RedirectToAction(nameof(Index));
     }
 
@@ -297,6 +305,24 @@ public class InvoicesController : Controller
         return lines;
     }
 
+    private static List<InvoiceLine> CreatePersistedInvoiceLines(IEnumerable<InvoiceLine> lines)
+    {
+        return lines
+            .Select(line => new InvoiceLine
+            {
+                Description = line.Description,
+                MaterialId = line.MaterialId,
+                Quantity = line.Quantity,
+                Unit = line.Unit,
+                UnitPrice = line.UnitPrice,
+                VatRate = line.VatRate,
+                DiscountAmount = line.DiscountAmount,
+                LineTotal = line.LineTotal,
+                Notes = line.Notes
+            })
+            .ToList();
+    }
+
     private void ClearInvoiceLineModelState()
     {
         foreach (var key in ModelState.Keys.Where(x => x.StartsWith("Lines[", StringComparison.OrdinalIgnoreCase)).ToList())
@@ -333,6 +359,11 @@ public class InvoicesController : Controller
 
     private static void RecalculateInvoiceTotals(Invoice invoice)
     {
+        RecalculateInvoiceTotals(invoice, invoice.Lines);
+    }
+
+    private static void RecalculateInvoiceTotals(Invoice invoice, IEnumerable<InvoiceLine> lines)
+    {
         invoice.Currency = string.IsNullOrWhiteSpace(invoice.Currency)
             ? "TRY"
             : invoice.Currency.Trim().ToUpperInvariant();
@@ -344,7 +375,7 @@ public class InvoicesController : Controller
         var discountTotal = 0m;
         var grandTotal = 0m;
 
-        foreach (var line in invoice.Lines)
+        foreach (var line in lines)
         {
             var lineTotal = CalculateLineTotal(line, out var vatAmount);
             line.LineTotal = lineTotal;

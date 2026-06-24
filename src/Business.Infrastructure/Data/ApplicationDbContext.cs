@@ -268,7 +268,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<ProjectCostItem>(entity =>
         {
             entity.Property(x => x.Description).HasMaxLength(320).IsRequired();
-            entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.Amount).HasColumnType("decimal(18,4)");
             entity.Property(x => x.Currency).HasMaxLength(3);
             entity.Property(x => x.Visibility).HasDefaultValue(RecordVisibility.General);
             entity.HasOne(x => x.PurchaseOrder).WithMany().HasForeignKey(x => x.PurchaseOrderId).OnDelete(DeleteBehavior.NoAction);
@@ -312,16 +312,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Content).HasMaxLength(600).IsRequired();
             entity.Property(x => x.Visibility).HasDefaultValue(RecordVisibility.General);
             entity.Property(x => x.IsArchived).HasDefaultValue(false);
-            entity.Property(x => x.Quantity).HasColumnType("decimal(18,3)");
+            entity.Property(x => x.Quantity).HasColumnType("decimal(18,4)");
             entity.Property(x => x.QuantityText).HasMaxLength(80);
             entity.Property(x => x.Unit).HasMaxLength(40);
             entity.Property(x => x.Quality).HasMaxLength(120);
             entity.Property(x => x.RequestedBy).HasMaxLength(120);
             entity.Property(x => x.RequestedByUserId).HasMaxLength(450);
             entity.Property(x => x.PaymentTerm).HasMaxLength(80);
-            entity.Property(x => x.UnitPrice).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.UnitPrice).HasColumnType("decimal(18,4)");
             entity.Property(x => x.UnitPriceText).HasMaxLength(120);
-            entity.Property(x => x.OrderTotal).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.OrderTotal).HasColumnType("decimal(18,4)");
             entity.Property(x => x.Currency).HasMaxLength(3);
             entity.Property(x => x.VatRate).HasColumnType("decimal(5,2)");
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.RequestedByUserId).OnDelete(DeleteBehavior.NoAction);
@@ -345,12 +345,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<PurchaseOrderTemplateLine>(entity =>
         {
             entity.Property(x => x.Content).HasMaxLength(600).IsRequired();
-            entity.Property(x => x.Quantity).HasColumnType("decimal(18,3)");
+            entity.Property(x => x.Quantity).HasColumnType("decimal(18,4)");
             entity.Property(x => x.QuantityText).HasMaxLength(80);
             entity.Property(x => x.Unit).HasMaxLength(40);
             entity.Property(x => x.Quality).HasMaxLength(120);
-            entity.Property(x => x.UnitPrice).HasColumnType("decimal(18,2)");
-            entity.Property(x => x.OrderTotal).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.UnitPrice).HasColumnType("decimal(18,4)");
+            entity.Property(x => x.OrderTotal).HasColumnType("decimal(18,4)");
             entity.Property(x => x.Notes).HasMaxLength(2000);
             entity.HasIndex(x => new { x.PurchaseOrderTemplateId, x.SortOrder });
             entity.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.SetNull);
@@ -407,10 +407,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.HasIndex(x => new { x.Type, x.InvoiceNumber }).IsUnique();
             entity.Property(x => x.InvoiceNumber).HasMaxLength(60).IsRequired();
-            entity.Property(x => x.SubTotal).HasColumnType("decimal(18,2)");
-            entity.Property(x => x.VatTotal).HasColumnType("decimal(18,2)");
-            entity.Property(x => x.DiscountTotal).HasColumnType("decimal(18,2)");
-            entity.Property(x => x.GrandTotal).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.SubTotal).HasColumnType("decimal(18,4)");
+            entity.Property(x => x.VatTotal).HasColumnType("decimal(18,4)");
+            entity.Property(x => x.DiscountTotal).HasColumnType("decimal(18,4)");
+            entity.Property(x => x.GrandTotal).HasColumnType("decimal(18,4)");
             entity.Property(x => x.Currency).HasMaxLength(3);
             entity.Property(x => x.PaymentTerm).HasMaxLength(80);
             entity.HasOne(x => x.Customer).WithMany(x => x.Invoices).HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
@@ -422,12 +422,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<InvoiceLine>(entity =>
         {
             entity.Property(x => x.Description).HasMaxLength(420).IsRequired();
-            entity.Property(x => x.Quantity).HasColumnType("decimal(18,3)");
+            entity.Property(x => x.Quantity).HasColumnType("decimal(18,4)");
             entity.Property(x => x.Unit).HasMaxLength(40);
-            entity.Property(x => x.UnitPrice).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.UnitPrice).HasColumnType("decimal(18,4)");
             entity.Property(x => x.VatRate).HasColumnType("decimal(5,2)");
-            entity.Property(x => x.DiscountAmount).HasColumnType("decimal(18,2)");
-            entity.Property(x => x.LineTotal).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.DiscountAmount).HasColumnType("decimal(18,4)");
+            entity.Property(x => x.LineTotal).HasColumnType("decimal(18,4)");
             entity.HasOne(x => x.Material).WithMany(x => x.InvoiceLines).HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.SetNull);
         });
 

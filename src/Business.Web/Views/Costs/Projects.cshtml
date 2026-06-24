@@ -73,23 +73,23 @@
                     <td>
                         @foreach (var total in summary.CostItemTotals)
                         {
-                            <div>@total.Amount.ToString("N2") @total.Currency</div>
+                            <div>@total.Amount.ToString("#,##0.####") @total.Currency</div>
                         }
                     </td>
                     <td>
                         @foreach (var total in summary.PurchaseOrderTotals)
                         {
-                            <div>@total.Amount.ToString("N2") @total.Currency</div>
+                            <div>@total.Amount.ToString("#,##0.####") @total.Currency</div>
                         }
                     </td>
                     <td>
                         @if (summary.GrandTotalInProjectCurrency.HasValue)
                         {
-                            <strong class="d-block">@summary.GrandTotalInProjectCurrency.Value.ToString("N2") @summary.ProjectCurrency</strong>
+                            <strong class="d-block">@summary.GrandTotalInProjectCurrency.Value.ToString("#,##0.####") @summary.ProjectCurrency</strong>
                         }
                         @foreach (var total in summary.CombinedTotals)
                         {
-                            <div class="text-muted">@total.Amount.ToString("N2") @total.Currency</div>
+                            <div class="text-muted">@total.Amount.ToString("#,##0.####") @total.Currency</div>
                         }
                         @if (summary.HasMissingExchangeRates)
                         {

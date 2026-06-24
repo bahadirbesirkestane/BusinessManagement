@@ -19,7 +19,7 @@
                asp-route-currency="@ViewBag.FilterCurrency">Excel indir</a>
             @foreach (var total in totals)
             {
-                <span class="status-pill">@total.Amount.ToString("N2") @total.Currency</span>
+                <span class="status-pill">@total.Amount.ToString("#,##0.####") @total.Currency</span>
             }
         </div>
     </div>
@@ -85,7 +85,7 @@
                     <td>@(item.Project?.Code ?? "Genel")</td>
                     <td>@item.Type.ToDisplayName()</td>
                     <td>@item.Description</td>
-                    <td>@item.Amount.ToString("N2") @item.Currency</td>
+                    <td>@item.Amount.ToString("#,##0.####") @item.Currency</td>
                     <td class="text-end">
                         @if (item.ProjectId.HasValue)
                         {

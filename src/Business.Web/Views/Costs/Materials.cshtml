@@ -38,7 +38,7 @@
                 <span class="d-flex flex-wrap gap-2">
                     @foreach (var total in CostSummaryBuilder.GroupByCurrency(group.Select(x => (CurrencyMetadata.NormalizeStored(x.Currency), CostSummaryBuilder.GetOrderAmount(x)))))
                     {
-                        <strong>@total.Amount.ToString("N2") @total.Currency</strong>
+                        <strong>@total.Amount.ToString("#,##0.####") @total.Currency</strong>
                     }
                 </span>
             </div>

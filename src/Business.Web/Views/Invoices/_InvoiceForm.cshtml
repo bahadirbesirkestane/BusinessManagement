@@ -62,12 +62,12 @@
                                 }
                             </select>
                         </td>
-                        <td><input name="Lines[@i].Quantity" value="@line.Quantity.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.001" class="form-control form-control-sm quick-cell quantity-cell" disabled="@disabled" /></td>
+                        <td><input name="Lines[@i].Quantity" value="@line.Quantity.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.0001" class="form-control form-control-sm quick-cell quantity-cell" disabled="@disabled" /></td>
                         <td><input name="Lines[@i].Unit" value="@line.Unit" class="form-control form-control-sm quick-cell" disabled="@disabled" /></td>
-                        <td><input name="Lines[@i].UnitPrice" value="@line.UnitPrice.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" class="form-control form-control-sm quick-cell unit-price-cell" disabled="@disabled" /></td>
+                        <td><input name="Lines[@i].UnitPrice" value="@line.UnitPrice.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.0001" class="form-control form-control-sm quick-cell unit-price-cell" disabled="@disabled" /></td>
                         <td><input name="Lines[@i].VatRate" value="@line.VatRate.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" class="form-control form-control-sm quick-cell vat-rate-cell" disabled="@disabled" /></td>
-                        <td><input name="Lines[@i].DiscountAmount" value="@line.DiscountAmount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" class="form-control form-control-sm quick-cell discount-cell" disabled="@disabled" /></td>
-                        <td><input name="Lines[@i].LineTotal" value="@line.LineTotal.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" class="form-control form-control-sm quick-cell total-cell" disabled="@disabled" readonly /></td>
+                        <td><input name="Lines[@i].DiscountAmount" value="@line.DiscountAmount.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.0001" class="form-control form-control-sm quick-cell discount-cell" disabled="@disabled" /></td>
+                        <td><input name="Lines[@i].LineTotal" value="@line.LineTotal.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.0001" class="form-control form-control-sm quick-cell total-cell" disabled="@disabled" readonly /></td>
                         <td><input name="Lines[@i].Notes" value="@line.Notes" class="form-control form-control-sm quick-cell" disabled="@disabled" /></td>
                     </tr>
                 }
@@ -76,10 +76,10 @@
         </div>
 
         <div class="amount-breakdown invoice-total-preview">
-            <div><span>Ara toplam</span><strong><span data-invoice-subtotal>0,00</span> <span data-invoice-currency>@Model.Currency</span></strong></div>
-            <div><span>KDV</span><strong><span data-invoice-vat>0,00</span> <span data-invoice-currency>@Model.Currency</span></strong></div>
-            <div><span>İskonto</span><strong><span data-invoice-discount>0,00</span> <span data-invoice-currency>@Model.Currency</span></strong></div>
-            <div class="grand"><span>Genel toplam</span><strong><span data-invoice-grand>0,00</span> <span data-invoice-currency>@Model.Currency</span></strong></div>
+            <div><span>Ara toplam</span><strong><span data-invoice-subtotal>0</span> <span data-invoice-currency>@Model.Currency</span></strong></div>
+            <div><span>KDV</span><strong><span data-invoice-vat>0</span> <span data-invoice-currency>@Model.Currency</span></strong></div>
+            <div><span>İskonto</span><strong><span data-invoice-discount>0</span> <span data-invoice-currency>@Model.Currency</span></strong></div>
+            <div class="grand"><span>Genel toplam</span><strong><span data-invoice-grand>0</span> <span data-invoice-currency>@Model.Currency</span></strong></div>
         </div>
 
         <div class="form-actions"><a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a><button class="btn btn-primary" type="submit">Kaydet</button></div>
@@ -98,7 +98,8 @@
         const discountInput = form.querySelector('[data-invoice-discount-input]');
         const grandInput = form.querySelector('[data-invoice-grand-input]');
 
-        const formatAmount = value => value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formatAmount = value => value.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+        const formatInputNumber = value => Number(value.toFixed(4)).toString();
         const numberValue = input => Number(String(input?.value || '').replace(',', '.')) || 0;
 
         const enableRow = row => {
@@ -139,7 +140,7 @@
             const subtotal = quantity * unitPrice;
             const total = subtotal + (subtotal * vatRate / 100) - discount;
             const totalInput = row.querySelector('.total-cell');
-            if (totalInput) totalInput.value = total > 0 ? total.toFixed(2) : '0.00';
+            if (totalInput) totalInput.value = total > 0 ? formatInputNumber(total) : '0';
             return { subtotal, vat: subtotal * vatRate / 100, discount, total };
         };
 
@@ -158,10 +159,10 @@
                 grand += rowTotals.total;
             });
 
-            subtotalInput.value = subtotal.toFixed(2);
-            vatInput.value = vat.toFixed(2);
-            discountInput.value = discount.toFixed(2);
-            grandInput.value = grand.toFixed(2);
+            subtotalInput.value = formatInputNumber(subtotal);
+            vatInput.value = formatInputNumber(vat);
+            discountInput.value = formatInputNumber(discount);
+            grandInput.value = formatInputNumber(grand);
             form.querySelector('[data-invoice-subtotal]').textContent = formatAmount(subtotal);
             form.querySelector('[data-invoice-vat]').textContent = formatAmount(vat);
             form.querySelector('[data-invoice-discount]').textContent = formatAmount(discount);

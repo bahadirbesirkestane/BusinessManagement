@@ -119,7 +119,7 @@
                         </div>
                         <div>
                             <label class="form-label">Adet</label>
-                            <input name="Quantity" type="number" step="0.001" class="form-control" data-inline-order-quantity />
+                            <input name="Quantity" type="number" step="0.0001" class="form-control" data-inline-order-quantity />
                         </div>
                         <div>
                             <label class="form-label">Birim</label>
@@ -127,11 +127,11 @@
                         </div>
                         <div>
                             <label class="form-label">Birim fiyat</label>
-                            <input name="UnitPrice" type="number" step="0.01" class="form-control" data-inline-order-unit-price />
+                            <input name="UnitPrice" type="number" step="0.0001" class="form-control" data-inline-order-unit-price />
                         </div>
                         <div>
                             <label class="form-label">Sipariş tutarı</label>
-                            <input name="OrderTotal" type="number" step="0.01" class="form-control" data-inline-order-total />
+                            <input name="OrderTotal" type="number" step="0.0001" class="form-control" data-inline-order-total />
                         </div>
                         <div>
                             <label class="form-label">Para birimi</label>
@@ -326,7 +326,7 @@
                 var unitPrice = parseNumber(unitPriceInput.value);
 
                 if (Number.isFinite(quantity) && Number.isFinite(unitPrice)) {
-                    totalInput.value = (quantity * unitPrice).toFixed(2);
+                    totalInput.value = Number((quantity * unitPrice).toFixed(4)).toString();
                     return;
                 }
 

@@ -171,10 +171,10 @@
                                             }
                                         </td>
                                         <td>@(line.MaterialName ?? "-")</td>
-                                        <td>@(line.QuantityText ?? line.Quantity?.ToString("0.###") ?? "-") @(line.Unit ?? "")</td>
+                                        <td>@(line.QuantityText ?? line.Quantity?.ToString("0.####") ?? "-") @(line.Unit ?? "")</td>
                                         <td>@(line.ExpectedArrivalOffsetDays?.ToString() ?? "-")</td>
-                                        <td>@(line.UnitPrice?.ToString("N2") ?? "-")</td>
-                                        <td>@(line.OrderTotal?.ToString("N2") ?? "-")</td>
+                                        <td>@(line.UnitPrice?.ToString("#,##0.####") ?? "-")</td>
+                                        <td>@(line.OrderTotal?.ToString("#,##0.####") ?? "-")</td>
                                         <td class="text-end">
                                             @if (canManageTemplates)
                                             {
@@ -234,7 +234,7 @@
                             </div>
                             <div class="mb-3">
                                 <label asp-for="LineForm.Quantity" class="form-label">Miktar</label>
-                                <input asp-for="LineForm.Quantity" type="number" step="0.001" class="form-control" />
+                                <input asp-for="LineForm.Quantity" type="number" step="0.0001" class="form-control" data-template-line-quantity />
                             </div>
                             <div class="mb-3">
                                 <label asp-for="LineForm.QuantityText" class="form-label">Miktar metni</label>
@@ -254,11 +254,11 @@
                             </div>
                             <div class="mb-3">
                                 <label asp-for="LineForm.UnitPrice" class="form-label">Birim fiyat</label>
-                                <input asp-for="LineForm.UnitPrice" type="number" step="0.01" class="form-control" />
+                                <input asp-for="LineForm.UnitPrice" type="number" step="0.0001" class="form-control" data-template-line-unit-price />
                             </div>
                             <div class="mb-3">
                                 <label asp-for="LineForm.OrderTotal" class="form-label">Tutar</label>
-                                <input asp-for="LineForm.OrderTotal" type="number" step="0.01" class="form-control" />
+                                <input asp-for="LineForm.OrderTotal" type="number" step="0.0001" class="form-control" data-template-line-total />
                             </div>
                             <div class="mb-3 wide">
                                 <label asp-for="LineForm.Notes" class="form-label">Not</label>
@@ -306,6 +306,33 @@
             const title = document.getElementById('templateLineModalTitle');
             const addUrl = '@Url.Action("AddLine", "PurchaseOrderTemplates")';
             const updateUrl = '@Url.Action("UpdateLine", "PurchaseOrderTemplates")';
+            const quantityInput = modalElement.querySelector('[data-template-line-quantity]');
+            const unitPriceInput = modalElement.querySelector('[data-template-line-unit-price]');
+            const totalInput = modalElement.querySelector('[data-template-line-total]');
+
+            function parseNumber(value) {
+                if (!value) {
+                    return NaN;
+                }
+
+                return Number(String(value).replace(',', '.'));
+            }
+
+            function updateTotal() {
+                if (!quantityInput || !unitPriceInput || !totalInput) {
+                    return;
+                }
+
+                const quantity = parseNumber(quantityInput.value);
+                const unitPrice = parseNumber(unitPriceInput.value);
+
+                if (Number.isFinite(quantity) && Number.isFinite(unitPrice)) {
+                    totalInput.value = Number((quantity * unitPrice).toFixed(4)).toString();
+                    return;
+                }
+
+                totalInput.value = '';
+            }
 
             function setField(name, value) {
                 const field = modalElement.querySelector(`[name="${name}"]`);
@@ -378,6 +405,9 @@
                 }
                 modal.show();
             }
+
+            quantityInput?.addEventListener('input', updateTotal);
+            unitPriceInput?.addEventListener('input', updateTotal);
         })();
     </script>
 }
