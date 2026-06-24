@@ -229,6 +229,68 @@ function initFreeTextLookups(root) {
             closeList();
         }
 
+        function focusNextField() {
+            var form = input.form || input.closest('form');
+            if (!form) {
+                return;
+            }
+
+            var focusable = Array.from(form.querySelectorAll('input, select, textarea, button, [tabindex]'))
+                .filter(function (element) {
+                    if (!(element instanceof HTMLElement)) {
+                        return false;
+                    }
+
+                    if (element === input || element.disabled) {
+                        return false;
+                    }
+
+                    if (element.matches('[type="hidden"], [tabindex="-1"]')) {
+                        return false;
+                    }
+
+                    return element.offsetParent !== null;
+                });
+
+            var nextField = focusable.find(function (element) {
+                return Boolean(input.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING);
+            }) || focusable[0];
+
+            if (nextField instanceof HTMLElement) {
+                nextField.focus();
+                if (typeof nextField.select === 'function') {
+                    nextField.select();
+                }
+            }
+        }
+
+        var activeOptionIndex = -1;
+        var currentVisibleOptions = [];
+
+        function updateActiveOption() {
+            Array.from(list.querySelectorAll('.searchable-select-option')).forEach(function (item, index) {
+                item.setAttribute('aria-selected', String(index === activeOptionIndex));
+            });
+        }
+
+        function setActiveOption(index) {
+            if (currentVisibleOptions.length === 0) {
+                activeOptionIndex = -1;
+                updateActiveOption();
+                return;
+            }
+
+            if (index < 0) {
+                activeOptionIndex = currentVisibleOptions.length - 1;
+            } else if (index >= currentVisibleOptions.length) {
+                activeOptionIndex = 0;
+            } else {
+                activeOptionIndex = index;
+            }
+
+            updateActiveOption();
+        }
+
         function renderOptions() {
             var query = normalize(input.value);
             var options = getOptions();
@@ -238,9 +300,11 @@ function initFreeTextLookups(root) {
                 }).slice(0, 8)
                 : [];
 
+            currentVisibleOptions = visibleOptions;
             list.innerHTML = '';
 
             if (!query) {
+                activeOptionIndex = -1;
                 empty.classList.remove('is-visible');
                 closeList();
                 return;
@@ -252,7 +316,7 @@ function initFreeTextLookups(root) {
                 item.className = 'searchable-select-option';
                 item.textContent = option.text;
                 item.setAttribute('role', 'option');
-                item.setAttribute('aria-selected', String(hiddenInput.value === option.id));
+                item.setAttribute('aria-selected', 'false');
                 item.addEventListener('mousedown', function (event) {
                     event.preventDefault();
                     chooseOption(option);
@@ -263,8 +327,13 @@ function initFreeTextLookups(root) {
             empty.classList.remove('is-visible');
 
             if (visibleOptions.length > 0) {
+                var selectedIndex = visibleOptions.findIndex(function (option) {
+                    return hiddenInput.value && option.id === hiddenInput.value;
+                });
+                setActiveOption(selectedIndex >= 0 ? selectedIndex : 0);
                 openList();
             } else {
+                activeOptionIndex = -1;
                 closeList();
             }
         }
@@ -292,14 +361,41 @@ function initFreeTextLookups(root) {
                 return;
             }
 
-            if (event.key !== 'Enter') {
+            if (currentVisibleOptions.length === 0) {
                 return;
             }
 
-            var firstOption = list.querySelector('.searchable-select-option');
-            if (firstOption) {
+            if (event.key === 'ArrowDown') {
                 event.preventDefault();
-                firstOption.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                event.stopPropagation();
+                setActiveOption(activeOptionIndex + 1);
+                return;
+            }
+
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                event.stopPropagation();
+                setActiveOption(activeOptionIndex - 1);
+                return;
+            }
+
+            if (event.key === 'Tab') {
+                event.preventDefault();
+                event.stopPropagation();
+                setActiveOption(activeOptionIndex + (event.shiftKey ? -1 : 1));
+                return;
+            }
+
+            if (event.key === 'Enter') {
+                var selectedOption = currentVisibleOptions[activeOptionIndex >= 0 ? activeOptionIndex : 0];
+                if (!selectedOption) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                chooseOption(selectedOption);
+                focusNextField();
             }
         });
 
