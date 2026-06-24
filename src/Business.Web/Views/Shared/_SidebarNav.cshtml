@@ -19,6 +19,7 @@
             {
                 (Label: "Genel Bakış", Url: "/Dashboard"),
                 (Label: "İşlerim", Url: "/Dashboard/Workspace"),
+                (Label: "Kontrol Listesi", Url: "/Dashboard/ReviewQueue"),
                 (Label: "Bugünkü İşler", Url: "/Dashboard/Today"),
                 (Label: "Geciken İşler", Url: "/Dashboard/Overdue"),
                 (Label: "Kritik Uyarılar", Url: "/Dashboard/CriticalAlerts")
@@ -179,6 +180,14 @@
 
         if (url.StartsWith("/Dashboard", StringComparison.OrdinalIgnoreCase))
         {
+            if (url.StartsWith("/Dashboard/ReviewQueue", StringComparison.OrdinalIgnoreCase))
+            {
+                return User.IsInRole(AppRoles.Admin) ||
+                       User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
+                       User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
+                       User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+            }
+
             return HasPermission(AppPermissions.DashboardView);
         }
 

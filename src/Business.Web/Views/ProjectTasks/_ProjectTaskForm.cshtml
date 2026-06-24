@@ -2,6 +2,7 @@
 @{
     var returnUrl = ViewBag.ReturnUrl as string;
     var isCreateMode = string.Equals(ViewContext.RouteData.Values["action"]?.ToString(), "Create", StringComparison.OrdinalIgnoreCase);
+    var formStatusOptions = (IReadOnlyList<WorkTaskStatus>)(ViewBag.FormStatusOptions ?? Enum.GetValues<WorkTaskStatus>().ToList());
 }
 
 <section class="panel-block form-panel">
@@ -71,7 +72,12 @@
             </div>
             <div class="mb-3">
                 <label asp-for="Status" class="form-label">Durum</label>
-                <select asp-for="Status" asp-items="Html.GetEnumSelectList<WorkTaskStatus>()" class="form-select" data-task-progress-status></select>
+                <select asp-for="Status" class="form-select" data-task-progress-status>
+                    @foreach (var status in formStatusOptions)
+                    {
+                        <option value="@status" selected="@(Model.Status == status)">@status.ToDisplayName()</option>
+                    }
+                </select>
             </div>
             @if (User.IsInRole(AppRoles.Admin))
             {

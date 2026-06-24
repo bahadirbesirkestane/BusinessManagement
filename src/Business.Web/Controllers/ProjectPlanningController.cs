@@ -83,6 +83,11 @@ public class ProjectPlanningController : Controller
             }
         }
 
+        if (taskForm.Status == WorkTaskStatus.Done && !CanCompleteTasks())
+        {
+            ModelState.AddModelError(nameof(taskForm.Status), "Görevi tamamlandı olarak kaydetme yetkiniz yok.");
+        }
+
         if (!ModelState.IsValid)
         {
             var invalidModel = await BuildIndexViewModelAsync(taskForm.ProjectId, taskForm, true, "create", cancellationToken);
@@ -152,6 +157,11 @@ public class ProjectPlanningController : Controller
         if (!projectExists)
         {
             ModelState.AddModelError(string.Empty, "Seçilen proje bulunamadı veya iptal edilmiş.");
+        }
+
+        if (taskForm.Status == WorkTaskStatus.Done && !CanCompleteTasks())
+        {
+            ModelState.AddModelError(nameof(taskForm.Status), "Görevi tamamlandı olarak kaydetme yetkiniz yok.");
         }
 
         if (!ModelState.IsValid || task is null)
@@ -429,6 +439,12 @@ public class ProjectPlanningController : Controller
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksUpdate) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    }
+
+    private bool CanCompleteTasks()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete);
     }
 
     private async Task AddAssignmentsAsync(Guid taskId, IEnumerable<string> selectedUserIds, CancellationToken cancellationToken)

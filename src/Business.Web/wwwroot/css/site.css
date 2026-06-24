@@ -3759,6 +3759,46 @@ a:hover {
   font-weight: 700;
 }
 
+.dashboard-review-columns {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 18px 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dashboard-review-columns-side {
+  display: grid;
+  grid-template-columns: 170px 110px;
+  gap: 8px;
+  justify-items: end;
+}
+
+.dashboard-review-row .dashboard-task-meta {
+  display: grid;
+  grid-template-columns: auto 170px 110px;
+  gap: 8px;
+  align-items: center;
+  justify-items: end;
+}
+
+@media (max-width: 900px) {
+  .dashboard-review-columns {
+    display: none;
+  }
+
+  .dashboard-review-row .dashboard-task-meta {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+}
+
 .dashboard-task-row {
   align-items: flex-start;
   flex-direction: column;

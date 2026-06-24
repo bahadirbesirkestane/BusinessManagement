@@ -1,6 +1,14 @@
 @model Business.Web.ViewModels.DashboardViewModel
 @{
     ViewData["Title"] = "Yönetim Paneli";
+    var canCreateTask = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksCreate) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canViewReviewQueue = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
 }
 
 <div class="metric-grid">
@@ -37,6 +45,14 @@
             <div class="dashboard-focus-actions">
                 <a class="btn btn-primary btn-sm" asp-action="Workspace">İşlerim</a>
                 <a class="btn btn-outline-secondary btn-sm" asp-controller="ProjectTasks" asp-action="AssignedToMe">Bana atananlar</a>
+                @if (canCreateTask)
+                {
+                    <a class="btn btn-outline-secondary btn-sm" asp-controller="ProjectTasks" asp-action="Create" asp-route-returnUrl="@Context.Request.Path">Görev ekle</a>
+                }
+                @if (canViewReviewQueue)
+                {
+                    <a class="btn btn-outline-secondary btn-sm" asp-action="ReviewQueue">Kontrol listesi</a>
+                }
             </div>
             <div class="dashboard-stats-strip">
                 <div class="dashboard-stat-chip">

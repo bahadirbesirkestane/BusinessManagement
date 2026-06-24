@@ -77,7 +77,10 @@ public static class DependencyInjection
             AddPermissionPolicy(options, AppPolicies.CanUpdateTasks, AppPermissions.TasksUpdate, AppPermissions.ProjectsManage, AppPermissions.TasksManage);
             AddPermissionPolicy(options, AppPolicies.CanDeleteTasks, AppPermissions.TasksDelete, AppPermissions.ProjectsManage, AppPermissions.TasksManage);
             AddPermissionPolicy(options, AppPolicies.CanChangeTaskStatus, AppPermissions.TasksChangeStatus, AppPermissions.ProjectsManage, AppPermissions.TasksManage);
-            AddPermissionPolicy(options, AppPolicies.CanCompleteTasks, AppPermissions.TasksComplete, AppPermissions.ProjectsManage, AppPermissions.TasksManage);
+            options.AddPolicy(AppPolicies.CanCompleteTasks, policy =>
+                policy.RequireAssertion(context =>
+                    context.User.IsInRole(AppRoles.Admin) ||
+                    context.User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete)));
 
             options.AddPolicy(AppPolicies.CanViewPurchasing, policy =>
                 policy.RequireClaim(AppClaimTypes.Permission, AppPermissions.PurchasingView));

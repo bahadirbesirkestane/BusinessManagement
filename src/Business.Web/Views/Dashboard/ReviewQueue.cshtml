@@ -1,0 +1,58 @@
+@model IReadOnlyList<DashboardReviewTaskViewModel>
+@{
+    ViewData["Title"] = "Kontrol Listesi";
+    var reviewCount = (int)(ViewBag.ReviewQueueCount ?? Model.Count);
+}
+
+<div class="metric-grid">
+    <div class="metric-card">
+        <span>Kontrol bekleyen görev</span>
+        <strong>@reviewCount</strong>
+        <small>İnceleme ve onay bekleyen görevler</small>
+    </div>
+</div>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Yönetici kontrol alanı</p>
+            <h2>Kontrole gönderilen görevler</h2>
+        </div>
+        <div class="toolbar-actions">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Workspace">İşlerim</a>
+            <a class="btn btn-outline-primary btn-sm" asp-controller="ProjectTasks" asp-action="Index" asp-route-status="@WorkTaskStatus.InReview">Görev listesi</a>
+        </div>
+    </div>
+
+    <div class="list-stack">
+        @if (!Model.Any())
+        {
+            <p class="empty-note">Şu anda kontrol bekleyen görev görünmüyor.</p>
+        }
+        else
+        {
+            <div class="dashboard-review-columns" aria-hidden="true">
+                <span>Görev / Atanan kişiler</span>
+                <span class="dashboard-review-columns-side">
+                    <span>Kontrole gönderim tarihi</span>
+                    <span>Termin</span>
+                </span>
+            </div>
+
+            @foreach (var task in Model)
+            {
+                <a class="list-row list-row-link dashboard-review-row" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id" asp-route-returnUrl="@Context.Request.Path">
+                    <span>
+                        <strong>@task.Title</strong>
+                        <small>@task.Context - Atanan kişiler: @task.AssignedText</small>
+                    </span>
+                    <span class="dashboard-task-meta">
+                        <span class="priority-pill priority-@task.PriorityCss">@task.PriorityText</span>
+                        <small>@(task.SubmittedForReviewAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "-")</small>
+                        <small>@(task.DueDate?.ToString("dd.MM.yyyy") ?? "-")</small>
+                    </span>
+                </a>
+            }
+        }
+    </div>
+</section>

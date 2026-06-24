@@ -47,7 +47,7 @@
                     <a class="list-row list-row-link" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id" asp-route-returnUrl="@Context.Request.Path">
                         <span>
                             <strong>@task.Title</strong>
-                            <small>@task.Context · @task.RoleText</small>
+                            <small>@task.Context - @task.RoleText</small>
                         </span>
                         <span class="dashboard-task-meta">
                             <span class="priority-pill priority-@task.PriorityCss">@task.PriorityText</span>
@@ -94,4 +94,48 @@
             </a>
         </div>
     </section>
+
+    @if (Model.CanViewReviewQueue)
+    {
+        <section class="panel-block">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Yönetici kontrol alanı</p>
+                    <h2>Kontrol bekleyen görevler</h2>
+                </div>
+                <a asp-action="ReviewQueue">Tam liste</a>
+            </div>
+            <div class="list-stack">
+                @if (!Model.ReviewQueueTasks.Any())
+                {
+                    <p class="empty-note">Kontrole gönderilmiş açık görev görünmüyor.</p>
+                }
+                else
+                {
+                    <div class="dashboard-review-columns" aria-hidden="true">
+                        <span>Görev / Atanan kişi/kişiler</span>
+                        <span class="dashboard-review-columns-side">
+                            <span>Kontrole gönderim tarihi</span>
+                            <span>Termin</span>
+                        </span>
+                    </div>
+
+                    @foreach (var task in Model.ReviewQueueTasks)
+                    {
+                        <a class="list-row list-row-link dashboard-review-row" asp-controller="ProjectTasks" asp-action="Details" asp-route-id="@task.Id" asp-route-returnUrl="@Context.Request.Path">
+                            <span>
+                                <strong>@task.Title</strong>
+                                <small>@task.Context - Atanan kişi/kişiler: @task.AssignedText</small>
+                            </span>
+                            <span class="dashboard-task-meta">
+                                <span class="priority-pill priority-@task.PriorityCss">@task.PriorityText</span>
+                                <small>@(task.SubmittedForReviewAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "-")</small>
+                                <small>@(task.DueDate?.ToString("dd.MM.yyyy") ?? "-")</small>
+                            </span>
+                        </a>
+                    }
+                }
+            </div>
+        </section>
+    }
 </div>

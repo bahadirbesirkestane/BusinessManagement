@@ -14,6 +14,8 @@
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksChangeStatus) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var canCompleteTask = User.IsInRole(AppRoles.Admin) ||
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete);
     var canChangeProjectStatus = User.IsInRole(AppRoles.Admin) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsChangeStatus) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
@@ -244,6 +246,11 @@
                                         <select name="status" class="status-select status-@task.StatusCss" onchange="this.form.submit()" aria-label="Görev durumu">
                                             @foreach (WorkTaskStatus status in Enum.GetValues<WorkTaskStatus>())
                                             {
+                                                if (status == WorkTaskStatus.Done && !canCompleteTask && task.Status != WorkTaskStatus.Done)
+                                                {
+                                                    continue;
+                                                }
+
                                                 <option value="@status" selected="@(task.Status == status)">@status.ToDisplayName()</option>
                                             }
                                         </select>
@@ -313,7 +320,17 @@
                             </div>
                             <div class="mb-3">
                                 <label asp-for="TaskForm.Status" class="form-label">Durum</label>
-                                <select asp-for="TaskForm.Status" asp-items="Html.GetEnumSelectList<WorkTaskStatus>()" class="form-select"></select>
+                                <select asp-for="TaskForm.Status" class="form-select">
+                                    @foreach (WorkTaskStatus status in Enum.GetValues<WorkTaskStatus>())
+                                    {
+                                        if (status == WorkTaskStatus.Done && !canCompleteTask && Model.TaskForm.Status != WorkTaskStatus.Done)
+                                        {
+                                            continue;
+                                        }
+
+                                        <option value="@status" selected="@(Model.TaskForm.Status == status)">@status.ToDisplayName()</option>
+                                    }
+                                </select>
                             </div>
                             <div class="mb-3">
                                 <label asp-for="TaskForm.Priority" class="form-label">Öncelik</label>

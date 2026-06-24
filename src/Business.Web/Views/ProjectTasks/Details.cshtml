@@ -5,10 +5,7 @@
         .ToList();
     var returnUrl = ViewBag.ReturnUrl as string ?? $"{Context.Request.Path}{Context.Request.QueryString}";
     var canCompleteTask = User.IsInRole(AppRoles.Admin) ||
-        User.IsInRole(AppRoles.Manager) ||
-        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
-        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
-        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete);
     var canDeleteTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksDelete) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
@@ -39,6 +36,10 @@
                     <select name="status" class="status-select status-@Model.Status.ToString().ToLowerInvariant()" onchange="this.form.submit()" aria-label="Görev durumu">
                         @foreach (WorkTaskStatus status in Enum.GetValues<WorkTaskStatus>())
                         {
+                            if (status == WorkTaskStatus.Done && !canCompleteTask && Model.Status != WorkTaskStatus.Done)
+                            {
+                                continue;
+                            }
                             <option value="@status" selected="@(Model.Status == status)">@status.ToDisplayName()</option>
                         }
                     </select>
@@ -60,7 +61,7 @@
                     <button class="btn btn-outline-primary btn-sm" type="submit">Kontrole Gönder</button>
                 </form>
             }
-            @if (canCompleteTask)
+            @if (canCompleteTask && Model.Status != WorkTaskStatus.Done)
             {
                 <form asp-action="Complete" asp-route-id="@Model.Id" method="post" class="inline-form">
                     @Html.AntiForgeryToken()

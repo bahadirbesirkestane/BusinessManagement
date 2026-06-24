@@ -402,8 +402,8 @@ public class ProjectTasksController : Controller
     [Authorize(Policy = AppPolicies.CanCreateTasks)]
     public async Task<IActionResult> Create(Guid? projectId, string? returnUrl, CancellationToken cancellationToken)
     {
-        await FillLookupsAsync(cancellationToken);
         var task = new ProjectTask { ProjectId = projectId };
+        await FillLookupsAsync(task.Status, cancellationToken);
         if (projectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -450,6 +450,11 @@ public class ProjectTasksController : Controller
             }
         }
 
+        if (task.Status == WorkTaskStatus.Done && !CanCompleteTasks())
+        {
+            ModelState.AddModelError(nameof(task.Status), "Görevi tamamlandı olarak kaydetme yetkiniz yok.");
+        }
+
         if (!_recordFileUploadService.TryValidateFiles(validFiles, out var fileErrorMessage))
         {
             ModelState.AddModelError(string.Empty, fileErrorMessage);
@@ -457,7 +462,7 @@ public class ProjectTasksController : Controller
 
         if (!ModelState.IsValid)
         {
-            await FillLookupsAsync(cancellationToken);
+            await FillLookupsAsync(task.Status, cancellationToken);
             ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
             return View(task);
         }
@@ -508,7 +513,7 @@ public class ProjectTasksController : Controller
             return NotFound();
         }
 
-        await FillLookupsAsync(cancellationToken);
+        await FillLookupsAsync(task.Status, cancellationToken);
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(task);
     }
@@ -538,9 +543,14 @@ public class ProjectTasksController : Controller
             }
         }
 
+        if (task.Status == WorkTaskStatus.Done && !CanCompleteTasks())
+        {
+            ModelState.AddModelError(nameof(task.Status), "Görevi tamamlandı olarak kaydetme yetkiniz yok.");
+        }
+
         if (!ModelState.IsValid)
         {
-            await FillLookupsAsync(cancellationToken);
+            await FillLookupsAsync(task.Status, cancellationToken);
             ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
             return View(task);
         }
@@ -602,11 +612,7 @@ public class ProjectTasksController : Controller
     public async Task<IActionResult> UpdateStatus(Guid id, WorkTaskStatus status, string? returnUrl, CancellationToken cancellationToken)
     {
         if (status == WorkTaskStatus.Done &&
-            !(User.IsInRole(AppRoles.Admin) ||
-              User.IsInRole(AppRoles.Manager) ||
-              User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
-              User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
-              User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage)))
+            !CanCompleteTasks())
         {
             return Forbid();
         }
@@ -685,11 +691,7 @@ public class ProjectTasksController : Controller
     public async Task<IActionResult> BulkUpdateStatus(Guid[] ids, WorkTaskStatus status, string? returnUrl = null, CancellationToken cancellationToken = default)
     {
         if (status == WorkTaskStatus.Done &&
-            !(User.IsInRole(AppRoles.Admin) ||
-              User.IsInRole(AppRoles.Manager) ||
-              User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
-              User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
-              User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage)))
+            !CanCompleteTasks())
         {
             return Forbid();
         }
@@ -789,12 +791,13 @@ public class ProjectTasksController : Controller
         return RedirectToLocal(returnUrl);
     }
 
-    private async Task FillLookupsAsync(CancellationToken cancellationToken)
+    private async Task FillLookupsAsync(WorkTaskStatus? selectedStatus, CancellationToken cancellationToken)
     {
         ViewBag.Projects = await _context.Projects.AsNoTracking().ApplyRecordVisibility(User).OrderBy(x => x.Code).ToListAsync(cancellationToken);
         ViewBag.Customers = await _context.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         ViewBag.Users = await _userManager.Users.Where(x => x.IsActive).OrderBy(x => x.FullName).ToListAsync(cancellationToken);
         ViewBag.TaskCategories = await _context.TaskCategories.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        ViewBag.FormStatusOptions = GetFormStatusOptions(selectedStatus);
     }
 
     private async Task FillFilterLookupsAsync(CancellationToken cancellationToken)
@@ -864,6 +867,19 @@ public class ProjectTasksController : Controller
     {
         return User.IsInRole(AppRoles.Admin) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage);
+    }
+
+    private bool CanCompleteTasks()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete);
+    }
+
+    private IReadOnlyList<WorkTaskStatus> GetFormStatusOptions(WorkTaskStatus? selectedStatus = null)
+    {
+        return Enum.GetValues<WorkTaskStatus>()
+            .Where(status => status != WorkTaskStatus.Done || CanCompleteTasks() || selectedStatus == WorkTaskStatus.Done)
+            .ToList();
     }
 
     private async Task<IReadOnlyList<KeyValuePair<string, string?>>> CreateTaskBreadcrumbsAsync(ProjectTask task, CancellationToken cancellationToken)

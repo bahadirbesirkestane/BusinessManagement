@@ -150,7 +150,39 @@ public class DashboardController : Controller
                 cancellationToken)
         };
 
+        if (CanViewReviewQueue())
+        {
+            var reviewQueueQuery = BuildReviewQueueQuery();
+            model.CanViewReviewQueue = true;
+            model.ReviewQueueCount = await reviewQueueQuery.CountAsync(cancellationToken);
+            model.ReviewQueueTasks = await MapReviewQueueTasksAsync(
+                reviewQueueQuery
+                    .OrderByDescending(x => x.SubmittedForReviewAt ?? x.UpdatedAt ?? x.CreatedAt)
+                    .ThenBy(x => x.DueDate ?? DateTime.MaxValue)
+                    .Take(8),
+                cancellationToken);
+        }
+
         return View(model);
+    }
+
+    public async Task<IActionResult> ReviewQueue(CancellationToken cancellationToken)
+    {
+        if (!CanViewReviewQueue())
+        {
+            return Forbid();
+        }
+
+        ViewData["Title"] = "Kontrol Listesi";
+
+        var tasks = await MapReviewQueueTasksAsync(
+            BuildReviewQueueQuery()
+                .OrderByDescending(x => x.SubmittedForReviewAt ?? x.UpdatedAt ?? x.CreatedAt)
+                .ThenBy(x => x.DueDate ?? DateTime.MaxValue),
+            cancellationToken);
+
+        ViewBag.ReviewQueueCount = tasks.Count;
+        return View(tasks);
     }
 
     public async Task<IActionResult> Today(CancellationToken cancellationToken)
@@ -515,6 +547,70 @@ public class DashboardController : Controller
             .ToListAsync(cancellationToken);
     }
 
+    private IQueryable<ProjectTask> BuildReviewQueueQuery()
+    {
+        return _context.ProjectTasks
+            .Include(x => x.Project)
+            .Include(x => x.Customer)
+            .Include(x => x.Assignments)
+            .AsNoTracking()
+            .ApplyRecordVisibility(User)
+            .Where(x => !x.IsArchived && x.Status == WorkTaskStatus.InReview);
+    }
+
+    private async Task<IReadOnlyList<DashboardReviewTaskViewModel>> MapReviewQueueTasksAsync(
+        IQueryable<ProjectTask> query,
+        CancellationToken cancellationToken)
+    {
+        var tasks = await query.ToListAsync(cancellationToken);
+        var assignedIds = tasks
+            .SelectMany(x => x.Assignments.Select(assignment => assignment.UserId))
+            .Concat(tasks
+                .Select(x => x.AssignedToUserId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct()
+            .ToList();
+
+        var userNames = assignedIds.Count == 0
+            ? new Dictionary<string, string>()
+            : await _userManager.Users
+                .Where(x => assignedIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, x => x.FullName ?? x.Email ?? x.UserName ?? x.Id, cancellationToken);
+
+        return tasks.Select(x =>
+        {
+            var assignedNames = x.Assignments
+                .Select(assignment => assignment.UserId)
+                .Concat(!string.IsNullOrWhiteSpace(x.AssignedToUserId) ? [x.AssignedToUserId!] : [])
+                .Distinct()
+                .Select(userId => userNames.TryGetValue(userId, out var userName) ? userName : null)
+                .Where(userName => !string.IsNullOrWhiteSpace(userName))
+                .Cast<string>()
+                .ToList();
+
+            return new DashboardReviewTaskViewModel
+            {
+                Id = x.Id,
+                Title = x.Title,
+                Context = x.Project != null
+                    ? $"{x.Project.Code} - {x.Project.Name}"
+                    : x.Customer != null
+                        ? x.Customer.Name
+                        : x.ManualProjectName ?? x.ManualCustomerName ?? "Genel",
+                AssignedText = assignedNames.Count > 0
+                    ? string.Join(", ", assignedNames)
+                    : "Atanan kişi yok",
+                PriorityText = x.Priority.ToDisplayName(),
+                PriorityCss = x.Priority.ToString().ToLowerInvariant(),
+                DueDate = x.DueDate,
+                SubmittedForReviewAt = x.SubmittedForReviewAt
+            };
+        }).ToList();
+    }
+
     private bool CanViewTasksModule()
     {
         return HasAnyPermission(AppPermissions.TasksView, AppPermissions.TasksManage, AppPermissions.ProjectsManage, AppPermissions.TasksViewAll);
@@ -533,6 +629,14 @@ public class DashboardController : Controller
     private bool CanViewStockModule()
     {
         return HasAnyPermission(AppPermissions.StockView, AppPermissions.StockManage);
+    }
+
+    private bool CanViewReviewQueue()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     }
 
     private bool HasAnyPermission(params string[] permissions)
