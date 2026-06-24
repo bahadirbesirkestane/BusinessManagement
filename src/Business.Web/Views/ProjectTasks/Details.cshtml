@@ -84,7 +84,7 @@
         </div>
     </div>
     <dl class="row">
-        <dt class="col-sm-3">Sorumlu</dt><dd class="col-sm-9">@ViewBag.ResponsibleName</dd>
+        <dt class="col-sm-3">Görev Sahibi</dt><dd class="col-sm-9">@ViewBag.ResponsibleName</dd>
         <dt class="col-sm-3">Atanan kişiler</dt><dd class="col-sm-9">@(((IReadOnlyList<string>)ViewBag.AssignedUsers).Any() ? string.Join(", ", (IReadOnlyList<string>)ViewBag.AssignedUsers) : "-")</dd>
         <dt class="col-sm-3">Kategori</dt><dd class="col-sm-9">@(Model.TaskCategory?.Name ?? "-")</dd>
         <dt class="col-sm-3">Proje</dt><dd class="col-sm-9">@(Model.Project?.Name ?? Model.ManualProjectName ?? "-")</dd>

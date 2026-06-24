@@ -121,8 +121,8 @@
                 <option value="@customer.Id" selected="@(ViewBag.FilterCustomerId == customer.Id)">@customer.Name</option>
             }
         </select>
-        <select name="responsibleUserId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Sorumlu ara veya seç">
-            <option value="">Sorumlu</option>
+        <select name="responsibleUserId" class="form-select form-select-sm" data-searchable-select data-search-placeholder="Görev sahibi ara veya seç">
+            <option value="">Görev sahibi</option>
             @foreach (var user in ViewBag.FilterUsers)
             {
                 <option value="@user.Id" selected="@(ViewBag.FilterResponsibleUserId == user.Id)">@user.FullName</option>
@@ -191,8 +191,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="form-label">Sorumlu</label>
-                    <select name="ResponsibleUserId" class="form-select" data-searchable-select data-search-placeholder="Sorumlu ara veya seç">
+                    <label class="form-label">Görev Sahibi</label>
+                    <select name="ResponsibleUserId" class="form-select" data-searchable-select data-search-placeholder="Görev sahibi ara veya seç">
                         <option value="">Seçilmedi</option>
                         @foreach (var user in ViewBag.FilterUsers)
                         {
@@ -310,7 +310,7 @@
                             </th>
                         }
                         <th>Kategori</th>
-                        <th>Sorumlu</th>
+                        <th>Görev Sahibi</th>
                         <th>Atananlar</th>
                         <th>Durum</th>
                         <th>İlerleme</th>
@@ -335,7 +335,7 @@
                             data-preview-group="tasks-list"
                             data-preview-title="@task.Title"
                             data-preview-subtitle="Bağlantı: @(task.Project?.Code ?? task.Customer?.Name ?? task.ManualProjectName ?? task.ManualCustomerName ?? "Genel")"
-                            data-preview-meta="Sorumlu: @(!string.IsNullOrWhiteSpace(task.ResponsibleUserId) && userNames.TryGetValue(task.ResponsibleUserId, out var responsibleName) ? responsibleName : "Atanmadı") | İlerleme: %@task.ProgressPercent"
+                            data-preview-meta="Görev sahibi: @(!string.IsNullOrWhiteSpace(task.ResponsibleUserId) && userNames.TryGetValue(task.ResponsibleUserId, out var responsibleName) ? responsibleName : "Atanmadı") | İlerleme: %@task.ProgressPercent"
                             data-preview-description="@previewDescription"
                             data-preview-status="@task.Status.ToDisplayName()">
                             <td><strong>@task.Title</strong></td>

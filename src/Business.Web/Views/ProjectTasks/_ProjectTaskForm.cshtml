@@ -47,9 +47,9 @@
                 </select>
             </div>
             <div class="mb-3">
-                <label asp-for="ResponsibleUserId" class="form-label">Sorumlu Kişi</label>
-                <select asp-for="ResponsibleUserId" class="form-select" data-searchable-select data-search-placeholder="Sorumlu ara veya seç">
-                    <option value="">Sorumlu seçilmedi</option>
+                <label asp-for="ResponsibleUserId" class="form-label">Görev Sahibi</label>
+                <select asp-for="ResponsibleUserId" class="form-select" data-searchable-select data-search-placeholder="Görev sahibi ara veya seç">
+                    <option value="">Görev sahibi seçilmedi</option>
                     @foreach (var user in ViewBag.Users)
                     {
                         <option value="@user.Id">@user.FullName</option>

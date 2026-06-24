@@ -749,7 +749,7 @@ public class ProjectTasksController : Controller
         ]).ToList();
 
         return ExcelFile(
-            [new ExcelSheet("Arşiv Görevler", ["Görev", "Proje", "Müşteri", "Kategori", "Durum", "Öncelik", "Sorumlu", "İlerleme", "Termin", "Tamamlanma", "Arşiv Tarihi", "Açıklama"], rows)],
+            [new ExcelSheet("Arşiv Görevler", ["Görev", "Proje", "Müşteri", "Kategori", "Durum", "Öncelik", "Görev Sahibi", "İlerleme", "Termin", "Tamamlanma", "Arşiv Tarihi", "Açıklama"], rows)],
             $"arsiv-gorevler-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
     }
 

@@ -253,7 +253,7 @@
                                 </select>
                             </div>
                             <div class="mb-3">
-                                <label asp-for="TaskForm.DefaultResponsibleUserId" class="form-label">Varsayilan sorumlu</label>
+                                <label asp-for="TaskForm.DefaultResponsibleUserId" class="form-label">Varsayilan görev sahibi</label>
                                 <select asp-for="TaskForm.DefaultResponsibleUserId" class="form-select">
                                     <option value="">Kullanici secin</option>
                                     @foreach (var user in Model.Users)
