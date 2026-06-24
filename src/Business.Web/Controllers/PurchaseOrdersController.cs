@@ -58,6 +58,7 @@ public class PurchaseOrdersController : Controller
         bool load = true,
         int take = DefaultListTake,
         bool showAll = false,
+        bool includeDelivered = false,
         bool archivedOnly = false,
         CancellationToken cancellationToken = default)
     {
@@ -77,6 +78,7 @@ public class PurchaseOrdersController : Controller
         ViewBag.Load = load;
         ViewBag.CurrentTake = take;
         ViewBag.ShowAll = showAll;
+        ViewBag.IncludeDelivered = includeDelivered;
         ViewBag.ListAction = archivedOnly ? nameof(Archived) : nameof(Index);
         ViewBag.OrderListTitle = archivedOnly ? "Arşiv siparişler" : "Genel ve proje siparişleri";
         ViewBag.IsArchiveList = archivedOnly;
@@ -140,7 +142,7 @@ public class PurchaseOrdersController : Controller
         {
             query = query.Where(x => x.Status == status.Value);
         }
-        else if (!archivedOnly)
+        else if (!archivedOnly && !includeDelivered)
         {
             query = query.Where(x => x.Status != PurchaseOrderStatus.Delivered);
         }
@@ -241,7 +243,7 @@ public class PurchaseOrdersController : Controller
         bool showAll = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await Index(projectId, q, PurchaseOrderStatus.Delivered, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, sort, load, take, showAll, archivedOnly: false, cancellationToken);
+        var result = await Index(projectId, q, PurchaseOrderStatus.Delivered, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, sort, load, take, showAll, includeDelivered: false, archivedOnly: false, cancellationToken: cancellationToken);
         ViewBag.OrderListTitle = "Teslim edilen siparişler";
         ViewBag.ListAction = nameof(Delivered);
         ViewBag.StatusOptions = new List<PurchaseOrderStatus> { PurchaseOrderStatus.Delivered };
@@ -267,7 +269,7 @@ public class PurchaseOrdersController : Controller
         bool showAll = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await Index(projectId, q, status, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, sort, load, take, showAll, archivedOnly: true, cancellationToken);
+        var result = await Index(projectId, q, status, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, sort, load, take, showAll, includeDelivered: false, archivedOnly: true, cancellationToken: cancellationToken);
         return result is ViewResult viewResult
             ? View(nameof(Index), viewResult.Model)
             : result;

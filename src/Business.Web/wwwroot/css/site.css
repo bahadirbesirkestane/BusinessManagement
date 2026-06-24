@@ -876,7 +876,7 @@ a:hover {
   text-transform: uppercase;
 }
 
-.app-table tbody tr:nth-child(even):not(.status-row.status-completed):not(.status-row.status-done):not(.status-row.status-delivered) > td {
+.app-table tbody tr:nth-child(even):not(.status-row.status-completed):not(.status-row.status-done):not(.status-row.status-delivered):not(.status-row.status-fulfilled) > td {
   background: #fcfdff;
 }
 

@@ -14,6 +14,7 @@
     var currentTake = (int)(ViewBag.CurrentTake ?? 50);
     var nextTake = (int)(ViewBag.NextTake ?? (currentTake + 50));
     var showAll = ViewBag.ShowAll == true;
+    var includeDelivered = ViewBag.IncludeDelivered == true;
     var statusOptions = (IReadOnlyList<PurchaseOrderStatus>)(ViewBag.StatusOptions ?? Enum.GetValues<PurchaseOrderStatus>().ToList());
     var currentReturnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
     var defaultProjectId = ViewBag.ProjectId?.ToString();
@@ -30,6 +31,7 @@
     moreRoute["dateFrom"] = ViewBag.FilterDateFrom;
     moreRoute["dateTo"] = ViewBag.FilterDateTo;
     moreRoute["sort"] = ViewBag.Sort;
+    moreRoute["includeDelivered"] = includeDelivered ? "true" : null;
     if (requiresManualLoad)
     {
         moreRoute["load"] = "true";
@@ -47,6 +49,7 @@
     showAllRoute["dateFrom"] = ViewBag.FilterDateFrom;
     showAllRoute["dateTo"] = ViewBag.FilterDateTo;
     showAllRoute["sort"] = ViewBag.Sort;
+    showAllRoute["includeDelivered"] = includeDelivered ? "true" : null;
     showAllRoute["showAll"] = "true";
 }
 
@@ -80,6 +83,10 @@
         @if (ViewBag.ProjectId is not null)
         {
             <input type="hidden" name="projectId" value="@ViewBag.ProjectId" />
+        }
+        @if (includeDelivered)
+        {
+            <input type="hidden" name="includeDelivered" value="true" />
         }
         @if (requiresManualLoad)
         {

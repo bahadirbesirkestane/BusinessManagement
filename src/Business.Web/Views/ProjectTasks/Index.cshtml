@@ -15,6 +15,7 @@
     var nextTake = (int)(ViewBag.NextTake ?? (currentTake + 50));
     var requiresManualLoad = isDeferredLoad;
     var showAll = ViewBag.ShowAll == true;
+    var includeCompleted = ViewBag.IncludeCompleted == true;
     var isArchiveList = ViewBag.IsArchiveList == true;
     var statusOptions = (IReadOnlyList<WorkTaskStatus>)(ViewBag.StatusOptions ?? Enum.GetValues<WorkTaskStatus>().ToList());
     var currentReturnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
@@ -30,6 +31,7 @@
     moreRoute["responsibleUserId"] = ViewBag.FilterResponsibleUserId;
     moreRoute["assignedUserId"] = ViewBag.FilterAssignedUserId;
     moreRoute["sort"] = ViewBag.Sort;
+    moreRoute["includeCompleted"] = includeCompleted ? "true" : null;
     if (requiresManualLoad)
     {
         moreRoute["load"] = "true";
@@ -45,6 +47,7 @@
     showAllRoute["responsibleUserId"] = ViewBag.FilterResponsibleUserId;
     showAllRoute["assignedUserId"] = ViewBag.FilterAssignedUserId;
     showAllRoute["sort"] = ViewBag.Sort;
+    showAllRoute["includeCompleted"] = includeCompleted ? "true" : null;
     showAllRoute["showAll"] = "true";
 }
 
@@ -76,6 +79,10 @@
         @if (ViewBag.ProjectId is not null)
         {
             <input type="hidden" name="projectId" value="@ViewBag.ProjectId" />
+        }
+        @if (includeCompleted)
+        {
+            <input type="hidden" name="includeCompleted" value="true" />
         }
         @if (requiresManualLoad)
         {

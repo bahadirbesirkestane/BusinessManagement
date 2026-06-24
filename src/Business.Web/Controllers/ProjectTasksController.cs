@@ -37,7 +37,7 @@ public class ProjectTasksController : Controller
         _projectTimelineService = projectTimelineService;
     }
 
-    public async Task<IActionResult> Index(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, bool archivedOnly = false, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, bool includeCompleted = false, bool archivedOnly = false, CancellationToken cancellationToken = default)
     {
         take = Math.Max(DefaultListTake, take);
 
@@ -53,6 +53,7 @@ public class ProjectTasksController : Controller
         ViewBag.Load = load;
         ViewBag.CurrentTake = take;
         ViewBag.ShowAll = showAll;
+        ViewBag.IncludeCompleted = includeCompleted;
         ViewBag.ListAction = archivedOnly ? nameof(Archived) : nameof(Index);
         ViewBag.TaskListTitle = archivedOnly ? "Arşiv görevler" : "Tüm görevler";
         ViewBag.IsArchiveList = archivedOnly;
@@ -116,7 +117,7 @@ public class ProjectTasksController : Controller
         {
             query = query.Where(x => x.Status == status.Value);
         }
-        else if (!archivedOnly)
+        else if (!archivedOnly && !includeCompleted)
         {
             query = query.Where(x => x.Status != WorkTaskStatus.Done);
         }
@@ -187,7 +188,7 @@ public class ProjectTasksController : Controller
 
     public async Task<IActionResult> Completed(Guid? projectId, string? q, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
-        var result = await Index(projectId, q, WorkTaskStatus.Done, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, archivedOnly: false, cancellationToken);
+        var result = await Index(projectId, q, WorkTaskStatus.Done, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, includeCompleted: false, archivedOnly: false, cancellationToken: cancellationToken);
         ViewBag.TaskListTitle = "Tamamlanan görevler";
         ViewBag.ListAction = nameof(Completed);
         ViewBag.StatusOptions = new List<WorkTaskStatus> { WorkTaskStatus.Done };
@@ -198,7 +199,7 @@ public class ProjectTasksController : Controller
 
     public async Task<IActionResult> Archived(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
-        var result = await Index(projectId, q, status, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, archivedOnly: true, cancellationToken);
+        var result = await Index(projectId, q, status, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, includeCompleted: false, archivedOnly: true, cancellationToken: cancellationToken);
         return result is ViewResult viewResult
             ? View(nameof(Index), viewResult.Model)
             : result;
@@ -433,6 +434,7 @@ public class ProjectTasksController : Controller
     {
         task.Visibility = User.NormalizeRecordVisibility(task.Visibility);
         NormalizeTaskRelation(task);
+        ApplyTaskProgressByStatus(task);
         var validFiles = files?
             .Where(file => file is not null && file.Length > 0)
             .ToList() ?? [];
@@ -523,6 +525,7 @@ public class ProjectTasksController : Controller
 
         task.Visibility = User.NormalizeRecordVisibility(task.Visibility);
         NormalizeTaskRelation(task);
+        ApplyTaskProgressByStatus(task);
         if (task.ProjectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -564,6 +567,7 @@ public class ProjectTasksController : Controller
         }
 
         task.Status = WorkTaskStatus.InReview;
+        ApplyTaskProgressByStatus(task);
         task.SubmittedForReviewAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         await _projectTimelineService.AddForTaskAsync(id, "Görev kontrole gönderildi", task.Title, cancellationToken);
@@ -585,7 +589,7 @@ public class ProjectTasksController : Controller
         }
 
         task.Status = WorkTaskStatus.Done;
-        task.ProgressPercent = 100;
+        ApplyTaskProgressByStatus(task);
         task.CompletedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         await _projectTimelineService.AddForTaskAsync(id, "Görev tamamlandı", task.Title, cancellationToken);
@@ -619,9 +623,9 @@ public class ProjectTasksController : Controller
         if (task.Status != status)
         {
             task.Status = status;
+            ApplyTaskProgressByStatus(task);
             task.SubmittedForReviewAt = status == WorkTaskStatus.InReview ? DateTime.UtcNow : task.SubmittedForReviewAt;
             task.CompletedAt = status == WorkTaskStatus.Done ? DateTime.UtcNow : task.CompletedAt;
-            task.ProgressPercent = status == WorkTaskStatus.Done ? 100 : task.ProgressPercent;
             await _context.SaveChangesAsync(cancellationToken);
             await _projectTimelineService.AddForTaskAsync(id, "Görev durumu değişti", $"{task.Title} - {status.ToDisplayName()}", cancellationToken);
         }
@@ -706,7 +710,7 @@ public class ProjectTasksController : Controller
             task.Status = status;
             task.SubmittedForReviewAt = status == WorkTaskStatus.InReview ? DateTime.UtcNow : null;
             task.CompletedAt = status == WorkTaskStatus.Done ? DateTime.UtcNow : null;
-            task.ProgressPercent = status == WorkTaskStatus.Done ? 100 : task.ProgressPercent;
+            ApplyTaskProgressByStatus(task);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -946,6 +950,19 @@ public class ProjectTasksController : Controller
     {
         task.ManualProjectName = null;
         task.ManualCustomerName = null;
+    }
+
+    private static void ApplyTaskProgressByStatus(ProjectTask task)
+    {
+        task.ProgressPercent = task.Status switch
+        {
+            WorkTaskStatus.Todo => 0,
+            WorkTaskStatus.InProgress => 25,
+            WorkTaskStatus.Waiting => 50,
+            WorkTaskStatus.InReview => 75,
+            WorkTaskStatus.Done => 100,
+            _ => task.ProgressPercent
+        };
     }
 
     private async Task<string> GetUserDisplayNameAsync(string? userId)

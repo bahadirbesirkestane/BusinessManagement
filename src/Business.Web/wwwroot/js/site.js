@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initActionMenus();
     initFilterSummaries();
     initSideNav();
+    initTaskProgressAuto();
 });
 
 function initSearchableSelects() {
@@ -934,6 +935,39 @@ function initFileUploadForms() {
             setStatus('Dosyalar yükleniyor...', false);
             xhr.send(new FormData(form));
         });
+    });
+}
+
+function initTaskProgressAuto() {
+    document.querySelectorAll('form').forEach(function (form) {
+        var statusSelect = form.querySelector('[data-task-progress-status]');
+        var progressInput = form.querySelector('[data-task-progress-value]');
+        var progressDisplay = form.querySelector('[data-task-progress-display]');
+
+        if (!statusSelect || !progressInput || !progressDisplay) {
+            return;
+        }
+
+        function syncProgress() {
+            var mappedValue = {
+                '0': 0,
+                '1': 25,
+                '2': 50,
+                '3': 75,
+                '4': 100
+            }[statusSelect.value];
+
+            if (typeof mappedValue === 'undefined') {
+                progressDisplay.value = progressInput.value + '%';
+                return;
+            }
+
+            progressInput.value = String(mappedValue);
+            progressDisplay.value = mappedValue + '%';
+        }
+
+        statusSelect.addEventListener('change', syncProgress);
+        syncProgress();
     });
 }
 

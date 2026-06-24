@@ -44,7 +44,8 @@ public class MaterialRequestsController : Controller
         DateTime? neededFrom,
         DateTime? neededTo,
         string? sort,
-        CancellationToken cancellationToken)
+        bool includeFulfilled = false,
+        CancellationToken cancellationToken = default)
     {
         var query = _context.MaterialRequests
             .Include(x => x.Project)
@@ -81,6 +82,10 @@ public class MaterialRequestsController : Controller
         if (status.HasValue)
         {
             query = query.Where(x => x.Status == status.Value);
+        }
+        else if (!includeFulfilled)
+        {
+            query = query.Where(x => x.Status != MaterialRequestStatus.Fulfilled);
         }
 
         if (materialId.HasValue)
@@ -121,6 +126,9 @@ public class MaterialRequestsController : Controller
         ViewBag.FilterNeededFrom = neededFrom?.ToString("yyyy-MM-dd");
         ViewBag.FilterNeededTo = neededTo?.ToString("yyyy-MM-dd");
         ViewBag.Sort = sort;
+        ViewBag.IncludeFulfilled = includeFulfilled;
+        ViewBag.ListAction = nameof(Index);
+        ViewBag.RequestListTitle = includeFulfilled ? "Tüm ihtiyaçlar" : "Açık ihtiyaçlar";
         ViewBag.Projects = await _lookupService.GetProjectsAsync(cancellationToken);
         ViewBag.Materials = await _lookupService.GetMaterialsAsync(cancellationToken);
         ViewBag.Users = await GetActiveUsersAsync(cancellationToken);
@@ -131,6 +139,35 @@ public class MaterialRequestsController : Controller
             cancellationToken);
 
         return View(requests);
+    }
+
+    public async Task<IActionResult> Fulfilled(
+        Guid? projectId,
+        string? q,
+        Guid? materialId,
+        string? requestedByUserId,
+        DateTime? neededFrom,
+        DateTime? neededTo,
+        string? sort,
+        CancellationToken cancellationToken)
+    {
+        var result = await Index(
+            projectId,
+            q,
+            MaterialRequestStatus.Fulfilled,
+            materialId,
+            requestedByUserId,
+            neededFrom,
+            neededTo,
+            sort,
+            includeFulfilled: true,
+            cancellationToken);
+
+        ViewBag.ListAction = nameof(Fulfilled);
+        ViewBag.RequestListTitle = "Karşılanan ihtiyaçlar";
+        return result is ViewResult viewResult
+            ? View(nameof(Index), viewResult.Model)
+            : result;
     }
 
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
@@ -432,6 +469,31 @@ public class MaterialRequestsController : Controller
                 cancellationToken);
         }
 
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanRequestMaterials)]
+    public async Task<IActionResult> BulkUpdateStatus(Guid[] ids, MaterialRequestStatus status, string? returnUrl, CancellationToken cancellationToken)
+    {
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
+        var requests = await _context.MaterialRequests
+            .Where(x => selectedIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        foreach (var request in requests)
+        {
+            request.Status = status;
+            NormalizeMaterialRequestInput(request);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
         return RedirectToLocal(returnUrl);
     }
 

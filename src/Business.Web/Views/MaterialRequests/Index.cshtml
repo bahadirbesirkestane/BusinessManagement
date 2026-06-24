@@ -4,6 +4,8 @@
     var canManageRequest = User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsManage);
     var canCreateOrder = User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingCreate) || User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingManage);
     var canUseBulkSelection = canManageRequest || canCreateOrder;
+    var includeFulfilled = ViewBag.IncludeFulfilled == true;
+    var listAction = (string)(ViewBag.ListAction ?? "Index");
     var currentReturnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
     var defaultProjectId = ViewBag.ProjectId?.ToString();
     var requestedByNames = ViewBag.RequestedByNames as IReadOnlyDictionary<string, string> ?? new Dictionary<string, string>();
@@ -13,10 +15,18 @@
     <div class="panel-heading">
         <div>
             <p class="section-kicker">Atölye ve proje ekibi</p>
-            <h2>Gerekli malzeme listesi</h2>
+            <h2>@(ViewBag.RequestListTitle ?? "Gerekli malzeme listesi")</h2>
             <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
         <div class="toolbar-actions">
+            @if (string.Equals(listAction, "Fulfilled", StringComparison.OrdinalIgnoreCase))
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-projectId="@ViewBag.ProjectId">Açık liste</a>
+            }
+            else
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Fulfilled" asp-route-projectId="@ViewBag.ProjectId">Karşılananlar</a>
+            }
             <a class="btn btn-outline-secondary btn-sm" asp-controller="MaterialRequestTemplates" asp-action="Index">Şablonlar</a>
             @if (canManageRequest)
             {
@@ -26,10 +36,14 @@
         </div>
     </div>
 
-    <form asp-action="Index" method="get" class="list-filter-bar list-filter-bar-wide">
+    <form asp-action="@listAction" method="get" class="list-filter-bar list-filter-bar-wide">
         @if (ViewBag.ProjectId is not null)
         {
             <input type="hidden" name="projectId" value="@ViewBag.ProjectId" />
+        }
+        @if (includeFulfilled)
+        {
+            <input type="hidden" name="includeFulfilled" value="true" />
         }
         <div class="filter-field filter-search">
             <span class="filter-icon" aria-hidden="true">⌕</span>
@@ -78,7 +92,7 @@
             <option value="oldest" selected="@(ViewBag.Sort == "oldest")">Eski kayıt</option>
         </select>
         <button class="icon-filter-button" type="submit" title="Filtrele" aria-label="Filtrele">⌕</button>
-        <a class="icon-filter-button clear" asp-action="Index" asp-route-projectId="@ViewBag.ProjectId" title="Temizle" aria-label="Temizle">×</a>
+        <a class="icon-filter-button clear" asp-action="@listAction" asp-route-projectId="@ViewBag.ProjectId" asp-route-includeFulfilled="@(includeFulfilled ? "true" : null)" title="Temizle" aria-label="Temizle">×</a>
     </form>
 
     @if (canManageRequest)
@@ -145,6 +159,16 @@
             @Html.AntiForgeryToken()
             <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
             <span class="bulk-selection-count" data-bulk-count="bulkRequestSelectionForm">0 kayıt seçildi</span>
+            @if (canManageRequest)
+            {
+                <select name="status" class="form-select form-select-sm">
+                    @foreach (MaterialRequestStatus item in Enum.GetValues<MaterialRequestStatus>())
+                    {
+                        <option value="@item">@item.ToDisplayName()</option>
+                    }
+                </select>
+                <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("BulkUpdateStatus")" data-bulk-submit="bulkRequestSelectionForm">Durumu güncelle</button>
+            }
             @if (canCreateOrder)
             {
                 <button class="btn btn-outline-primary btn-sm" type="submit" formaction="@Url.Action("TransferToQuickOrder")" data-bulk-submit="bulkRequestSelectionForm">Seçilenleri siparişe aktar</button>

@@ -71,7 +71,7 @@
             </div>
             <div class="mb-3">
                 <label asp-for="Status" class="form-label">Durum</label>
-                <select asp-for="Status" asp-items="Html.GetEnumSelectList<WorkTaskStatus>()" class="form-select"></select>
+                <select asp-for="Status" asp-items="Html.GetEnumSelectList<WorkTaskStatus>()" class="form-select" data-task-progress-status></select>
             </div>
             @if (User.IsInRole(AppRoles.Admin))
             {
@@ -90,8 +90,10 @@
                 <select asp-for="Priority" asp-items="Html.GetEnumSelectList<ProjectPriority>()" class="form-select"></select>
             </div>
             <div class="mb-3">
-                <label asp-for="ProgressPercent" class="form-label">İlerleme (%)</label>
-                <input asp-for="ProgressPercent" type="number" min="0" max="100" class="form-control" />
+                <label class="form-label">İlerleme (%)</label>
+                <input asp-for="ProgressPercent" type="hidden" data-task-progress-value />
+                <input class="form-control" value="@Model.ProgressPercent%" readonly data-task-progress-display />
+                <small class="text-muted">İlerleme yüzdesi duruma göre otomatik hesaplanır.</small>
             </div>
             <div class="mb-3">
                 <label asp-for="StartDate" class="form-label">Başlangıç</label>
