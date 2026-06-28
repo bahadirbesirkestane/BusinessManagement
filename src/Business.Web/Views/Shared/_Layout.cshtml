@@ -1,5 +1,14 @@
+@using Microsoft.AspNetCore.Identity
+@using Business.Infrastructure.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@{
+    var currentUser = SignInManager.IsSignedIn(User) ? await UserManager.GetUserAsync(User) : null;
+    var currentTheme = AppThemes.ResolveForRender(currentUser?.ThemePreference, SignInManager.IsSignedIn(User));
+    Context.Items["CurrentTheme"] = currentTheme;
+}
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-theme="@currentTheme">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

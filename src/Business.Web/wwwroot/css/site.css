@@ -1,4 +1,5 @@
-:root {
+:root,
+html[data-theme="current"] {
   --bg: #f5f7fb;
   --panel: #ffffff;
   --ink: #18202f;
@@ -10,6 +11,8 @@
   --accent-soft: #eef4ff;
   --ok: #0f766e;
   --warn: #b45309;
+  --text: var(--ink);
+  --shadow-soft: 0 12px 28px rgba(16, 24, 40, .05);
 }
 
 html {
@@ -877,7 +880,7 @@ a:hover {
 }
 
 .app-table tbody tr:nth-child(even):not(.status-row.status-completed):not(.status-row.status-done):not(.status-row.status-delivered):not(.status-row.status-fulfilled) > td {
-  background: #fcfdff;
+  background: var(--panel);
 }
 
 .app-table td {
@@ -3857,6 +3860,13 @@ a:hover {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  color: #fff;
 }
 
 .text-danger {
@@ -4296,6 +4306,559 @@ a:hover {
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #202124;
+  --panel: #292a2d;
+  --ink: #e8eaed;
+  --muted: #9aa0a6;
+  --line: #3c4043;
+  --sidebar: #202124;
+  --sidebar-2: #2b2c2f;
+  --accent: #8ab4f8;
+  --accent-soft: #334155;
+  --ok: #81c995;
+  --warn: #fbc66d;
+  --text: var(--ink);
+  --shadow-soft: 0 18px 38px rgba(0, 0, 0, .24);
+}
+
+html[data-theme="dark"] body {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .mobile-nav,
+html[data-theme="dark"] .metric-card,
+html[data-theme="dark"] .panel-block,
+html[data-theme="dark"] .welcome-panel,
+html[data-theme="dark"] .project-header,
+html[data-theme="dark"] .backup-hero,
+html[data-theme="dark"] .backup-card,
+html[data-theme="dark"] .table-responsive,
+html[data-theme="dark"] .stock-material-card,
+html[data-theme="dark"] .stock-group,
+html[data-theme="dark"] .stock-group-heading,
+html[data-theme="dark"] .project-calendar,
+html[data-theme="dark"] .calendar-day,
+html[data-theme="dark"] .quick-order-sheet-wrap,
+html[data-theme="dark"] .quick-order-sheet th,
+html[data-theme="dark"] .quick-order-row.is-disabled,
+html[data-theme="dark"] .inline-quick-panel,
+html[data-theme="dark"] .list-filter-bar,
+html[data-theme="dark"] .list-filter-bar-wide,
+html[data-theme="dark"] .bulk-action-bar.smart-bulk-bar,
+html[data-theme="dark"] .project-drive-icon-button,
+html[data-theme="dark"] .project-drive-root-link.is-active,
+html[data-theme="dark"] .project-drive-tree-link.is-active,
+html[data-theme="dark"] .project-drive-tree-row.is-active,
+html[data-theme="dark"] .project-drive-breadcrumbs a,
+html[data-theme="dark"] .project-drive-breadcrumbs span,
+html[data-theme="dark"] .plan-list-project,
+html[data-theme="dark"] .plan-list-board,
+html[data-theme="dark"] .plan-list-head,
+html[data-theme="dark"] .plan-list-task,
+html[data-theme="dark"] .plan-list-meta,
+html[data-theme="dark"] .dashboard-stat-chip,
+html[data-theme="dark"] .role-note,
+html[data-theme="dark"] .side-group,
+html[data-theme="dark"] .side-user,
+html[data-theme="dark"] .planning-custom-popup,
+html[data-theme="dark"] .planning-shell,
+html[data-theme="dark"] .planning-tree,
+html[data-theme="dark"] .planning-timeline,
+html[data-theme="dark"] .planning-custom-gantt,
+html[data-theme="dark"] .planning-custom-board {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--shadow-soft);
+}
+
+html[data-theme="dark"] .list-row,
+html[data-theme="dark"] .app-table td,
+html[data-theme="dark"] .app-table tbody tr:nth-child(even):not(.status-row.status-completed):not(.status-row.status-done):not(.status-row.status-delivered):not(.status-row.status-fulfilled) > td,
+html[data-theme="dark"] .stock-material-card,
+html[data-theme="dark"] .calendar-day,
+html[data-theme="dark"] .quick-order-row.is-disabled,
+html[data-theme="dark"] .dashboard-stat-chip,
+html[data-theme="dark"] .planning-custom-task,
+html[data-theme="dark"] .planning-custom-timeline,
+html[data-theme="dark"] .planning-tree-row,
+html[data-theme="dark"] .kanban-card,
+html[data-theme="dark"] .kanban-column,
+html[data-theme="dark"] .gantt-row,
+html[data-theme="dark"] .gantt-row-track {
+  background: #292a2d;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .app-table tbody tr:hover > td,
+html[data-theme="dark"] .status-row[data-row-link]:hover > td,
+html[data-theme="dark"] .list-row-link:hover,
+html[data-theme="dark"] .stock-material-card:hover,
+html[data-theme="dark"] .project-drive-icon-button:hover,
+html[data-theme="dark"] .back-button:hover,
+html[data-theme="dark"] .mobile-nav a:hover,
+html[data-theme="dark"] .mobile-nav .side-subnav a:hover,
+html[data-theme="dark"] .planning-tree-row:hover,
+html[data-theme="dark"] .gantt-row:hover,
+html[data-theme="dark"] .kanban-card:hover {
+  border-color: rgba(138, 180, 248, .34);
+  background: #303134;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .app-table thead th,
+html[data-theme="dark"] .calendar-weekday,
+html[data-theme="dark"] .stock-group-heading,
+html[data-theme="dark"] .quick-order-sheet th,
+html[data-theme="dark"] .plan-list-head,
+html[data-theme="dark"] .backup-hero p,
+html[data-theme="dark"] .backup-card p,
+html[data-theme="dark"] .calendar-day.is-muted,
+html[data-theme="dark"] .inline-quick-panel summary::before,
+html[data-theme="dark"] .planning-tree header,
+html[data-theme="dark"] .planning-timeline header,
+html[data-theme="dark"] .planning-custom-toolbar,
+html[data-theme="dark"] .planning-custom-task-head,
+html[data-theme="dark"] .planning-custom-date-head,
+html[data-theme="dark"] .gantt-header,
+html[data-theme="dark"] .kanban-column header,
+html[data-theme="dark"] .planning-context {
+  background: #303134;
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select,
+html[data-theme="dark"] .back-button,
+html[data-theme="dark"] .navbar-toggler,
+html[data-theme="dark"] .project-drive-icon-button,
+html[data-theme="dark"] .status-select,
+html[data-theme="dark"] .planning-add-child,
+html[data-theme="dark"] .kanban-column header strong {
+  border-color: var(--line);
+  background: #202124;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .btn-primary {
+  background: #8ab4f8;
+  border-color: #8ab4f8;
+  color: #202124;
+}
+
+html[data-theme="dark"] .btn-primary:hover,
+html[data-theme="dark"] .btn-primary:focus,
+html[data-theme="dark"] .btn-primary:active {
+  background: #9ec1fb;
+  border-color: #9ec1fb;
+  color: #202124;
+}
+
+html[data-theme="dark"] .form-control::placeholder,
+html[data-theme="dark"] .side-nav-filter::placeholder {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .list-row-link,
+html[data-theme="dark"] .stock-material-card,
+html[data-theme="dark"] .calendar-event,
+html[data-theme="dark"] .project-drive-root-link,
+html[data-theme="dark"] .project-drive-tree-link,
+html[data-theme="dark"] .project-drive-tree-row,
+html[data-theme="dark"] .plan-list-project-main,
+html[data-theme="dark"] .nav-link {
+  color: inherit;
+}
+
+html[data-theme="dark"] a {
+  color: #8ab4f8;
+}
+
+html[data-theme="dark"] .mobile-nav .side-group,
+html[data-theme="dark"] .mobile-nav .side-nav-filter,
+html[data-theme="dark"] .mobile-nav .side-user,
+html[data-theme="dark"] .mobile-nav .side-subnav a.active {
+  background: #292a2d;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .action-menu summary,
+html[data-theme="dark"] .action-menu-list,
+html[data-theme="dark"] .action-menu-list a,
+html[data-theme="dark"] .action-menu-list button,
+html[data-theme="dark"] [data-preview-trigger],
+html[data-theme="dark"] .preview-trigger,
+html[data-theme="dark"] .compact-preview-popover,
+html[data-theme="dark"] .compact-preview-popover *,
+html[data-theme="dark"] .searchable-select-list,
+html[data-theme="dark"] .searchable-select-empty,
+html[data-theme="dark"] .permission-group,
+html[data-theme="dark"] .permission-toggle,
+html[data-theme="dark"] .permission-toggle .permission-group,
+html[data-theme="dark"] .diagram-hero,
+html[data-theme="dark"] .diagram-summary-grid > div,
+html[data-theme="dark"] .diagram-filter-bar .form-select,
+html[data-theme="dark"] .google-gantt-shell,
+html[data-theme="dark"] .google-visualization-tooltip,
+html[data-theme="dark"] .google-visualization-tooltip *,
+html[data-theme="dark"] .list-preview-panel,
+html[data-theme="dark"] .planning-gantt-shell .popup-wrapper,
+html[data-theme="dark"] .planning-gantt-popup,
+html[data-theme="dark"] .planning-gantt-popup *,
+html[data-theme="dark"] .planning-custom-popup,
+html[data-theme="dark"] .planning-custom-popup *,
+html[data-theme="dark"] .check-card,
+html[data-theme="dark"] .collapsible-section {
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .action-menu summary,
+html[data-theme="dark"] .action-menu-list,
+html[data-theme="dark"] .compact-preview-popover,
+html[data-theme="dark"] .searchable-select-list,
+html[data-theme="dark"] .searchable-select-empty,
+html[data-theme="dark"] .permission-group,
+html[data-theme="dark"] .permission-toggle,
+html[data-theme="dark"] .diagram-hero,
+html[data-theme="dark"] .diagram-summary-grid > div,
+html[data-theme="dark"] .google-gantt-shell,
+html[data-theme="dark"] .list-preview-panel,
+html[data-theme="dark"] .planning-gantt-shell .popup-wrapper,
+html[data-theme="dark"] .planning-gantt-popup,
+html[data-theme="dark"] .check-card,
+html[data-theme="dark"] .collapsible-section {
+  background: #292a2d;
+}
+
+html[data-theme="dark"] .action-menu summary svg,
+html[data-theme="dark"] .action-menu summary i,
+html[data-theme="dark"] .action-menu summary::before,
+html[data-theme="dark"] .action-menu summary::after,
+html[data-theme="dark"] [data-preview-trigger] svg,
+html[data-theme="dark"] [data-preview-trigger] i,
+html[data-theme="dark"] .preview-trigger,
+html[data-theme="dark"] .project-drive-icon-button svg {
+  fill: currentColor;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .action-menu[open] summary,
+html[data-theme="dark"] .action-menu summary:hover,
+html[data-theme="dark"] .action-menu-list a:hover,
+html[data-theme="dark"] .action-menu-list button:hover,
+html[data-theme="dark"] .searchable-select-option:hover,
+html[data-theme="dark"] .searchable-select-option[aria-selected="true"],
+html[data-theme="dark"] .permission-toggle summary:hover {
+  background: #303134;
+  color: #d2e3fc;
+}
+
+html[data-theme="dark"] .action-menu-list .text-danger:hover {
+  background: #3a2628;
+  color: #f2d6d8;
+}
+
+html[data-theme="dark"] .action-menu-list a,
+html[data-theme="dark"] .action-menu-list button,
+html[data-theme="dark"] .searchable-select-option,
+html[data-theme="dark"] .compact-preview-popover h3,
+html[data-theme="dark"] .compact-preview-popover strong,
+html[data-theme="dark"] .permission-group h3,
+html[data-theme="dark"] .permission-toggle summary,
+html[data-theme="dark"] .diagram-hero h2,
+html[data-theme="dark"] .diagram-summary-grid strong,
+html[data-theme="dark"] .list-preview-panel h3,
+html[data-theme="dark"] .planning-gantt-popup strong,
+html[data-theme="dark"] .planning-custom-popup strong,
+html[data-theme="dark"] .check-card span,
+html[data-theme="dark"] .collapsible-section summary,
+html[data-theme="dark"] .google-visualization-tooltip {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .diagram-hero p:not(.section-kicker),
+html[data-theme="dark"] .diagram-summary-grid span,
+html[data-theme="dark"] .searchable-select-empty,
+html[data-theme="dark"] .compact-preview-popover p,
+html[data-theme="dark"] .planning-gantt-popup p,
+html[data-theme="dark"] .planning-gantt-popup dt,
+html[data-theme="dark"] .planning-gantt-popup dd,
+html[data-theme="dark"] .planning-custom-popup p,
+html[data-theme="dark"] .planning-custom-popup dt,
+html[data-theme="dark"] .planning-custom-popup dd,
+html[data-theme="dark"] .list-preview-panel p,
+html[data-theme="dark"] .list-preview-status,
+html[data-theme="dark"] .google-visualization-tooltip * {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .diagram-filter-bar .form-select,
+html[data-theme="dark"] .searchable-select-input,
+html[data-theme="dark"] .searchable-select-option,
+html[data-theme="dark"] .searchable-select-empty,
+html[data-theme="dark"] .icon-filter-button,
+html[data-theme="dark"] .preview-trigger,
+html[data-theme="dark"] .planning-user-checks {
+  background: #202124;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .searchable-select-option:disabled {
+  color: #6f7680;
+}
+
+html[data-theme="dark"] .permission-toggle .permission-group,
+html[data-theme="dark"] .diagram-summary-grid > div,
+html[data-theme="dark"] .list-preview-status,
+html[data-theme="dark"] .planning-user-checks {
+  background: #303134;
+}
+
+html[data-theme="dark"] .diagram-hero {
+  background: linear-gradient(135deg, #292a2d 0%, #303134 100%);
+}
+
+html[data-theme="dark"] .list-preview-panel {
+  background: linear-gradient(180deg, #292a2d 0%, #303134 100%);
+}
+
+html[data-theme="dark"] .google-visualization-tooltip,
+html[data-theme="dark"] .planning-gantt-shell .popup-wrapper,
+html[data-theme="dark"] .planning-gantt-popup,
+html[data-theme="dark"] .planning-custom-popup,
+html[data-theme="dark"] .compact-preview-popover {
+  background: #303134 !important;
+}
+
+html[data-theme="dark"] .preview-trigger,
+html[data-theme="dark"] button.preview-trigger,
+html[data-theme="dark"] .icon-filter-button,
+html[data-theme="dark"] button.icon-filter-button,
+html[data-theme="dark"] a.icon-filter-button,
+html[data-theme="dark"] .planning-user-checks,
+html[data-theme="dark"] .planning-task-modal .planning-user-checks,
+html[data-theme="dark"] .compact-preview-popover,
+html[data-theme="dark"] .compact-preview-popover * {
+  border-color: var(--line) !important;
+  background: #303134 !important;
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] .compact-preview-popover p,
+html[data-theme="dark"] .compact-preview-popover span,
+html[data-theme="dark"] .compact-preview-popover small {
+  color: var(--muted) !important;
+}
+
+html[data-theme="dark"] .compact-preview-popover h3,
+html[data-theme="dark"] .compact-preview-popover strong,
+html[data-theme="dark"] .compact-preview-popover [data-preview-title] {
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] .list-preview-status {
+  background: rgba(138, 180, 248, .16) !important;
+  color: #d2e3fc !important;
+}
+
+html[data-theme="dark"] .icon-filter-button {
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .icon-filter-button:hover,
+html[data-theme="dark"] .preview-trigger:hover,
+html[data-theme="dark"] .preview-trigger.is-active {
+  border-color: rgba(138, 180, 248, .34);
+  background: #3c4043;
+  color: #d2e3fc;
+}
+
+html[data-theme="dark"] .icon-filter-button.clear {
+  color: #f28b82;
+}
+
+html[data-theme="dark"] .icon-filter-button.clear:hover {
+  background: #3a2628;
+  color: #f2d6d8;
+}
+
+html[data-theme="dark"] .status-pill,
+html[data-theme="dark"] .task-tree-badge,
+html[data-theme="dark"] .project-drive-root-link.is-active,
+html[data-theme="dark"] .project-drive-tree-link.is-active,
+html[data-theme="dark"] .project-drive-tree-row.is-active {
+  background: rgba(138, 180, 248, .16);
+  color: #d2e3fc;
+}
+
+html[data-theme="dark"] .status-row.status-completed > td,
+html[data-theme="dark"] .status-row.status-done > td,
+html[data-theme="dark"] .status-row.status-delivered > td,
+html[data-theme="dark"] .status-row.status-fulfilled > td {
+  background: #23372b;
+  color: #d7f3df;
+}
+
+html[data-theme="dark"] .status-row.status-completed,
+html[data-theme="dark"] .status-row.status-done,
+html[data-theme="dark"] .status-row.status-delivered,
+html[data-theme="dark"] .status-row.status-fulfilled,
+html[data-theme="dark"] .status-row.status-completed:nth-child(even) > td,
+html[data-theme="dark"] .status-row.status-done:nth-child(even) > td,
+html[data-theme="dark"] .status-row.status-delivered:nth-child(even) > td,
+html[data-theme="dark"] .status-row.status-fulfilled:nth-child(even) > td {
+  background: #23372b !important;
+  color: #d7f3df !important;
+}
+
+html[data-theme="dark"] .status-row.status-cancelled > td,
+html[data-theme="dark"] .status-row.status-blocked > td {
+  background: #3a2628;
+  color: #f2d6d8;
+}
+
+html[data-theme="dark"] .status-row.status-inprogress > td,
+html[data-theme="dark"] .status-row.status-requested > td,
+html[data-theme="dark"] .status-row.status-approved > td,
+html[data-theme="dark"] .status-row.status-ordered > td,
+html[data-theme="dark"] .status-row.status-inreview > td {
+  background: #233245;
+  color: #d2e3fc;
+}
+
+html[data-theme="dark"] .status-row.status-planned > td,
+html[data-theme="dark"] .status-row.status-draft > td,
+html[data-theme="dark"] .status-row.status-todo > td,
+html[data-theme="dark"] .status-row.status-waiting > td,
+html[data-theme="dark"] .status-row.status-partiallydelivered > td,
+html[data-theme="dark"] .status-row.status-reserved > td,
+html[data-theme="dark"] .status-row.status-lowstock > td,
+html[data-theme="dark"] .status-row.status-outofstock > td,
+html[data-theme="dark"] .status-row.status-scrapped > td {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .breadcrumb-nav span,
+html[data-theme="dark"] .topbar h1,
+html[data-theme="dark"] .panel-heading h2,
+html[data-theme="dark"] .welcome-panel h2,
+html[data-theme="dark"] .project-header h2,
+html[data-theme="dark"] .backup-hero h3,
+html[data-theme="dark"] .backup-card h3,
+html[data-theme="dark"] .project-drive-subtitle,
+html[data-theme="dark"] .planning-custom-popup strong,
+html[data-theme="dark"] .plan-list-project strong,
+html[data-theme="dark"] .plan-list-meta strong,
+html[data-theme="dark"] .dashboard-stat-chip strong,
+html[data-theme="dark"] .kanban-card strong,
+html[data-theme="dark"] .planning-tree header strong,
+html[data-theme="dark"] .planning-timeline header strong {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .topbar-eyebrow,
+html[data-theme="dark"] .section-kicker,
+html[data-theme="dark"] .list-row small,
+html[data-theme="dark"] .metric-card span,
+html[data-theme="dark"] .metric-card small,
+html[data-theme="dark"] .stock-material-card small,
+html[data-theme="dark"] .stock-card-meta span,
+html[data-theme="dark"] .stock-group-heading span,
+html[data-theme="dark"] .calendar-event span,
+html[data-theme="dark"] .calendar-more,
+html[data-theme="dark"] .breadcrumb-nav,
+html[data-theme="dark"] .breadcrumb-nav a,
+html[data-theme="dark"] .empty-note,
+html[data-theme="dark"] .dashboard-focus-copy,
+html[data-theme="dark"] .dashboard-task-meta small,
+html[data-theme="dark"] .dashboard-stat-chip span,
+html[data-theme="dark"] .planning-custom-popup p,
+html[data-theme="dark"] .planning-custom-popup dt,
+html[data-theme="dark"] .planning-custom-popup dd,
+html[data-theme="dark"] .kanban-card-meta,
+html[data-theme="dark"] .kanban-card-people,
+html[data-theme="dark"] .kanban-card-bottom {
+  color: var(--muted);
+}
+
+
+.theme-quick-form {
+  margin: 0;
+}
+
+.theme-select {
+  min-width: 142px;
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.theme-settings-form {
+  display: grid;
+  gap: 14px;
+}
+
+.theme-option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.theme-option-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.theme-option-card:hover {
+  border-color: rgba(37, 99, 235, .35);
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-1px);
+}
+
+.theme-option-card.is-selected {
+  border-color: rgba(37, 99, 235, .45);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+
+.theme-option-card input[type="radio"] {
+  margin: 0;
+}
+
+.theme-option-card strong {
+  color: var(--ink);
+}
+
+.theme-option-card small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.theme-option-preview {
+  display: block;
+  height: 74px;
+  border: 1px solid rgba(15, 23, 42, .08);
+  border-radius: 10px;
+}
+
+.theme-preview-current {
+  background: linear-gradient(135deg, #101827 0 28%, #f5f7fb 28% 100%);
+}
+
+.theme-preview-dark {
+  background: linear-gradient(135deg, #111722 0 28%, #1d2531 28% 100%);
 }
 
 @media (max-width: 991.98px) {

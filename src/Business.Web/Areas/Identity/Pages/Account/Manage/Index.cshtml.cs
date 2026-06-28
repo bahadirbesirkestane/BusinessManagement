@@ -20,6 +20,7 @@ public class IndexModel : PageModel
     public bool EmailConfirmed { get; private set; }
     public bool TwoFactorEnabled { get; private set; }
     public bool IsAdmin { get; private set; }
+    public string CurrentTheme { get; private set; } = AppThemes.Current;
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -33,6 +34,7 @@ public class IndexModel : PageModel
         EmailConfirmed = user.EmailConfirmed;
         TwoFactorEnabled = await _userManager.GetTwoFactorEnabledAsync(user);
         IsAdmin = await _userManager.IsInRoleAsync(user, AppRoles.Admin);
+        CurrentTheme = AppThemes.ResolveForRender(user.ThemePreference, isAuthenticated: true);
         return Page();
     }
 }

@@ -1,14 +1,16 @@
 @page
 @model Business.Web.Areas.Identity.Pages.Account.Manage.IndexModel
+@using Business.Infrastructure.Identity
 @{
-    ViewData["Title"] = "Hesap Yönetimi";
+    ViewData["Title"] = "Hesap Yonetimi";
+    var returnUrl = $"{Request.Path}{Request.QueryString}";
 }
 
 <section class="panel-block">
     <div class="panel-heading">
         <div>
-            <p class="section-kicker">Identity Hesap Yönetimi</p>
-            <h2>Hesap Yönetimi</h2>
+            <p class="section-kicker">Identity Hesap Yonetimi</p>
+            <h2>Hesap Yonetimi</h2>
         </div>
     </div>
 
@@ -18,22 +20,57 @@
                 <tr>
                     <th>E-posta</th>
                     <td>@Model.Email</td>
-                    <td><span class="status-pill @(Model.EmailConfirmed ? "status-success" : "status-danger")">@(Model.EmailConfirmed ? "Doğrulandı" : "Doğrulanmadı")</span></td>
-                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./Email">E-posta Yönet</a></td>
+                    <td><span class="status-pill @(Model.EmailConfirmed ? "status-success" : "status-danger")">@(Model.EmailConfirmed ? "Dogrulandi" : "Dogrulanmadi")</span></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./Email">E-posta Yonet</a></td>
                 </tr>
                 <tr>
-                    <th>Şifre</th>
-                    <td>Hesap şifrenizi değiştirebilirsiniz.</td>
+                    <th>Sifre</th>
+                    <td>Hesap sifrenizi degistirebilirsiniz.</td>
                     <td></td>
-                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./ChangePassword">Şifre Değiştir</a></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./ChangePassword">Sifre Degistir</a></td>
                 </tr>
                 <tr>
                     <th>2FA</th>
-                    <td>@(Model.IsAdmin ? "Admin iki aşamalı doğrulama ayarı" : "Çalışanlar için zorunlu değil")</td>
-                    <td><span class="status-pill @(Model.TwoFactorEnabled ? "status-success" : "status-danger")">@(Model.TwoFactorEnabled ? "Açık" : "Kapalı")</span></td>
-                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./TwoFactorAuthentication">2FA Yönet</a></td>
+                    <td>@(Model.IsAdmin ? "Admin iki asamali dogrulama ayari" : "Calisanlar icin zorunlu degil")</td>
+                    <td><span class="status-pill @(Model.TwoFactorEnabled ? "status-success" : "status-danger")">@(Model.TwoFactorEnabled ? "Acik" : "Kapali")</span></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./TwoFactorAuthentication">2FA Yonet</a></td>
                 </tr>
             </tbody>
         </table>
     </div>
+</section>
+
+<section class="panel-block mt-3">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Gorunum</p>
+            <h2>Tema Tercihi</h2>
+        </div>
+    </div>
+
+    <form asp-controller="Theme" asp-action="Update" method="post" class="theme-settings-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <div class="theme-option-grid">
+            @foreach (var option in AppThemes.Options)
+            {
+                var isSelected = Model.CurrentTheme == option.Key;
+                var description = option.Key switch
+                {
+                    AppThemes.Current => "Alisilmis mevcut renk yapisini korur.",
+                    AppThemes.Dark => "Google benzeri daha dengeli koyu yuzeyler kullanir.",
+                    _ => string.Empty
+                };
+                <label class="theme-option-card @(isSelected ? "is-selected" : null)">
+                    <input type="radio" name="theme" value="@option.Key" checked="@isSelected" />
+                    <span class="theme-option-preview theme-preview-@option.Key" aria-hidden="true"></span>
+                    <strong>@option.Value</strong>
+                    <small>@description</small>
+                </label>
+            }
+        </div>
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Tema Tercihini Kaydet</button>
+        </div>
+    </form>
 </section>

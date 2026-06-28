@@ -2,10 +2,26 @@
 @using Business.Infrastructure.Identity
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
+@{
+    var currentTheme = Context.Items["CurrentTheme"] as string ?? AppThemes.Current;
+    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+}
 
 <ul class="navbar-nav user-nav">
 @if (SignInManager.IsSignedIn(User))
 {
+    <li class="nav-item">
+        <form asp-controller="Theme" asp-action="Update" method="post" class="theme-quick-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+            <select name="theme" class="form-select form-select-sm theme-select" aria-label="Tema seçimi" onchange="this.form.submit()">
+                @foreach (var option in AppThemes.Options)
+                {
+                    <option value="@option.Key" selected="@(currentTheme == option.Key)">@option.Value</option>
+                }
+            </select>
+        </form>
+    </li>
     <li class="nav-item user-chip">
         <a class="nav-link" asp-area="Identity" asp-page="/Account/Manage/Index" title="Hesap">
             @User.Identity?.Name

@@ -103,6 +103,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<ApplicationUser>(entity =>
         {
             entity.Property(x => x.FullName).HasMaxLength(160);
+            entity.Property(x => x.ThemePreference).HasMaxLength(24);
             entity.HasOne<Department>().WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.SetNull);
         });
 
