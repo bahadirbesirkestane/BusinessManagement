@@ -1,0 +1,110 @@
+@model Business.Web.ViewModels.LegacyPurchaseImportViewModel
+
+@{
+    ViewData["Title"] = "Veri Aktarımı";
+}
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Ayarlar</p>
+            <h2>Eski Excel Aktarımı</h2>
+        </div>
+    </div>
+
+    <div class="backup-hero">
+        <div>
+            <h3>Düzenlenmiş proje ve sipariş Excel dosyasını içeri aktar</h3>
+            <p>Bu ekran sadece hazırlaştırılmış import dosyasını kabul eder. Projeler kod bazlı eşleştirilir, mevcut tedarikçiler varsa bağlanır, bulunamazsa sipariş tedarikçisiz kaydedilir.</p>
+        </div>
+    </div>
+
+    @if (ViewBag.Success is string successMessage)
+    {
+        <div class="alert alert-success">@successMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger">
+            <div>@Model.ErrorMessage</div>
+            @if (!string.IsNullOrWhiteSpace(Model.TraceId))
+            {
+                <small>Takip kodu: <code>@Model.TraceId</code></small>
+            }
+        </div>
+    }
+
+    <form asp-action="LegacyPurchases" method="post" enctype="multipart/form-data" class="activity-form">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="mb-3">
+            <label class="form-label" for="file">Import dosyası</label>
+            <input class="form-control" type="file" id="file" name="file" accept=".xlsx" />
+        </div>
+        <button type="submit" class="btn btn-primary">Excel İçeri Aktar</button>
+    </form>
+
+    @if (Model.Result is not null)
+    {
+        <div class="backup-grid mt-4">
+            <article class="backup-card">
+                <div>
+                    <span class="status-pill">@Model.Result.CreatedProjects proje</span>
+                    <h3>Yeni Projeler</h3>
+                    <p>Sisteme bu import ile eklenen proje sayısı.</p>
+                </div>
+            </article>
+            <article class="backup-card">
+                <div>
+                    <span class="status-pill">@Model.Result.ReusedProjects proje</span>
+                    <h3>Mevcut Projeler</h3>
+                    <p>Kod eşleşmesiyle mevcut projeye bağlanan kayıtlar.</p>
+                </div>
+            </article>
+            <article class="backup-card">
+                <div>
+                    <span class="status-pill">@Model.Result.ImportedOrders sipariş</span>
+                    <h3>İçe Alınan Siparişler</h3>
+                    <p>Yeni oluşturulan sipariş sayısı.</p>
+                </div>
+            </article>
+            <article class="backup-card">
+                <div>
+                    <span class="status-pill">@Model.Result.SkippedOrders sipariş</span>
+                    <h3>Atlanan Siparişler</h3>
+                    <p>Mükerrer veya eksik veri nedeniyle atlanan satırlar.</p>
+                </div>
+            </article>
+            <article class="backup-card">
+                <div>
+                    <span class="status-pill">@Model.Result.MatchedSuppliers tedarikçi</span>
+                    <h3>Eşleşen Tedarikçiler</h3>
+                    <p>Mevcut sistem tedarikçisine bağlanan siparişler.</p>
+                </div>
+            </article>
+            <article class="backup-card">
+                <div>
+                    <span class="status-pill">@Model.Result.UnmatchedSuppliers tedarikçi</span>
+                    <h3>Eşleşmeyen Tedarikçiler</h3>
+                    <p>Sipariş kaydedilip tedarikçi alanı boş bırakılan satırlar.</p>
+                </div>
+            </article>
+        </div>
+
+        @if (Model.Result.Messages.Count > 0)
+        {
+            <div class="panel-block mt-4">
+                <div class="panel-heading">
+                    <h3>İşlem Notları</h3>
+                </div>
+                <ul class="mb-0">
+                    @foreach (var message in Model.Result.Messages)
+                    {
+                        <li>@message</li>
+                    }
+                </ul>
+            </div>
+        }
+    }
+</section>

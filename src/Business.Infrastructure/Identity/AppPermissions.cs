@@ -44,6 +44,8 @@ public static class AppPermissions
     public const string UsersManage = "users.manage";
     public const string RolesManage = "roles.manage";
     public const string SettingsManage = "settings.manage";
+    public const string CompanyFilesView = "companyfiles.view";
+    public const string CompanyFilesManage = "companyfiles.manage";
 
     public static readonly IReadOnlyList<PermissionDefinition> All =
     [
@@ -88,7 +90,9 @@ public static class AppPermissions
         new(UsersView, "Kullanıcılar ve Yetkiler", "Kullanıcıları görüntüle"),
         new(UsersManage, "Kullanıcılar ve Yetkiler", "Kullanıcı yönet"),
         new(RolesManage, "Kullanıcılar ve Yetkiler", "Rol ve izin yönet"),
-        new(SettingsManage, "Ayarlar", "Sistem ayarlarını yönet")
+        new(SettingsManage, "Ayarlar", "Sistem ayarlarını yönet"),
+        new(CompanyFilesView, "Dosya Yönetimi", "Firma dosyalarını görüntüle"),
+        new(CompanyFilesManage, "Dosya Yönetimi", "Firma dosyalarını yönet")
     ];
 }
 

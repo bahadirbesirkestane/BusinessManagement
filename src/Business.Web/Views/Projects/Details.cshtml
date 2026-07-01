@@ -42,7 +42,7 @@
                 <h2>Proje işleri</h2>
             </div>
             <div class="toolbar-actions">
-                <a class="btn btn-outline-primary btn-sm" asp-controller="ProjectTasks" asp-action="Index" asp-route-projectId="@Model.Project.Id" asp-route-includeCompleted="true">Tümünü İncele</a>
+                <a class="btn btn-outline-primary btn-sm" asp-controller="ProjectTasks" asp-action="All" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
                 @if (canCreateTask)
                 {
                     <a class="btn btn-primary btn-sm" asp-controller="ProjectTasks" asp-action="Create" asp-route-projectId="@Model.Project.Id">Yeni Görev Ekle</a>
@@ -85,7 +85,7 @@
                     <h2>Siparişler</h2>
                 </div>
                 <div class="toolbar-actions">
-                    <a class="btn btn-outline-primary btn-sm" asp-controller="PurchaseOrders" asp-action="Index" asp-route-projectId="@Model.Project.Id" asp-route-includeDelivered="true">Tümünü İncele</a>
+                    <a class="btn btn-outline-primary btn-sm" asp-controller="PurchaseOrders" asp-action="All" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
                     @if (canCreateOrder)
                     {
                         <a class="btn btn-outline-secondary btn-sm" asp-controller="PurchaseOrders" asp-action="QuickCreate" asp-route-projectId="@Model.Project.Id" asp-route-returnUrl="@currentReturnUrl">Hızlı sipariş</a>
@@ -177,7 +177,7 @@
                 <h2>İhtiyaç listesi</h2>
             </div>
             <div class="toolbar-actions">
-                <a class="btn btn-outline-primary btn-sm" asp-controller="MaterialRequests" asp-action="Index" asp-route-projectId="@Model.Project.Id" asp-route-includeFulfilled="true">Tümünü İncele</a>
+                <a class="btn btn-outline-primary btn-sm" asp-controller="MaterialRequests" asp-action="All" asp-route-projectId="@Model.Project.Id">Tümünü İncele</a>
                 @if (canManageMaterialRequests)
                 {
                     <a class="btn btn-outline-secondary btn-sm" asp-controller="MaterialRequests" asp-action="QuickCreate" asp-route-projectId="@Model.Project.Id" asp-route-returnUrl="@currentReturnUrl">Hızlı ihtiyaç</a>

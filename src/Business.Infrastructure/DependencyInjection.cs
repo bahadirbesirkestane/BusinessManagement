@@ -164,12 +164,24 @@ public static class DependencyInjection
 
             options.AddPolicy(AppPolicies.CanManageUsers, policy =>
                 policy.RequireClaim(AppClaimTypes.Permission, AppPermissions.UsersManage));
+
+            options.AddPolicy(AppPolicies.CanViewCompanyFiles, policy =>
+                policy.RequireAssertion(context =>
+                    context.User.IsInRole(AppRoles.Admin) ||
+                    context.User.HasClaim(AppClaimTypes.Permission, AppPermissions.CompanyFilesView) ||
+                    context.User.HasClaim(AppClaimTypes.Permission, AppPermissions.CompanyFilesManage)));
+
+            options.AddPolicy(AppPolicies.CanManageCompanyFiles, policy =>
+                policy.RequireAssertion(context =>
+                    context.User.IsInRole(AppRoles.Admin) ||
+                    context.User.HasClaim(AppClaimTypes.Permission, AppPermissions.CompanyFilesManage)));
         });
 
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         services.AddScoped(typeof(ICrudService<>), typeof(CrudService<>));
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IProjectDriveService, ProjectDriveService>();
+        services.AddScoped<ICompanyDriveService, CompanyDriveService>();
         services.AddScoped<IProjectTemplateService, ProjectTemplateService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IPurchaseOrderTemplateService, PurchaseOrderTemplateService>();
@@ -185,6 +197,7 @@ public static class DependencyInjection
         services.AddScoped<IRecordActivityService, RecordActivityService>();
         services.AddScoped<IProjectTimelineService, ProjectTimelineService>();
         services.AddScoped<IAdminRecoveryCodeService, AdminRecoveryCodeService>();
+        services.AddScoped<ILegacyPurchaseImportService, LegacyPurchaseImportService>();
 
         return services;
     }

@@ -1,4 +1,4 @@
-using Business.Application.Services;
+﻿using Business.Application.Services;
 using Business.Domain.Entities;
 using Business.Domain.Enums;
 using Business.Infrastructure.Data;
@@ -54,12 +54,12 @@ public class ProjectTasksController : Controller
         ViewBag.CurrentTake = take;
         ViewBag.ShowAll = showAll;
         ViewBag.IncludeCompleted = includeCompleted;
-        ViewBag.ListAction = archivedOnly ? nameof(Archived) : nameof(Index);
-        ViewBag.TaskListTitle = archivedOnly ? "Arşiv görevler" : "Tüm görevler";
+        ViewBag.ListAction = archivedOnly ? nameof(Archived) : (includeCompleted ? nameof(All) : nameof(Index));
+        ViewBag.TaskListTitle = archivedOnly ? "Arşiv görevler" : (includeCompleted ? "Tüm görevler" : "Aktif görevler");
         ViewBag.IsArchiveList = archivedOnly;
         await FillFilterLookupsAsync(cancellationToken);
         ViewBag.StatusOptions = Enum.GetValues<WorkTaskStatus>()
-            .Where(x => archivedOnly || x != WorkTaskStatus.Done)
+            .Where(x => archivedOnly || includeCompleted || x != WorkTaskStatus.Done)
             .ToList();
 
         if (projectId.HasValue)
@@ -71,7 +71,7 @@ public class ProjectTasksController : Controller
                 {
                     ["Projeler"] = Url.Action("Index", "Projects"),
                     [project.Code] = Url.Action("Details", "Projects", new { id = project.Id }),
-                    ["Görevler"] = null
+                    ["GÃ¶revler"] = null
                 };
             }
         }
@@ -186,6 +186,14 @@ public class ProjectTasksController : Controller
         return View(tasks);
     }
 
+    public async Task<IActionResult> All(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    {
+        var result = await Index(projectId, q, status, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, includeCompleted: true, archivedOnly: false, cancellationToken: cancellationToken);
+        return result is ViewResult viewResult
+            ? View(nameof(Index), viewResult.Model)
+            : result;
+    }
+
     public async Task<IActionResult> Completed(Guid? projectId, string? q, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
         var result = await Index(projectId, q, WorkTaskStatus.Done, priority, categoryId, customerId, responsibleUserId, assignedUserId, sort, load, take, showAll, includeCompleted: false, archivedOnly: false, cancellationToken: cancellationToken);
@@ -270,7 +278,7 @@ public class ProjectTasksController : Controller
             _ => query.OrderByDescending(x => x.CreatedAt)
         };
 
-        ViewBag.TaskListTitle = "Bana Atanan Görevler";
+        ViewBag.TaskListTitle = "Bana Atanan GÃ¶revler";
         ViewBag.AssignedToMe = true;
         ViewBag.FilterQ = q;
         ViewBag.FilterStatus = status;
@@ -314,12 +322,12 @@ public class ProjectTasksController : Controller
             {
                 ["Projeler"] = Url.Action("Index", "Projects"),
                 [task.Project.Code] = Url.Action("Details", "Projects", new { id = task.Project.Id }),
-                ["Görevler"] = Url.Action(nameof(Index), new { projectId = task.Project.Id }),
+                ["GÃ¶revler"] = Url.Action(nameof(Index), new { projectId = task.Project.Id }),
                 [task.Title] = null
             }
             : new Dictionary<string, string?>
             {
-                ["Görevler"] = Url.Action(nameof(Index)),
+                ["GÃ¶revler"] = Url.Action(nameof(Index)),
                 [task.Title] = null
             };
         ViewBag.Breadcrumbs = await CreateTaskBreadcrumbsAsync(task, cancellationToken);
@@ -446,13 +454,13 @@ public class ProjectTasksController : Controller
                 .AnyAsync(x => x.Id == task.ProjectId.Value, cancellationToken);
             if (!canUseProject)
             {
-                ModelState.AddModelError(nameof(task.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+                ModelState.AddModelError(nameof(task.ProjectId), "SeÃƒÂ§ilen proje iÃƒÂ§in yetkiniz bulunmuyor.");
             }
         }
 
         if (task.Status == WorkTaskStatus.Done && !CanCompleteTasks())
         {
-            ModelState.AddModelError(nameof(task.Status), "Görevi tamamlandı olarak kaydetme yetkiniz yok.");
+            ModelState.AddModelError(nameof(task.Status), "GÃ¶revi tamamlandÄ± olarak kaydetme yetkiniz yok.");
         }
 
         if (!_recordFileUploadService.TryValidateFiles(validFiles, out var fileErrorMessage))
@@ -470,7 +478,7 @@ public class ProjectTasksController : Controller
         _context.ProjectTasks.Add(task);
         await _context.SaveChangesAsync(cancellationToken);
         await SyncAssignmentsAsync(task.Id, Request.Form["AssignedUserIds"].Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!), cancellationToken);
-        await _projectTimelineService.AddForTaskAsync(task.Id, "Görev eklendi", task.Title, cancellationToken);
+        await _projectTimelineService.AddForTaskAsync(task.Id, "GÃ¶rev eklendi", task.Title, cancellationToken);
         if (validFiles.Count > 0)
         {
             try
@@ -484,16 +492,16 @@ public class ProjectTasksController : Controller
 
                 if (savedFiles.Count > 1)
                 {
-                    TempData["Success"] = $"{savedFiles.Count} dosya yüklendi.";
+                    TempData["Success"] = $"{savedFiles.Count} dosya yÃ¼klendi.";
                 }
             }
             catch (IOException)
             {
-                TempData["Error"] = "Görev kaydedildi fakat dosyalar yüklenirken bir hata oluştu.";
+                TempData["Error"] = "GÃ¶rev kaydedildi fakat dosyalar yÃ¼klenirken bir hata oluÅŸtu.";
             }
             catch (UnauthorizedAccessException)
             {
-                TempData["Error"] = "Görev kaydedildi fakat dosyalar yüklenemedi.";
+                TempData["Error"] = "GÃ¶rev kaydedildi fakat dosyalar yÃ¼klenemedi.";
             }
         }
 
@@ -539,13 +547,13 @@ public class ProjectTasksController : Controller
                 .AnyAsync(x => x.Id == task.ProjectId.Value, cancellationToken);
             if (!canUseProject)
             {
-                ModelState.AddModelError(nameof(task.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+                ModelState.AddModelError(nameof(task.ProjectId), "SeÃƒÂ§ilen proje iÃƒÂ§in yetkiniz bulunmuyor.");
             }
         }
 
         if (task.Status == WorkTaskStatus.Done && !CanCompleteTasks())
         {
-            ModelState.AddModelError(nameof(task.Status), "Görevi tamamlandı olarak kaydetme yetkiniz yok.");
+            ModelState.AddModelError(nameof(task.Status), "GÃ¶revi tamamlandÄ± olarak kaydetme yetkiniz yok.");
         }
 
         if (!ModelState.IsValid)
@@ -558,7 +566,7 @@ public class ProjectTasksController : Controller
         _context.Update(task);
         await _context.SaveChangesAsync(cancellationToken);
         await SyncAssignmentsAsync(task.Id, Request.Form["AssignedUserIds"].Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!), cancellationToken);
-        await _projectTimelineService.AddForTaskAsync(task.Id, "Görev güncellendi", task.Title, cancellationToken);
+        await _projectTimelineService.AddForTaskAsync(task.Id, "GÃ¶rev gÃ¼ncellendi", task.Title, cancellationToken);
         return RedirectToLocal(returnUrl, fallbackRouteValues: task.ProjectId.HasValue ? new { projectId = task.ProjectId } : null);
     }
 
@@ -580,7 +588,7 @@ public class ProjectTasksController : Controller
         ApplyTaskProgressByStatus(task);
         task.SubmittedForReviewAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
-        await _projectTimelineService.AddForTaskAsync(id, "Görev kontrole gönderildi", task.Title, cancellationToken);
+        await _projectTimelineService.AddForTaskAsync(id, "GÃ¶rev kontrole gÃ¶nderildi", task.Title, cancellationToken);
         return RedirectToLocal(returnUrl, nameof(Details), new { id });
     }
 
@@ -602,7 +610,7 @@ public class ProjectTasksController : Controller
         ApplyTaskProgressByStatus(task);
         task.CompletedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
-        await _projectTimelineService.AddForTaskAsync(id, "Görev tamamlandı", task.Title, cancellationToken);
+        await _projectTimelineService.AddForTaskAsync(id, "GÃ¶rev tamamlandÄ±", task.Title, cancellationToken);
         return RedirectToLocal(returnUrl, nameof(Details), new { id });
     }
 
@@ -633,7 +641,7 @@ public class ProjectTasksController : Controller
             task.SubmittedForReviewAt = status == WorkTaskStatus.InReview ? DateTime.UtcNow : task.SubmittedForReviewAt;
             task.CompletedAt = status == WorkTaskStatus.Done ? DateTime.UtcNow : task.CompletedAt;
             await _context.SaveChangesAsync(cancellationToken);
-            await _projectTimelineService.AddForTaskAsync(id, "Görev durumu değişti", $"{task.Title} - {status.ToDisplayName()}", cancellationToken);
+            await _projectTimelineService.AddForTaskAsync(id, "GÃ¶rev durumu deÄŸiÅŸti", $"{task.Title} - {status.ToDisplayName()}", cancellationToken);
         }
 
         return RedirectToLocal(returnUrl);
@@ -655,7 +663,7 @@ public class ProjectTasksController : Controller
 
         SetTaskArchiveState(task, archived);
         await _context.SaveChangesAsync(cancellationToken);
-        await _projectTimelineService.AddForTaskAsync(task.Id, archived ? "Görev arşivlendi" : "Görev arşivden çıkarıldı", task.Title, cancellationToken);
+        await _projectTimelineService.AddForTaskAsync(task.Id, archived ? "GÃ¶rev arÅŸivlendi" : "GÃ¶rev arÅŸivden Ã§Ä±karÄ±ldÄ±", task.Title, cancellationToken);
         return RedirectToLocal(returnUrl);
     }
 
@@ -751,7 +759,7 @@ public class ProjectTasksController : Controller
         ]).ToList();
 
         return ExcelFile(
-            [new ExcelSheet("Arşiv Görevler", ["Görev", "Proje", "Müşteri", "Kategori", "Durum", "Öncelik", "Görev Sahibi", "İlerleme", "Termin", "Tamamlanma", "Arşiv Tarihi", "Açıklama"], rows)],
+            [new ExcelSheet("ArÅŸiv GÃ¶revler", ["GÃ¶rev", "Proje", "MÃ¼ÅŸteri", "Kategori", "Durum", "Ã–ncelik", "GÃ¶rev Sahibi", "Ä°lerleme", "Termin", "Tamamlanma", "ArÅŸiv Tarihi", "AÃ§Ä±klama"], rows)],
             $"arsiv-gorevler-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
     }
 
@@ -889,11 +897,11 @@ public class ProjectTasksController : Controller
         {
             breadcrumbs.Add(new("Projeler", Url.Action("Index", "Projects")));
             breadcrumbs.Add(new(task.Project.Code, Url.Action("Details", "Projects", new { id = task.Project.Id })));
-            breadcrumbs.Add(new("Görevler", Url.Action(nameof(Index), new { projectId = task.Project.Id })));
+            breadcrumbs.Add(new("GÃ¶revler", Url.Action(nameof(Index), new { projectId = task.Project.Id })));
         }
         else
         {
-            breadcrumbs.Add(new("Görevler", Url.Action(nameof(Index))));
+            breadcrumbs.Add(new("GÃ¶revler", Url.Action(nameof(Index))));
         }
 
         var parentChain = await GetParentTaskChainAsync(task, cancellationToken);
@@ -914,7 +922,7 @@ public class ProjectTasksController : Controller
             breadcrumbs[^1] = new KeyValuePair<string, string?>(task.Title, Url.Action(nameof(Details), new { id = task.Id }));
         }
 
-        breadcrumbs.Add(new KeyValuePair<string, string?>("Güncelleme Geçmişi", null));
+        breadcrumbs.Add(new KeyValuePair<string, string?>("GÃ¼ncelleme GeÃ§miÅŸi", null));
         return breadcrumbs;
     }
 
@@ -985,11 +993,11 @@ public class ProjectTasksController : Controller
     {
         if (string.IsNullOrWhiteSpace(userId))
         {
-            return "Atanmamış";
+            return "AtanmamÄ±ÅŸ";
         }
 
         var user = await _userManager.FindByIdAsync(userId);
-        return user?.FullName ?? user?.Email ?? "Atanmamış";
+        return user?.FullName ?? user?.Email ?? "AtanmamÄ±ÅŸ";
     }
 
     private async Task<IReadOnlyList<string>> GetAssignedUserNamesAsync(IEnumerable<string> userIds, CancellationToken cancellationToken)
@@ -1046,3 +1054,6 @@ public class ProjectTasksController : Controller
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 }
+
+
+

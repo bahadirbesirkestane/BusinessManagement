@@ -1,4 +1,4 @@
-@using Microsoft.AspNetCore.Identity
+﻿@using Microsoft.AspNetCore.Identity
 @inject UserManager<ApplicationUser> UserManager
 
 @{
@@ -30,7 +30,8 @@
             Title = "Projeler",
             Items = new[]
             {
-                (Label: "Tüm Projeler", Url: "/Projects"),
+                (Label: "Aktif Projeler", Url: "/Projects"),
+                (Label: "Tüm Projeler", Url: "/Projects/All"),
                 (Label: "Tamamlanan Projeler", Url: "/Projects/Completed"),
                 (Label: "Arşiv Projeler", Url: "/Projects/Archived")
             }
@@ -51,7 +52,8 @@
             Title = "Görevler",
             Items = new[]
             {
-                (Label: "Tüm Görevler", Url: "/ProjectTasks"),
+                (Label: "Aktif Görevler", Url: "/ProjectTasks"),
+                (Label: "Tüm Görevler", Url: "/ProjectTasks/All"),
                 (Label: "Tamamlanan Görevler", Url: "/ProjectTasks/Completed"),
                 (Label: "Arşiv Görevler", Url: "/ProjectTasks/Archived"),
                 (Label: "Bana Atananlar", Url: "/ProjectTasks/AssignedToMe"),
@@ -70,10 +72,19 @@
         },
         new
         {
+            Title = "Dokümanlar",
+            Items = new[]
+            {
+                (Label: "Firma Dosyaları", Url: "/CompanyDrive")
+            }
+        },
+        new
+        {
             Title = "Siparişler",
             Items = new[]
             {
-                (Label: "Tüm Siparişler", Url: "/PurchaseOrders"),
+                (Label: "Aktif Siparişler", Url: "/PurchaseOrders"),
+                (Label: "Tüm Siparişler", Url: "/PurchaseOrders/All"),
                 (Label: "Teslim Edilen Siparişler", Url: "/PurchaseOrders/Delivered"),
                 (Label: "Arşiv Siparişler", Url: "/PurchaseOrders/Archived"),
                 (Label: "Hızlı Sipariş", Url: "/PurchaseOrders/QuickCreate"),
@@ -86,7 +97,8 @@
             Items = new[]
             {
                 (Label: "Malzeme Listesi", Url: "/Materials"),
-                (Label: "Malzeme İhtiyaç Listesi", Url: "/MaterialRequests"),
+                (Label: "Açık İhtiyaç Listesi", Url: "/MaterialRequests"),
+                (Label: "Tüm İhtiyaçlar", Url: "/MaterialRequests/All"),
                 (Label: "Karşılanan İhtiyaçlar", Url: "/MaterialRequests/Fulfilled"),
                 (Label: "Hızlı İhtiyaç", Url: "/MaterialRequests/QuickCreate"),
                 (Label: "İhtiyaç Şablonları", Url: "/MaterialRequestTemplates"),
@@ -155,7 +167,8 @@
             Title = "Ayarlar",
             Items = new[]
             {
-                (Label: "Yedekleme", Url: "/Backup")
+                (Label: "Yedekleme", Url: "/Backup"),
+                (Label: "Veri Aktarımı", Url: "/DataImport")
             }
         }
     };
@@ -194,6 +207,11 @@
         if (url.StartsWith("/ProjectTasks", StringComparison.OrdinalIgnoreCase))
         {
             return HasPermission(AppPermissions.TasksView, AppPermissions.TasksCreate, AppPermissions.TasksUpdate, AppPermissions.TasksChangeStatus, AppPermissions.TasksComplete, AppPermissions.TasksManage);
+        }
+
+        if (url.StartsWith("/CompanyDrive", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasPermission(AppPermissions.CompanyFilesView, AppPermissions.CompanyFilesManage);
         }
 
         if (url.StartsWith("/PersonalNotes", StringComparison.OrdinalIgnoreCase) ||
@@ -309,6 +327,11 @@
         }
 
         if (url.StartsWith("/Backup", StringComparison.OrdinalIgnoreCase))
+        {
+            return User.IsInRole(AppRoles.Admin);
+        }
+
+        if (url.StartsWith("/DataImport", StringComparison.OrdinalIgnoreCase))
         {
             return User.IsInRole(AppRoles.Admin);
         }

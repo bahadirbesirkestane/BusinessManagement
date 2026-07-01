@@ -1,4 +1,4 @@
-using Business.Application.Services;
+﻿using Business.Application.Services;
 using Business.Domain.Entities;
 using Business.Domain.Enums;
 using Business.Infrastructure.Data;
@@ -43,7 +43,7 @@ public class ProjectsController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, bool archivedOnly = false, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, bool includeCompleted = false, bool archivedOnly = false, CancellationToken cancellationToken = default)
     {
         take = Math.Max(DefaultListTake, take);
 
@@ -55,12 +55,13 @@ public class ProjectsController : Controller
         ViewBag.Load = load;
         ViewBag.CurrentTake = take;
         ViewBag.ShowAll = showAll;
-        ViewBag.ListAction = archivedOnly ? nameof(Archived) : nameof(Index);
-        ViewBag.ProjectListTitle = archivedOnly ? "Arşiv projeler" : "Tüm projeler";
+        ViewBag.IncludeCompleted = includeCompleted;
+        ViewBag.ListAction = archivedOnly ? nameof(Archived) : (includeCompleted ? nameof(All) : nameof(Index));
+        ViewBag.ProjectListTitle = archivedOnly ? "Arşiv projeler" : (includeCompleted ? "Tüm projeler" : "Aktif projeler");
         ViewBag.IsArchiveList = archivedOnly;
         ViewBag.Customers = await _context.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         ViewBag.StatusOptions = Enum.GetValues<ProjectStatus>()
-            .Where(x => archivedOnly || x != ProjectStatus.Completed)
+            .Where(x => archivedOnly || includeCompleted || x != ProjectStatus.Completed)
             .ToList();
 
         if (!load)
@@ -93,7 +94,7 @@ public class ProjectsController : Controller
         {
             query = query.Where(x => x.Status == status.Value);
         }
-        else if (!archivedOnly)
+        else if (!archivedOnly && !includeCompleted)
         {
             query = query.Where(x => x.Status != ProjectStatus.Completed);
         }
@@ -142,9 +143,17 @@ public class ProjectsController : Controller
         return View(projects);
     }
 
+    public async Task<IActionResult> All(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
+    {
+        var result = await Index(q, status, priority, customerId, sort, load, take, showAll, includeCompleted: true, archivedOnly: false, cancellationToken);
+        return result is ViewResult viewResult
+            ? View(nameof(Index), viewResult.Model)
+            : result;
+    }
+
     public async Task<IActionResult> Completed(string? q, ProjectPriority? priority, Guid? customerId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
-        var result = await Index(q, ProjectStatus.Completed, priority, customerId, sort, load, take, showAll, archivedOnly: false, cancellationToken);
+        var result = await Index(q, ProjectStatus.Completed, priority, customerId, sort, load, take, showAll, includeCompleted: false, archivedOnly: false, cancellationToken);
         ViewBag.ProjectListTitle = "Tamamlanan projeler";
         ViewBag.ListAction = nameof(Completed);
         ViewBag.StatusOptions = new List<ProjectStatus> { ProjectStatus.Completed };
@@ -155,7 +164,7 @@ public class ProjectsController : Controller
 
     public async Task<IActionResult> Archived(string? q, ProjectStatus? status, ProjectPriority? priority, Guid? customerId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, CancellationToken cancellationToken = default)
     {
-        var result = await Index(q, status, priority, customerId, sort, load, take, showAll, archivedOnly: true, cancellationToken);
+        var result = await Index(q, status, priority, customerId, sort, load, take, showAll, includeCompleted: false, archivedOnly: true, cancellationToken);
         return result is ViewResult viewResult
             ? View(nameof(Index), viewResult.Model)
             : result;
@@ -244,13 +253,13 @@ public class ProjectsController : Controller
         }
         else if (await _context.Projects.AnyAsync(x => x.Code == project.Code, cancellationToken))
         {
-            ModelState.AddModelError(nameof(project.Code), "Bu proje kodu zaten kullanılıyor.");
+            ModelState.AddModelError(nameof(project.Code), "Bu proje kodu zaten kullanÄ±lÄ±yor.");
             await FillLookupsAsync(cancellationToken);
             return View(project);
         }
 
         await _projectService.CreateAsync(project, cancellationToken);
-        await _projectTimelineService.AddAsync(project.Id, "Proje oluşturuldu", $"{project.Code} - {project.Name}", cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, "Proje oluÅŸturuldu", $"{project.Code} - {project.Name}", cancellationToken);
         return RedirectToAction(nameof(Index));
     }
 
@@ -312,13 +321,13 @@ public class ProjectsController : Controller
 
         if (await _context.Projects.AnyAsync(x => x.Id != id && x.Code == project.Code, cancellationToken))
         {
-            ModelState.AddModelError(nameof(project.Code), "Bu proje kodu zaten kullanılıyor.");
+            ModelState.AddModelError(nameof(project.Code), "Bu proje kodu zaten kullanÄ±lÄ±yor.");
             await FillLookupsAsync(cancellationToken);
             return View(project);
         }
 
         await _projectService.UpdateAsync(project, cancellationToken);
-        await _projectTimelineService.AddAsync(project.Id, "Proje düzenlendi", $"{project.Code} - {project.Name}", cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, "Proje dÃ¼zenlendi", $"{project.Code} - {project.Name}", cancellationToken);
         return RedirectToAction(nameof(Index));
     }
 
@@ -378,7 +387,7 @@ public class ProjectsController : Controller
             project.Status = status;
             project.CompletedAt = status == ProjectStatus.Completed ? DateTime.UtcNow : project.CompletedAt;
             await _projectService.UpdateAsync(project, cancellationToken);
-            await _projectTimelineService.AddAsync(project.Id, "Proje durumu değişti", $"{project.Code} - {status.ToDisplayName()}", cancellationToken);
+            await _projectTimelineService.AddAsync(project.Id, "Proje durumu deÄŸiÅŸti", $"{project.Code} - {status.ToDisplayName()}", cancellationToken);
         }
 
         return RedirectToLocal(returnUrl);
@@ -401,7 +410,7 @@ public class ProjectsController : Controller
 
         SetProjectArchiveState(project, archived);
         await _context.SaveChangesAsync(cancellationToken);
-        await _projectTimelineService.AddAsync(project.Id, archived ? "Proje arşivlendi" : "Proje arşivden çıkarıldı", $"{project.Code} - {project.Name}", cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, archived ? "Proje arÅŸivlendi" : "Proje arÅŸivden Ã§Ä±karÄ±ldÄ±", $"{project.Code} - {project.Name}", cancellationToken);
         return RedirectToLocal(returnUrl);
     }
 
@@ -483,7 +492,7 @@ public class ProjectsController : Controller
             .ToListAsync(cancellationToken);
 
         return ExcelFile(
-            [new ExcelSheet("Arşiv Projeler", ["Kod", "Proje", "Müşteri", "Durum", "Öncelik", "Başlangıç", "Hedef", "Tamamlanma", "Arşiv Tarihi", "Açıklama", "Not"], rows)],
+            [new ExcelSheet("ArÅŸiv Projeler", ["Kod", "Proje", "MÃ¼ÅŸteri", "Durum", "Ã–ncelik", "BaÅŸlangÄ±Ã§", "Hedef", "Tamamlanma", "ArÅŸiv Tarihi", "AÃ§Ä±klama", "Not"], rows)],
             $"arsiv-projeler-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
     }
 
@@ -613,7 +622,7 @@ public class ProjectsController : Controller
         {
             if (!string.IsNullOrWhiteSpace(task.WbsCode))
             {
-                return $"Hiyerarşi: {task.WbsCode}";
+                return $"HiyerarÅŸi: {task.WbsCode}";
             }
 
             var path = new List<int>();
@@ -638,8 +647,8 @@ public class ProjectsController : Controller
             }
 
             return path.Count > 1
-                ? $"Hiyerarşi: {string.Join(".", path)}"
-                : "Hiyerarşi: Ana görev";
+                ? $"HiyerarÅŸi: {string.Join(".", path)}"
+                : "HiyerarÅŸi: Ana gÃ¶rev";
         }
     }
 
@@ -674,3 +683,6 @@ public class ProjectsController : Controller
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 }
+
+
+

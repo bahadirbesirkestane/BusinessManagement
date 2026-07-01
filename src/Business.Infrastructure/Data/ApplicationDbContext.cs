@@ -31,6 +31,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ProjectCostItem> ProjectCostItems => Set<ProjectCostItem>();
     public DbSet<ProjectFolder> ProjectFolders => Set<ProjectFolder>();
     public DbSet<ProjectDriveFile> ProjectDriveFiles => Set<ProjectDriveFile>();
+    public DbSet<CompanyFolder> CompanyFolders => Set<CompanyFolder>();
+    public DbSet<CompanyFile> CompanyFiles => Set<CompanyFile>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderTemplate> PurchaseOrderTemplates => Set<PurchaseOrderTemplate>();
     public DbSet<PurchaseOrderTemplateLine> PurchaseOrderTemplateLines => Set<PurchaseOrderTemplateLine>();
@@ -299,6 +301,44 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.RelativePath).HasMaxLength(520).IsRequired();
             entity.Property(x => x.ContentType).HasMaxLength(160);
             entity.Property(x => x.Description).HasMaxLength(500);
+            entity.HasOne(x => x.Folder)
+                .WithMany(x => x.Files)
+                .HasForeignKey(x => x.FolderId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<CompanyFolder>(entity =>
+        {
+            entity.HasIndex(x => new { x.DepartmentId, x.Name })
+                .IsUnique()
+                .HasFilter("[ParentFolderId] IS NULL");
+            entity.HasIndex(x => new { x.DepartmentId, x.ParentFolderId, x.Name })
+                .IsUnique()
+                .HasFilter("[ParentFolderId] IS NOT NULL");
+            entity.HasIndex(x => new { x.DepartmentId, x.ParentFolderId, x.SortOrder });
+            entity.Property(x => x.Name).HasMaxLength(180).IsRequired();
+            entity.HasOne(x => x.Department)
+                .WithMany()
+                .HasForeignKey(x => x.DepartmentId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.ParentFolder)
+                .WithMany(x => x.ChildFolders)
+                .HasForeignKey(x => x.ParentFolderId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<CompanyFile>(entity =>
+        {
+            entity.HasIndex(x => new { x.DepartmentId, x.FolderId, x.CreatedAt });
+            entity.Property(x => x.OriginalFileName).HasMaxLength(260).IsRequired();
+            entity.Property(x => x.StoredFileName).HasMaxLength(260).IsRequired();
+            entity.Property(x => x.RelativePath).HasMaxLength(520).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(160);
+            entity.Property(x => x.Description).HasMaxLength(500);
+            entity.HasOne(x => x.Department)
+                .WithMany()
+                .HasForeignKey(x => x.DepartmentId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(x => x.Folder)
                 .WithMany(x => x.Files)
                 .HasForeignKey(x => x.FolderId)

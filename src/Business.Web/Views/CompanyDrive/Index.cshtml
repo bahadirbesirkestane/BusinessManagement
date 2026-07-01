@@ -1,0 +1,284 @@
+@model CompanyDriveIndexViewModel
+@{
+    ViewData["Title"] = "Firma Dosyalari";
+    ViewData["CurrentFolderId"] = Model.CurrentFolderId;
+    ViewData["CanManage"] = Model.CanManage;
+}
+
+@functions {
+    private static readonly HashSet<string> PreviewableImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".bmp",
+        ".svg"
+    };
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024)
+        {
+            return $"{bytes} B";
+        }
+
+        if (bytes < 1024 * 1024)
+        {
+            return $"{bytes / 1024d:0.#} KB";
+        }
+
+        return $"{bytes / 1024d / 1024d:0.#} MB";
+    }
+
+    private static bool IsPreviewableImage(string fileName, string? contentType)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType) && contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return PreviewableImageExtensions.Contains(System.IO.Path.GetExtension(fileName));
+    }
+}
+
+@{
+    var previewableFiles = Model.Files
+        .Where(file => IsPreviewableImage(file.OriginalFileName, file.ContentType))
+        .ToList();
+}
+
+<section class="diagram-hero">
+    <div>
+        <p class="section-kicker">Firma arsivi</p>
+        <h2>Firma Dosyalari</h2>
+        <p>Bu alanda firma genelinde kullanilan klasorleri yonetin, dosya yukleyin ve yetkili kullanicilar icin guvenli sekilde erisim saglayin.</p>
+    </div>
+    <div class="diagram-summary-grid">
+        <div>
+            <span>Secili klasor</span>
+            <strong>@Model.CurrentFolderName</strong>
+        </div>
+        <div>
+            <span>Alt klasor</span>
+            <strong>@Model.SubFolderCount</strong>
+        </div>
+        <div>
+            <span>Dosya</span>
+            <strong>@Model.Files.Count</strong>
+        </div>
+    </div>
+</section>
+
+<section class="panel-block">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Gezinme</p>
+            <h2>Klasor yolu</h2>
+        </div>
+    </div>
+
+    <nav class="project-drive-breadcrumbs" aria-label="Klasor yolu">
+        @foreach (var item in Model.Breadcrumbs)
+        {
+            if (item.IsActive)
+            {
+                <span class="is-active">@item.Label</span>
+            }
+            else
+            {
+                <a asp-action="Index" asp-route-folderId="@item.FolderId">@item.Label</a>
+            }
+        }
+    </nav>
+</section>
+
+<div class="project-drive-layout">
+    <section class="panel-block project-drive-sidebar">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Klasor agaci</p>
+                <h2>Arsiv yapisi</h2>
+            </div>
+        </div>
+
+        <div class="project-drive-tree-shell">
+            <a class="project-drive-root-link @(Model.CurrentFolderId is null ? "is-active" : null)"
+               asp-action="Index">
+                Kok klasor
+            </a>
+
+            @if (Model.FolderTree.Any())
+            {
+                @await Html.PartialAsync("_FolderTree", Model.FolderTree, ViewData)
+            }
+            else
+            {
+                <p class="empty-note">Henuz klasor olusturulmamis.</p>
+            }
+        </div>
+    </section>
+
+    <div class="project-drive-main">
+        @if (Model.CanManage)
+        {
+            <section class="panel-block">
+                <div class="panel-heading">
+                    <div>
+                        <p class="section-kicker">Hizli islemler</p>
+                        <h2>Klasor ve dosya yonetimi</h2>
+                    </div>
+                </div>
+
+                <div class="project-drive-actions-grid">
+                    <form asp-action="CreateFolder" method="post" class="activity-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="parentFolderId" value="@Model.CurrentFolderId" />
+                        <label class="form-label">Yeni klasor adi</label>
+                        <input name="name" class="form-control" maxlength="180" placeholder="Ornek: Sozlesmeler" />
+                        <button class="btn btn-primary btn-sm" type="submit">Klasor olustur</button>
+                    </form>
+
+                    <form asp-action="UploadFiles" method="post" enctype="multipart/form-data" class="activity-form" data-file-upload-form data-require-file="true">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="folderId" value="@Model.CurrentFolderId" />
+                        <label class="form-label">Dosya yukle</label>
+                        <input type="file"
+                               name="files"
+                               class="form-control"
+                               multiple
+                               data-file-upload-input
+                               data-max-file-size="@Model.MaxUploadSizeBytes"
+                               data-max-file-size-label="50 MB" />
+                        <div class="file-upload-status" data-file-upload-status hidden>
+                            <div class="file-upload-status-text" data-file-upload-text></div>
+                            <div class="file-upload-progress" data-file-upload-progress hidden>
+                                <div class="file-upload-progress-bar" data-file-upload-progress-bar></div>
+                            </div>
+                            <div class="file-upload-list" data-file-upload-list></div>
+                        </div>
+                        <input name="description" class="form-control" maxlength="500" placeholder="Aciklama (istege bagli)" />
+                        <small class="text-muted">Izin verilen turler: @Model.AllowedExtensionsText. Her dosya en fazla 50 MB olabilir.</small>
+                        <button class="btn btn-outline-primary btn-sm" type="submit">Dosyalari yukle</button>
+                    </form>
+                </div>
+            </section>
+        }
+
+        <section class="panel-block">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Klasor icerigi</p>
+                    <h2>@Model.CurrentFolderName</h2>
+                </div>
+            </div>
+
+            <div class="project-drive-content-grid">
+                <div>
+                    <h3 class="project-drive-subtitle">Dosyalar</h3>
+                    @if (!Model.Files.Any())
+                    {
+                        <p class="empty-note">Bu klasorde henuz dosya yok.</p>
+                    }
+                    else
+                    {
+                        @if (previewableFiles.Any())
+                        {
+                            <div class="file-preview-toolbar">
+                                <small class="text-muted">@previewableFiles.Count gorsel tek ekranda onizlenebilir.</small>
+                                <button type="button"
+                                        class="btn btn-outline-secondary btn-sm"
+                                        data-image-preview-open-group="company-drive-files-@(Model.CurrentFolderId?.ToString() ?? "root")"
+                                        data-image-preview-start-index="0">
+                                    Gorselleri Onizle
+                                </button>
+                            </div>
+                        }
+
+                        <div class="list-stack" data-image-preview-gallery="company-drive-files-@(Model.CurrentFolderId?.ToString() ?? "root")">
+                            @foreach (var file in Model.Files)
+                            {
+                                var openFileUrl = Url.Action("OpenFile", "CompanyDrive", new { fileId = file.Id }) ?? "#";
+
+                                <div class="list-row">
+                                    <span>
+                                        <strong><a href="@openFileUrl" target="_blank" rel="noopener">@file.OriginalFileName</a></strong>
+                                        <small>@file.CreatedAtText · @FormatFileSize(file.Size) · @(string.IsNullOrWhiteSpace(file.Description) ? "Aciklama yok" : file.Description)</small>
+                                    </span>
+                                    <span class="project-drive-inline-actions">
+                                        @if (IsPreviewableImage(file.OriginalFileName, file.ContentType))
+                                        {
+                                            var previewIndex = previewableFiles.FindIndex(x => x.Id == file.Id);
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-sm"
+                                                    data-image-preview-open-group="company-drive-files-@(Model.CurrentFolderId?.ToString() ?? "root")"
+                                                    data-image-preview-start-index="@previewIndex"
+                                                    data-image-preview-item
+                                                    data-image-preview-src="@openFileUrl"
+                                                    data-image-preview-title="@file.OriginalFileName"
+                                                    data-image-preview-meta="@file.CreatedAtText · @FormatFileSize(file.Size)"
+                                                    data-image-preview-description="@(string.IsNullOrWhiteSpace(file.Description) ? "Aciklama yok" : file.Description)">
+                                                Onizle
+                                            </button>
+                                        }
+                                        <a class="btn btn-outline-secondary btn-sm"
+                                           href="@openFileUrl"
+                                           target="_blank"
+                                           rel="noopener">
+                                            Yeni sekmede ac
+                                        </a>
+                                        <a class="btn btn-outline-primary btn-sm"
+                                           asp-action="DownloadFile"
+                                           asp-route-fileId="@file.Id">
+                                            Indir
+                                        </a>
+                                        @if (Model.CanManage)
+                                        {
+                                            <form asp-action="DeleteFile" method="post" class="inline-form">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="fileId" value="@file.Id" />
+                                                <input type="hidden" name="folderId" value="@Model.CurrentFolderId" />
+                                                <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Bu dosyayi silmek istiyor musunuz?');">Sil</button>
+                                            </form>
+                                        }
+                                    </span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const toggleButtons = document.querySelectorAll('[data-rename-toggle]');
+
+            function setPanelState(panel, isOpen) {
+                panel.hidden = !isOpen;
+            }
+
+            toggleButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const targetId = button.getAttribute('data-target-id');
+                    if (!targetId) {
+                        return;
+                    }
+
+                    const panel = document.getElementById(targetId);
+                    if (!panel) {
+                        return;
+                    }
+
+                    const isExpanded = button.getAttribute('aria-expanded') === 'true';
+                    setPanelState(panel, isExpanded);
+                    button.setAttribute('aria-expanded', (!isExpanded).toString());
+                });
+            });
+        })();
+    </script>
+}

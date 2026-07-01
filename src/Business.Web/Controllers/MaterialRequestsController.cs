@@ -127,7 +127,7 @@ public class MaterialRequestsController : Controller
         ViewBag.FilterNeededTo = neededTo?.ToString("yyyy-MM-dd");
         ViewBag.Sort = sort;
         ViewBag.IncludeFulfilled = includeFulfilled;
-        ViewBag.ListAction = nameof(Index);
+        ViewBag.ListAction = includeFulfilled ? nameof(All) : nameof(Index);
         ViewBag.RequestListTitle = includeFulfilled ? "Tüm ihtiyaçlar" : "Açık ihtiyaçlar";
         ViewBag.Projects = await _lookupService.GetProjectsAsync(cancellationToken);
         ViewBag.Materials = await _lookupService.GetMaterialsAsync(cancellationToken);
@@ -139,6 +139,34 @@ public class MaterialRequestsController : Controller
             cancellationToken);
 
         return View(requests);
+    }
+
+    public async Task<IActionResult> All(
+        Guid? projectId,
+        string? q,
+        MaterialRequestStatus? status,
+        Guid? materialId,
+        string? requestedByUserId,
+        DateTime? neededFrom,
+        DateTime? neededTo,
+        string? sort,
+        CancellationToken cancellationToken)
+    {
+        var result = await Index(
+            projectId,
+            q,
+            status,
+            materialId,
+            requestedByUserId,
+            neededFrom,
+            neededTo,
+            sort,
+            includeFulfilled: true,
+            cancellationToken);
+
+        return result is ViewResult viewResult
+            ? View(nameof(Index), viewResult.Model)
+            : result;
     }
 
     public async Task<IActionResult> Fulfilled(

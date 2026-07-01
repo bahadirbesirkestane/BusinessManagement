@@ -14,6 +14,7 @@
     var currentTake = (int)(ViewBag.CurrentTake ?? 50);
     var nextTake = (int)(ViewBag.NextTake ?? (currentTake + 50));
     var showAll = ViewBag.ShowAll == true;
+    var includeCompleted = ViewBag.IncludeCompleted == true;
     var statusOptions = (IReadOnlyList<ProjectStatus>)(ViewBag.StatusOptions ?? Enum.GetValues<ProjectStatus>().ToList());
     var moreRoute = new Dictionary<string, string?>();
     var showAllRoute = new Dictionary<string, string?>();
@@ -22,6 +23,7 @@
     moreRoute["priority"] = ViewBag.FilterPriority?.ToString();
     moreRoute["customerId"] = ViewBag.FilterCustomerId?.ToString();
     moreRoute["sort"] = ViewBag.Sort;
+    moreRoute["includeCompleted"] = includeCompleted ? "true" : null;
     if (requiresManualLoad)
     {
         moreRoute["load"] = "true";
@@ -33,6 +35,7 @@
     showAllRoute["priority"] = ViewBag.FilterPriority?.ToString();
     showAllRoute["customerId"] = ViewBag.FilterCustomerId?.ToString();
     showAllRoute["sort"] = ViewBag.Sort;
+    showAllRoute["includeCompleted"] = includeCompleted ? "true" : null;
     showAllRoute["showAll"] = "true";
 }
 
@@ -49,11 +52,16 @@
             @if (isArchiveList)
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Aktif liste</a>
+                <a class="btn btn-outline-secondary btn-sm" asp-action="All">Gerçek tüm liste</a>
                 <a class="btn btn-outline-primary btn-sm" asp-action="DownloadArchive">Arşivi indir</a>
             }
             else
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Archived">Arşiv</a>
+            }
+            @if (!isArchiveList)
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-action="All">Gerçek tüm liste</a>
             }
             @if (canCreateProject)
             {
@@ -63,6 +71,10 @@
     </div>
 
     <form id="projectsFilterForm" asp-action="@listAction" method="get" class="list-filter-bar">
+        @if (includeCompleted)
+        {
+            <input type="hidden" name="includeCompleted" value="true" />
+        }
         @if (requiresManualLoad)
         {
             <input type="hidden" name="load" value="true" />

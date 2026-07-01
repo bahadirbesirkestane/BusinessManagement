@@ -1,4 +1,4 @@
-using Business.Application.Services;
+﻿using Business.Application.Services;
 using Business.Domain.Entities;
 using Business.Domain.Enums;
 using Business.Infrastructure.Data;
@@ -79,12 +79,12 @@ public class PurchaseOrdersController : Controller
         ViewBag.CurrentTake = take;
         ViewBag.ShowAll = showAll;
         ViewBag.IncludeDelivered = includeDelivered;
-        ViewBag.ListAction = archivedOnly ? nameof(Archived) : nameof(Index);
-        ViewBag.OrderListTitle = archivedOnly ? "Arşiv siparişler" : "Genel ve proje siparişleri";
+        ViewBag.ListAction = archivedOnly ? nameof(Archived) : (includeDelivered ? nameof(All) : nameof(Index));
+        ViewBag.OrderListTitle = archivedOnly ? "Arşiv siparişler" : (includeDelivered ? "Tüm siparişler" : "Aktif siparişler");
         ViewBag.IsArchiveList = archivedOnly;
         await FillLookupsAsync(cancellationToken);
         ViewBag.StatusOptions = Enum.GetValues<PurchaseOrderStatus>()
-            .Where(x => archivedOnly || x != PurchaseOrderStatus.Delivered)
+            .Where(x => archivedOnly || includeDelivered || x != PurchaseOrderStatus.Delivered)
             .ToList();
 
         if (projectId.HasValue)
@@ -247,6 +247,29 @@ public class PurchaseOrdersController : Controller
         ViewBag.OrderListTitle = "Teslim edilen siparişler";
         ViewBag.ListAction = nameof(Delivered);
         ViewBag.StatusOptions = new List<PurchaseOrderStatus> { PurchaseOrderStatus.Delivered };
+        return result is ViewResult viewResult
+            ? View(nameof(Index), viewResult.Model)
+            : result;
+    }
+
+    public async Task<IActionResult> All(
+        Guid? projectId,
+        string? q,
+        PurchaseOrderStatus? status,
+        PurchaseOrderScope? scope,
+        Guid? supplierId,
+        Guid? materialId,
+        string? requestedByUserId,
+        string? requestedBy,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        string? sort,
+        bool load = true,
+        int take = DefaultListTake,
+        bool showAll = false,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await Index(projectId, q, status, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, sort, load, take, showAll, includeDelivered: true, archivedOnly: false, cancellationToken: cancellationToken);
         return result is ViewResult viewResult
             ? View(nameof(Index), viewResult.Model)
             : result;
@@ -1223,3 +1246,4 @@ public class PurchaseOrdersController : Controller
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 }
+

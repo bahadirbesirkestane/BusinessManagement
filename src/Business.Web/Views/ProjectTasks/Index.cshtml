@@ -62,11 +62,16 @@
             @if (isArchiveList)
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-projectId="@ViewBag.ProjectId">Aktif liste</a>
+                <a class="btn btn-outline-secondary btn-sm" asp-action="All" asp-route-projectId="@ViewBag.ProjectId">Gerçek tüm liste</a>
                 <a class="btn btn-outline-primary btn-sm" asp-action="DownloadArchive">Arşivi indir</a>
             }
             else if (!string.Equals(listAction, "AssignedToMe", StringComparison.OrdinalIgnoreCase))
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Archived" asp-route-projectId="@ViewBag.ProjectId">Arşiv</a>
+            }
+            @if (!isArchiveList && !string.Equals(listAction, "AssignedToMe", StringComparison.OrdinalIgnoreCase))
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-action="All" asp-route-projectId="@ViewBag.ProjectId">Gerçek tüm liste</a>
             }
             @if (canCreateTask)
             {

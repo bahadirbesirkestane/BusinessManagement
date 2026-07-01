@@ -726,7 +726,10 @@ a:hover {
   color: #0f3d24;
 }
 
-.status-row.status-cancelled,
+.status-row.status-cancelled {
+  border-left: 4px solid #dc2626;
+}
+
 .status-row.status-blocked {
   border-left: 4px solid #dc2626;
 }
@@ -4380,7 +4383,6 @@ html[data-theme="dark"] .planning-custom-board {
 
 html[data-theme="dark"] .list-row,
 html[data-theme="dark"] .app-table td,
-html[data-theme="dark"] .app-table tbody tr:nth-child(even):not(.status-row.status-completed):not(.status-row.status-done):not(.status-row.status-delivered):not(.status-row.status-fulfilled) > td,
 html[data-theme="dark"] .stock-material-card,
 html[data-theme="dark"] .calendar-day,
 html[data-theme="dark"] .quick-order-row.is-disabled,
@@ -4394,6 +4396,20 @@ html[data-theme="dark"] .gantt-row,
 html[data-theme="dark"] .gantt-row-track {
   background: #292a2d;
   color: var(--ink);
+}
+
+html[data-theme="dark"] .app-table tbody tr:not(.status-row) > td,
+html[data-theme="dark"] .app-table tbody tr:not(.status-row) > th {
+  background: #292a2d !important;
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] .app-table tbody tr:not(.status-row):nth-child(odd) > td,
+html[data-theme="dark"] .app-table tbody tr:not(.status-row):nth-child(odd) > th,
+html[data-theme="dark"] .app-table tbody tr:not(.status-row):nth-child(even) > td,
+html[data-theme="dark"] .app-table tbody tr:not(.status-row):nth-child(even) > th {
+  background: #292a2d !important;
+  color: var(--ink) !important;
 }
 
 html[data-theme="dark"] .app-table tbody tr:hover > td,
@@ -4701,7 +4717,11 @@ html[data-theme="dark"] .project-drive-tree-row.is-active {
 html[data-theme="dark"] .status-row.status-completed > td,
 html[data-theme="dark"] .status-row.status-done > td,
 html[data-theme="dark"] .status-row.status-delivered > td,
-html[data-theme="dark"] .status-row.status-fulfilled > td {
+html[data-theme="dark"] .status-row.status-fulfilled > td,
+html[data-theme="dark"] .status-row.status-completed > th,
+html[data-theme="dark"] .status-row.status-done > th,
+html[data-theme="dark"] .status-row.status-delivered > th,
+html[data-theme="dark"] .status-row.status-fulfilled > th {
   background: #23372b;
   color: #d7f3df;
 }
@@ -4710,39 +4730,96 @@ html[data-theme="dark"] .status-row.status-completed,
 html[data-theme="dark"] .status-row.status-done,
 html[data-theme="dark"] .status-row.status-delivered,
 html[data-theme="dark"] .status-row.status-fulfilled,
-html[data-theme="dark"] .status-row.status-completed:nth-child(even) > td,
-html[data-theme="dark"] .status-row.status-done:nth-child(even) > td,
-html[data-theme="dark"] .status-row.status-delivered:nth-child(even) > td,
-html[data-theme="dark"] .status-row.status-fulfilled:nth-child(even) > td {
+html[data-theme="dark"] .status-row.status-completed > td,
+html[data-theme="dark"] .status-row.status-done > td,
+html[data-theme="dark"] .status-row.status-delivered > td,
+html[data-theme="dark"] .status-row.status-fulfilled > td,
+html[data-theme="dark"] .status-row.status-completed > th,
+html[data-theme="dark"] .status-row.status-done > th,
+html[data-theme="dark"] .status-row.status-delivered > th,
+html[data-theme="dark"] .status-row.status-fulfilled > th {
   background: #23372b !important;
   color: #d7f3df !important;
 }
 
-html[data-theme="dark"] .status-row.status-cancelled > td,
-html[data-theme="dark"] .status-row.status-blocked > td {
-  background: #3a2628;
-  color: #f2d6d8;
-}
-
+html[data-theme="dark"] .status-row.status-blocked > td,
+html[data-theme="dark"] .status-row.status-blocked > th,
 html[data-theme="dark"] .status-row.status-inprogress > td,
 html[data-theme="dark"] .status-row.status-requested > td,
 html[data-theme="dark"] .status-row.status-approved > td,
 html[data-theme="dark"] .status-row.status-ordered > td,
-html[data-theme="dark"] .status-row.status-inreview > td {
-  background: #233245;
-  color: #d2e3fc;
-}
-
-html[data-theme="dark"] .status-row.status-planned > td,
-html[data-theme="dark"] .status-row.status-draft > td,
-html[data-theme="dark"] .status-row.status-todo > td,
-html[data-theme="dark"] .status-row.status-waiting > td,
-html[data-theme="dark"] .status-row.status-partiallydelivered > td,
+html[data-theme="dark"] .status-row.status-inreview > td,
+html[data-theme="dark"] .status-row.status-instock > td,
 html[data-theme="dark"] .status-row.status-reserved > td,
 html[data-theme="dark"] .status-row.status-lowstock > td,
 html[data-theme="dark"] .status-row.status-outofstock > td,
-html[data-theme="dark"] .status-row.status-scrapped > td {
-  color: var(--ink);
+html[data-theme="dark"] .status-row.status-scrapped > td,
+html[data-theme="dark"] .status-row.status-inprogress > th,
+html[data-theme="dark"] .status-row.status-requested > th,
+html[data-theme="dark"] .status-row.status-approved > th,
+html[data-theme="dark"] .status-row.status-ordered > th,
+html[data-theme="dark"] .status-row.status-inreview > th,
+html[data-theme="dark"] .status-row.status-instock > th,
+html[data-theme="dark"] .status-row.status-reserved > th,
+html[data-theme="dark"] .status-row.status-lowstock > th,
+html[data-theme="dark"] .status-row.status-outofstock > th,
+html[data-theme="dark"] .status-row.status-scrapped > th,
+html[data-theme="dark"] .status-row.status-planned > td,
+html[data-theme="dark"] .status-row.status-draft > td,
+html[data-theme="dark"] .status-row.status-todo > td,
+html[data-theme="dark"] .status-row.status-planned > th,
+html[data-theme="dark"] .status-row.status-draft > th,
+html[data-theme="dark"] .status-row.status-todo > th,
+html[data-theme="dark"] .status-row.status-waiting > td,
+html[data-theme="dark"] .status-row.status-partiallydelivered > td,
+html[data-theme="dark"] .status-row.status-waiting > th,
+html[data-theme="dark"] .status-row.status-partiallydelivered > th {
+  background: #292a2d !important;
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] .app-table .text-muted,
+html[data-theme="dark"] .app-table small,
+html[data-theme="dark"] .app-table .small,
+html[data-theme="dark"] .app-table .table-note-clamp,
+html[data-theme="dark"] .app-table td small.d-block,
+html[data-theme="dark"] .app-table td .d-block.text-muted {
+  color: #b8c0c8 !important;
+}
+
+html[data-theme="dark"] .status-row.status-completed > td .text-muted,
+html[data-theme="dark"] .status-row.status-done > td .text-muted,
+html[data-theme="dark"] .status-row.status-delivered > td .text-muted,
+html[data-theme="dark"] .status-row.status-fulfilled > td .text-muted,
+html[data-theme="dark"] .status-row.status-completed > th .text-muted,
+html[data-theme="dark"] .status-row.status-done > th .text-muted,
+html[data-theme="dark"] .status-row.status-delivered > th .text-muted,
+html[data-theme="dark"] .status-row.status-fulfilled > th .text-muted,
+html[data-theme="dark"] .status-row.status-completed > td small,
+html[data-theme="dark"] .status-row.status-done > td small,
+html[data-theme="dark"] .status-row.status-delivered > td small,
+html[data-theme="dark"] .status-row.status-fulfilled > td small,
+html[data-theme="dark"] .status-row.status-completed > th small,
+html[data-theme="dark"] .status-row.status-done > th small,
+html[data-theme="dark"] .status-row.status-delivered > th small,
+html[data-theme="dark"] .status-row.status-fulfilled > th small,
+html[data-theme="dark"] .status-row.status-completed > td .small,
+html[data-theme="dark"] .status-row.status-done > td .small,
+html[data-theme="dark"] .status-row.status-delivered > td .small,
+html[data-theme="dark"] .status-row.status-fulfilled > td .small,
+html[data-theme="dark"] .status-row.status-completed > th .small,
+html[data-theme="dark"] .status-row.status-done > th .small,
+html[data-theme="dark"] .status-row.status-delivered > th .small,
+html[data-theme="dark"] .status-row.status-fulfilled > th .small,
+html[data-theme="dark"] .status-row.status-completed > td .table-note-clamp,
+html[data-theme="dark"] .status-row.status-done > td .table-note-clamp,
+html[data-theme="dark"] .status-row.status-delivered > td .table-note-clamp,
+html[data-theme="dark"] .status-row.status-fulfilled > td .table-note-clamp,
+html[data-theme="dark"] .status-row.status-completed > th .table-note-clamp,
+html[data-theme="dark"] .status-row.status-done > th .table-note-clamp,
+html[data-theme="dark"] .status-row.status-delivered > th .table-note-clamp,
+html[data-theme="dark"] .status-row.status-fulfilled > th .table-note-clamp {
+  color: inherit !important;
 }
 
 html[data-theme="dark"] .breadcrumb-nav span,

@@ -47,7 +47,9 @@ public static class AppPermissionCatalog
             AppPermissions.UsersView,
             AppPermissions.UsersManage,
             AppPermissions.RolesManage,
-            AppPermissions.SettingsManage
+            AppPermissions.SettingsManage,
+            AppPermissions.CompanyFilesView,
+            AppPermissions.CompanyFilesManage
         ],
         [AppRoles.Employee] =
         [
@@ -60,7 +62,8 @@ public static class AppPermissionCatalog
             AppPermissions.MaterialRequestsView,
             AppPermissions.MaterialRequestsManage,
             AppPermissions.MaterialsView,
-            AppPermissions.StockView
+            AppPermissions.StockView,
+            AppPermissions.CompanyFilesView
         ],
         [AppRoles.Manager] =
         [
@@ -87,7 +90,9 @@ public static class AppPermissionCatalog
             AppPermissions.InvoicesView,
             AppPermissions.CostsView,
             AppPermissions.ProjectBudgetView,
-            AppPermissions.UsersView
+            AppPermissions.UsersView,
+            AppPermissions.CompanyFilesView,
+            AppPermissions.CompanyFilesManage
         ],
         [AppRoles.Purchasing] =
         [
@@ -106,7 +111,8 @@ public static class AppPermissionCatalog
             AppPermissions.StockView,
             AppPermissions.StockManage,
             AppPermissions.CustomersView,
-            AppPermissions.InvoicesView
+            AppPermissions.InvoicesView,
+            AppPermissions.CompanyFilesView
         ],
         [AppRoles.ProjectUser] =
         [
@@ -121,7 +127,8 @@ public static class AppPermissionCatalog
             AppPermissions.MaterialRequestsManage,
             AppPermissions.MaterialsView,
             AppPermissions.StockView,
-            AppPermissions.CustomersView
+            AppPermissions.CustomersView,
+            AppPermissions.CompanyFilesView
         ],
         [AppRoles.Workshop] =
         [
@@ -130,7 +137,8 @@ public static class AppPermissionCatalog
             AppPermissions.MaterialRequestsView,
             AppPermissions.MaterialRequestsManage,
             AppPermissions.MaterialsView,
-            AppPermissions.StockView
+            AppPermissions.StockView,
+            AppPermissions.CompanyFilesView
         ]
     };
 }
