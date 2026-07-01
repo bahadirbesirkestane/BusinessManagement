@@ -866,9 +866,7 @@ public class ProjectTasksController : Controller
     private bool CanSeeAllTasks()
     {
         return User.IsInRole(AppRoles.Admin) ||
-               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksViewAll) ||
-               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
-               User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksViewAll);
     }
 
     private bool CanDeleteTaskUpdates()

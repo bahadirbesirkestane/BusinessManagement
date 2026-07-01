@@ -196,9 +196,7 @@
             if (url.StartsWith("/Dashboard/ReviewQueue", StringComparison.OrdinalIgnoreCase))
             {
                 return User.IsInRole(AppRoles.Admin) ||
-                       User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
-                       User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
-                       User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+                       User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete);
             }
 
             return HasPermission(AppPermissions.DashboardView);

@@ -6,9 +6,7 @@
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     var canViewReviewQueue = User.IsInRole(AppRoles.Admin) ||
-        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
-        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
-        User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+        User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete);
 }
 
 <div class="metric-grid">

@@ -634,9 +634,7 @@ public class DashboardController : Controller
     private bool CanViewReviewQueue()
     {
         return User.IsInRole(AppRoles.Admin) ||
-               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete) ||
-               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
-               User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete);
     }
 
     private bool HasAnyPermission(params string[] permissions)
