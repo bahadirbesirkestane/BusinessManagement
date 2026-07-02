@@ -276,7 +276,74 @@ public class MaterialRequestsController : Controller
 
         EnsureQuickRows(model);
         await FillLookupsAsync(cancellationToken, NormalizeReturnUrl(returnUrl));
+        ViewBag.FormAction = nameof(QuickCreate);
+        ViewBag.PageTitle = "Hızlı malzeme ihtiyaç ekleme";
+        ViewBag.SubmitText = "İhtiyaçları Kaydet";
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanRequestMaterials)]
+    public async Task<IActionResult> BulkQuickEdit(Guid[] ids, string? returnUrl, CancellationToken cancellationToken)
+    {
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count == 0)
+        {
+            TempData["Error"] = "Hızlı düzenleme için en az bir ihtiyaç seçin.";
+            return RedirectToLocal(returnUrl);
+        }
+
+        var requests = await _context.MaterialRequests
+            .Include(x => x.Material)
+            .AsNoTracking()
+            .Where(x => selectedIds.Contains(x.Id))
+            .OrderBy(x => x.NeededBy)
+            .ThenBy(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        if (requests.Count == 0)
+        {
+            TempData["Error"] = "Seçilen ihtiyaç kayıtları bulunamadı.";
+            return RedirectToLocal(returnUrl);
+        }
+
+        var projectIds = requests
+            .Select(x => x.ProjectId)
+            .Distinct()
+            .ToList();
+
+        if (projectIds.Count > 1)
+        {
+            TempData["Error"] = "Hızlı düzenleme için seçilen ihtiyaçların aynı projeye bağlı olması gerekir.";
+            return RedirectToLocal(returnUrl);
+        }
+
+        var model = new QuickMaterialRequestViewModel
+        {
+            ProjectId = projectIds[0],
+            Status = requests[0].Status,
+            NeededBy = requests[0].NeededBy,
+            Lines = requests.Select(x => new QuickMaterialRequestLineViewModel
+            {
+                Id = x.Id,
+                MaterialId = x.MaterialId,
+                MaterialName = x.Material?.Name,
+                RequestedItem = x.RequestedItem,
+                Quantity = x.Quantity,
+                QuantityText = x.QuantityText,
+                Unit = x.Unit,
+                Quality = x.Quality,
+                Notes = x.Notes
+            }).ToList()
+        };
+
+        EnsureQuickRows(model);
+        await FillLookupsAsync(cancellationToken, NormalizeReturnUrl(returnUrl));
+        ViewBag.FormAction = nameof(BulkQuickEditSave);
+        ViewBag.PageTitle = "Toplu hızlı malzeme ihtiyaç düzenleme";
+        ViewBag.SubmitText = "İhtiyaçları Güncelle";
+        return View(nameof(QuickCreate), model);
     }
 
     [HttpPost]
@@ -394,6 +461,111 @@ public class MaterialRequestsController : Controller
         }
 
         TempData["Success"] = $"{createdRequests.Count} ihtiyaç kaydı oluşturuldu.";
+        return RedirectToLocal(returnUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanRequestMaterials)]
+    public async Task<IActionResult> BulkQuickEditSave(QuickMaterialRequestViewModel model, string? returnUrl, CancellationToken cancellationToken)
+    {
+        returnUrl = NormalizeReturnUrl(returnUrl);
+        NormalizeQuickCreateInput(model);
+
+        var selectedIds = model.Lines
+            .Where(x => x.Id.HasValue)
+            .Select(x => x.Id!.Value)
+            .Distinct()
+            .ToList();
+
+        if (selectedIds.Count == 0)
+        {
+            TempData["Error"] = "Güncellenecek ihtiyaç bulunamadı.";
+            return RedirectToLocal(returnUrl);
+        }
+
+        if (model.ProjectId.HasValue)
+        {
+            var projectExists = await _context.Projects
+                .AsNoTracking()
+                .AnyAsync(x => x.Id == model.ProjectId.Value, cancellationToken);
+            if (!projectExists)
+            {
+                ModelState.AddModelError(nameof(model.ProjectId), "Seçilen proje bulunamadı.");
+            }
+        }
+
+        var existingRequests = await _context.MaterialRequests
+            .Include(x => x.Material)
+            .Where(x => selectedIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        if (existingRequests.Count != selectedIds.Count)
+        {
+            ModelState.AddModelError(string.Empty, "Seçilen ihtiyaçlardan bazıları bulunamadı.");
+        }
+
+        var projectIds = existingRequests
+            .Select(x => x.ProjectId)
+            .Distinct()
+            .ToList();
+
+        if (projectIds.Count > 1)
+        {
+            ModelState.AddModelError(nameof(model.ProjectId), "Hızlı düzenleme için seçilen ihtiyaçların aynı projeye bağlı olması gerekir.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            EnsureQuickRows(model);
+            await FillLookupsAsync(cancellationToken, returnUrl);
+            ViewBag.FormAction = nameof(BulkQuickEditSave);
+            ViewBag.PageTitle = "Toplu hızlı malzeme ihtiyaç düzenleme";
+            ViewBag.SubmitText = "İhtiyaçları Güncelle";
+            return View(nameof(QuickCreate), model);
+        }
+
+        foreach (var line in model.Lines.Where(x => x.Id.HasValue))
+        {
+            var request = existingRequests.First(x => x.Id == line.Id!.Value);
+            request.ProjectId = model.ProjectId;
+            request.MaterialId = await ResolveMaterialIdAsync(line.MaterialId, line.MaterialName, line.Unit, cancellationToken);
+            request.RequestedItem = line.RequestedItem?.Trim() ?? request.RequestedItem;
+            request.Quantity = line.Quantity;
+            request.QuantityText = line.QuantityText;
+            request.Unit = line.Unit;
+            request.Quality = line.Quality;
+            request.Status = model.Status;
+            request.NeededBy = model.NeededBy;
+            request.Notes = line.Notes;
+            NormalizeMaterialRequestInput(request);
+        }
+
+        if (!ModelState.IsValid)
+        {
+            EnsureQuickRows(model);
+            await FillLookupsAsync(cancellationToken, returnUrl);
+            ViewBag.FormAction = nameof(BulkQuickEditSave);
+            ViewBag.PageTitle = "Toplu hızlı malzeme ihtiyaç düzenleme";
+            ViewBag.SubmitText = "İhtiyaçları Güncelle";
+            return View(nameof(QuickCreate), model);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        if (model.ProjectId.HasValue)
+        {
+            foreach (var request in existingRequests)
+            {
+                await _projectTimelineService.AddAsync(
+                    model.ProjectId.Value,
+                    "İhtiyaç toplu hızlı düzenlendi",
+                    request.RequestedItem,
+                    cancellationToken);
+            }
+        }
+
+        TempData["Success"] = $"{existingRequests.Count} ihtiyaç kaydı güncellendi.";
         return RedirectToLocal(returnUrl);
     }
 

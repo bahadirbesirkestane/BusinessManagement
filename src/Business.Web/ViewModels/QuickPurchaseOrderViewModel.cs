@@ -33,6 +33,8 @@ public class QuickPurchaseOrderViewModel
 
 public class QuickPurchaseOrderLineViewModel
 {
+    public Guid? Id { get; set; }
+
     [StringLength(3, MinimumLength = 3, ErrorMessage = "Para birimi 3 karakter olmalıdır.")]
     public string Currency { get; set; } = "TRY";
 

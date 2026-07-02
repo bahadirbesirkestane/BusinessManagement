@@ -173,6 +173,7 @@
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkRequestSelectionForm">Seçimi temizle</button>
                 @if (canManageRequest)
                 {
+                    <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("BulkQuickEdit")" data-bulk-submit="bulkRequestSelectionForm">Hızlı düzenle</button>
                     <select name="status" class="form-select form-select-sm" aria-label="Toplu ihtiyaç durumu">
                         @foreach (MaterialRequestStatus item in Enum.GetValues<MaterialRequestStatus>())
                         {

@@ -20,6 +20,8 @@ public class QuickMaterialRequestViewModel
 
 public class QuickMaterialRequestLineViewModel
 {
+    public Guid? Id { get; set; }
+
     public Guid? MaterialId { get; set; }
 
     [StringLength(220, ErrorMessage = "Malzeme adı en fazla 220 karakter olabilir.")]

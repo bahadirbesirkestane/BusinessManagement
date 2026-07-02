@@ -449,8 +449,86 @@ public class PurchaseOrdersController : Controller
     {
         var model = await BuildQuickCreateModelAsync(projectId, templateId, materialRequestIds, cancellationToken);
         await FillQuickCreateLookupsAsync(cancellationToken);
+        ViewBag.FormAction = nameof(QuickCreate);
+        ViewBag.PageTitle = "Hızlı sipariş ekleme";
+        ViewBag.SubmitText = "Siparişleri Kaydet";
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanUpdatePurchasing)]
+    public async Task<IActionResult> BulkQuickEdit(Guid[] ids, string? returnUrl, CancellationToken cancellationToken)
+    {
+        var selectedIds = ids.Distinct().ToList();
+        if (selectedIds.Count == 0)
+        {
+            TempData["Error"] = "Hızlı düzenleme için en az bir sipariş seçin.";
+            return RedirectToLocal(returnUrl);
+        }
+
+        var orders = await _context.PurchaseOrders
+            .Include(x => x.Supplier)
+            .Include(x => x.Material)
+            .AsNoTracking()
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .Where(x => selectedIds.Contains(x.Id) && !x.IsArchived)
+            .OrderBy(x => x.OrderDate ?? DateTime.MaxValue)
+            .ThenBy(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        if (orders.Count == 0)
+        {
+            TempData["Error"] = "Seçilen sipariş kayıtları bulunamadı.";
+            return RedirectToLocal(returnUrl);
+        }
+
+        var projectIds = orders
+            .Select(x => x.ProjectId)
+            .Distinct()
+            .ToList();
+
+        if (projectIds.Count > 1)
+        {
+            TempData["Error"] = "Hızlı düzenleme için seçilen siparişlerin aynı projeye bağlı olması gerekir.";
+            return RedirectToLocal(returnUrl);
+        }
+
+        var model = new QuickPurchaseOrderViewModel
+        {
+            ProjectId = projectIds[0],
+            Scope = projectIds[0].HasValue ? PurchaseOrderScope.Project : PurchaseOrderScope.General,
+            Status = orders[0].Status,
+            OrderDate = orders[0].OrderDate ?? DateTime.Today,
+            ExpectedArrivalDate = orders[0].ExpectedArrivalDate,
+            PaymentTerm = orders[0].PaymentTerm,
+            Lines = orders.Select(x => new QuickPurchaseOrderLineViewModel
+            {
+                Id = x.Id,
+                Currency = CurrencyMetadata.NormalizeInput(x.Currency),
+                SupplierId = x.SupplierId,
+                SupplierName = x.Supplier?.Name,
+                MaterialId = x.MaterialId,
+                MaterialName = x.Material?.Name,
+                Content = x.Content,
+                Quantity = x.Quantity,
+                QuantityText = x.QuantityText,
+                Unit = x.Unit,
+                Quality = x.Quality,
+                UnitPrice = x.UnitPrice,
+                OrderTotal = x.OrderTotal,
+                Notes = x.Notes
+            }).ToList()
+        };
+
+        EnsureQuickRows(model);
+        await FillQuickCreateLookupsAsync(cancellationToken);
+        ViewBag.FormAction = nameof(BulkQuickEditSave);
+        ViewBag.PageTitle = "Toplu hızlı sipariş düzenleme";
+        ViewBag.SubmitText = "Siparişleri Güncelle";
+        ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+        return View(nameof(QuickCreate), model);
     }
 
     [HttpPost]
@@ -562,6 +640,116 @@ public class PurchaseOrdersController : Controller
         }
 
         TempData["Success"] = $"{createdOrders.Count} sipariş oluşturuldu.";
+        return RedirectToLocal(returnUrl, model.ProjectId.HasValue ? new { projectId = model.ProjectId } : null);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = AppPolicies.CanUpdatePurchasing)]
+    public async Task<IActionResult> BulkQuickEditSave(QuickPurchaseOrderViewModel model, string? returnUrl, CancellationToken cancellationToken)
+    {
+        NormalizeQuickCreateInput(model);
+        returnUrl = NormalizeReturnUrl(returnUrl);
+
+        var selectedIds = model.Lines
+            .Where(x => x.Id.HasValue)
+            .Select(x => x.Id!.Value)
+            .Distinct()
+            .ToList();
+
+        if (selectedIds.Count == 0)
+        {
+            TempData["Error"] = "Güncellenecek sipariş bulunamadı.";
+            return RedirectToLocal(returnUrl, model.ProjectId.HasValue ? new { projectId = model.ProjectId } : null);
+        }
+
+        if (model.ProjectId.HasValue)
+        {
+            var canUseProject = await _context.Projects
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .AnyAsync(x => x.Id == model.ProjectId.Value, cancellationToken);
+            if (!canUseProject)
+            {
+                ModelState.AddModelError(nameof(model.ProjectId), "Seçilen proje için yetkiniz bulunmuyor.");
+            }
+        }
+
+        var existingOrders = await _context.PurchaseOrders
+            .Include(x => x.Project)
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .Where(x => selectedIds.Contains(x.Id) && !x.IsArchived)
+            .ToListAsync(cancellationToken);
+
+        if (existingOrders.Count != selectedIds.Count)
+        {
+            ModelState.AddModelError(string.Empty, "Seçilen siparişlerden bazıları bulunamadı veya düzenleme yetkiniz yok.");
+        }
+
+        var projectIds = existingOrders
+            .Select(x => x.ProjectId)
+            .Distinct()
+            .ToList();
+
+        if (projectIds.Count > 1)
+        {
+            ModelState.AddModelError(nameof(model.ProjectId), "Hızlı düzenleme için seçilen siparişlerin aynı projeye bağlı olması gerekir.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            EnsureQuickRows(model);
+            await FillQuickCreateLookupsAsync(cancellationToken);
+            ViewBag.FormAction = nameof(BulkQuickEditSave);
+            ViewBag.PageTitle = "Toplu hızlı sipariş düzenleme";
+            ViewBag.SubmitText = "Siparişleri Güncelle";
+            ViewBag.ReturnUrl = returnUrl;
+            return View(nameof(QuickCreate), model);
+        }
+
+        foreach (var line in model.Lines.Where(x => x.Id.HasValue))
+        {
+            var order = existingOrders.First(x => x.Id == line.Id!.Value);
+            order.ProjectId = model.ProjectId;
+            order.Scope = model.ProjectId.HasValue ? PurchaseOrderScope.Project : model.Scope;
+            order.Status = model.Status;
+            order.OrderDate = model.OrderDate;
+            order.ExpectedArrivalDate = model.ExpectedArrivalDate;
+            order.PaymentTerm = string.IsNullOrWhiteSpace(model.PaymentTerm) ? null : model.PaymentTerm.Trim();
+            order.SupplierId = await ResolveSupplierIdAsync(line.SupplierId, line.SupplierName, cancellationToken);
+            order.MaterialId = await ResolveMaterialIdAsync(line.MaterialId, line.MaterialName, line.Unit, cancellationToken);
+            order.Content = line.Content?.Trim() ?? order.Content;
+            order.Quantity = line.Quantity;
+            order.QuantityText = line.QuantityText;
+            order.Unit = line.Unit;
+            order.Quality = line.Quality;
+            order.UnitPrice = line.UnitPrice;
+            order.OrderTotal = line.OrderTotal;
+            order.Currency = CurrencyMetadata.NormalizeInput(line.Currency);
+            order.UnitPriceText = line.UnitPrice.HasValue ? $"{line.UnitPrice.Value:#,##0.####} {order.Currency}" : null;
+            order.Notes = line.Notes;
+            NormalizePurchaseOrderInput(order);
+        }
+
+        if (!ModelState.IsValid)
+        {
+            EnsureQuickRows(model);
+            await FillQuickCreateLookupsAsync(cancellationToken);
+            ViewBag.FormAction = nameof(BulkQuickEditSave);
+            ViewBag.PageTitle = "Toplu hızlı sipariş düzenleme";
+            ViewBag.SubmitText = "Siparişleri Güncelle";
+            ViewBag.ReturnUrl = returnUrl;
+            return View(nameof(QuickCreate), model);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        foreach (var order in existingOrders)
+        {
+            await _projectTimelineService.AddForOrderAsync(order.Id, "Sipariş toplu hızlı düzenlendi", $"{order.OrderNumber} - {order.Content}", cancellationToken);
+        }
+
+        TempData["Success"] = $"{existingOrders.Count} sipariş güncellendi.";
         return RedirectToLocal(returnUrl, model.ProjectId.HasValue ? new { projectId = model.ProjectId } : null);
     }
 

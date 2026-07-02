@@ -2,13 +2,16 @@
 @{
     ViewData["Title"] = "Hızlı İhtiyaç Ekle";
     var returnUrl = ViewBag.ReturnUrl as string;
+    var formAction = ViewBag.FormAction as string ?? "QuickCreate";
+    var pageTitle = ViewBag.PageTitle as string ?? "Hızlı malzeme ihtiyaç ekleme";
+    var submitText = ViewBag.SubmitText as string ?? "İhtiyaçları Kaydet";
 }
 
 <section class="panel-block form-panel">
     <div class="panel-heading">
         <div>
             <p class="section-kicker">Atölye ve proje ekibi</p>
-            <h2>Hızlı malzeme ihtiyaç ekleme</h2>
+            <h2>@pageTitle</h2>
         </div>
         @if (!string.IsNullOrWhiteSpace(returnUrl))
         {
@@ -20,7 +23,7 @@
         }
     </div>
 
-    <form asp-action="QuickCreate" method="post" class="app-form quick-material-form" data-quick-material-form novalidate>
+    <form action="@Url.Action(formAction, "MaterialRequests")" method="post" class="app-form quick-material-form" data-quick-material-form novalidate>
         @Html.AntiForgeryToken()
         <input type="hidden" name="returnUrl" value="@returnUrl" />
         <div asp-validation-summary="All" class="text-danger"></div>
@@ -64,7 +67,7 @@
                 {
                     <tr data-row-index="@i">
                         <td class="row-number">@(i + 1)</td>
-                        <td><input asp-for="Lines[i].RequestedItem" class="form-control form-control-sm quick-cell main-cell" autocomplete="off" /></td>
+                        <td><input asp-for="Lines[i].Id" type="hidden" /><input asp-for="Lines[i].RequestedItem" class="form-control form-control-sm quick-cell main-cell" autocomplete="off" /></td>
                         <td>
                             <input asp-for="Lines[i].MaterialName" class="form-control form-control-sm quick-cell" data-free-text-select data-target-id="Lines_@(i)__MaterialId" data-list-id="quickMaterialRequestOptions" placeholder="Malzeme ara veya yeni ekle" autocomplete="off" />
                             <input asp-for="Lines[i].MaterialId" type="hidden" />
@@ -88,7 +91,7 @@
             {
                 <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
             }
-            <button class="btn btn-primary" type="submit">İhtiyaçları Kaydet</button>
+            <button class="btn btn-primary" type="submit">@submitText</button>
         </div>
     </form>
 </section>

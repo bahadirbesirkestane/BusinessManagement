@@ -2,13 +2,16 @@
 @{
     ViewData["Title"] = "Hızlı Sipariş Ekle";
     var returnUrl = ViewBag.ReturnUrl as string;
+    var formAction = ViewBag.FormAction as string ?? "QuickCreate";
+    var pageTitle = ViewBag.PageTitle as string ?? "Hızlı sipariş ekleme";
+    var submitText = ViewBag.SubmitText as string ?? "Siparişleri Kaydet";
 }
 
 <section class="panel-block form-panel">
     <div class="panel-heading">
         <div>
             <p class="section-kicker">Satın alma</p>
-            <h2>Hızlı sipariş ekleme</h2>
+            <h2>@pageTitle</h2>
         </div>
         @if (!string.IsNullOrWhiteSpace(returnUrl))
         {
@@ -43,7 +46,7 @@
         </form>
     }
 
-    <form asp-action="QuickCreate" method="post" class="app-form quick-order-form" data-quick-order-form novalidate>
+    <form action="@Url.Action(formAction, "PurchaseOrders")" method="post" class="app-form quick-order-form" data-quick-order-form novalidate>
         @Html.AntiForgeryToken()
         <input asp-for="TemplateId" type="hidden" />
         <input type="hidden" name="returnUrl" value="@returnUrl" />
@@ -106,7 +109,7 @@
                 {
                     <tr class="quick-order-row" data-row-index="@i">
                         <td class="row-number">@(i + 1)</td>
-                        <td><input asp-for="Lines[i].Content" class="form-control form-control-sm quick-cell main-cell" autocomplete="off" /></td>
+                        <td><input asp-for="Lines[i].Id" type="hidden" /><input asp-for="Lines[i].Content" class="form-control form-control-sm quick-cell main-cell" autocomplete="off" /></td>
                         <td>
                             <input asp-for="Lines[i].SupplierName" class="form-control form-control-sm quick-cell" data-free-text-select data-target-id="Lines_@(i)__SupplierId" data-list-id="quickCreateSupplierOptions" placeholder="Tedarikçi ara veya yeni ekle" autocomplete="on" />
                             <input asp-for="Lines[i].SupplierId" type="hidden" />
@@ -143,7 +146,7 @@
             {
                 <a class="btn btn-outline-secondary" asp-action="Index">Vazgeç</a>
             }
-            <button class="btn btn-primary" type="submit">Siparişleri Kaydet</button>
+            <button class="btn btn-primary" type="submit">@submitText</button>
         </div>
     </form>
 </section>

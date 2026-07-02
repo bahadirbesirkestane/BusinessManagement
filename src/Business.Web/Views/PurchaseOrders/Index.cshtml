@@ -240,8 +240,9 @@
             <span class="bulk-selection-count" data-bulk-count="bulkActionForm">0 kayıt seçildi</span>
             <div class="bulk-bar-actions">
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkActionForm">Seçimi temizle</button>
-                @if (canUpdateOrder)
+                @if (canUpdateOrder && !isArchiveList)
                 {
+                    <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("BulkQuickEdit")" data-bulk-submit="bulkActionForm">Hızlı düzenle</button>
                     <button class="btn btn-outline-primary btn-sm" type="submit" formaction="@Url.Action("BulkArchive")" name="archived" value="@(isArchiveList ? "false" : "true")">
                         @(isArchiveList ? "Seçilenleri aktife al" : "Seçilenleri arşivle")
                     </button>
