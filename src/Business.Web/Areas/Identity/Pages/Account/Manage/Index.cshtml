@@ -2,15 +2,15 @@
 @model Business.Web.Areas.Identity.Pages.Account.Manage.IndexModel
 @using Business.Infrastructure.Identity
 @{
-    ViewData["Title"] = "Hesap Yonetimi";
+    ViewData["Title"] = "Hesap Yönetimi";
     var returnUrl = $"{Request.Path}{Request.QueryString}";
 }
 
 <section class="panel-block">
     <div class="panel-heading">
         <div>
-            <p class="section-kicker">Identity Hesap Yonetimi</p>
-            <h2>Hesap Yonetimi</h2>
+            <p class="section-kicker">Identity Hesap Yönetimi</p>
+            <h2>Hesap Yönetimi</h2>
         </div>
     </div>
 
@@ -20,20 +20,20 @@
                 <tr>
                     <th>E-posta</th>
                     <td>@Model.Email</td>
-                    <td><span class="status-pill @(Model.EmailConfirmed ? "status-success" : "status-danger")">@(Model.EmailConfirmed ? "Dogrulandi" : "Dogrulanmadi")</span></td>
-                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./Email">E-posta Yonet</a></td>
+                    <td><span class="status-pill @(Model.EmailConfirmed ? "status-success" : "status-danger")">@(Model.EmailConfirmed ? "Doğrulandı" : "Doğrulanmadı")</span></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./Email">E-posta Yönet</a></td>
                 </tr>
                 <tr>
-                    <th>Sifre</th>
-                    <td>Hesap sifrenizi degistirebilirsiniz.</td>
+                    <th>Şifre</th>
+                    <td>Hesap şifrenizi değiştirebilirsiniz.</td>
                     <td></td>
-                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./ChangePassword">Sifre Degistir</a></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./ChangePassword">Şifre Değiştir</a></td>
                 </tr>
                 <tr>
                     <th>2FA</th>
-                    <td>@(Model.IsAdmin ? "Admin iki asamali dogrulama ayari" : "Calisanlar icin zorunlu degil")</td>
-                    <td><span class="status-pill @(Model.TwoFactorEnabled ? "status-success" : "status-danger")">@(Model.TwoFactorEnabled ? "Acik" : "Kapali")</span></td>
-                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./TwoFactorAuthentication">2FA Yonet</a></td>
+                    <td>@(Model.IsAdmin ? "Admin iki aşamalı doğrulama ayarı" : "Çalışanlar için zorunlu değil")</td>
+                    <td><span class="status-pill @(Model.TwoFactorEnabled ? "status-success" : "status-danger")">@(Model.TwoFactorEnabled ? "Açık" : "Kapalı")</span></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./TwoFactorAuthentication">2FA Yönet</a></td>
                 </tr>
             </tbody>
         </table>
@@ -43,7 +43,7 @@
 <section class="panel-block mt-3">
     <div class="panel-heading">
         <div>
-            <p class="section-kicker">Gorunum</p>
+            <p class="section-kicker">Görünüm</p>
             <h2>Tema Tercihi</h2>
         </div>
     </div>
@@ -57,8 +57,9 @@
                 var isSelected = Model.CurrentTheme == option.Key;
                 var description = option.Key switch
                 {
-                    AppThemes.Current => "Alisilmis mevcut renk yapisini korur.",
-                    AppThemes.Dark => "Google benzeri daha dengeli koyu yuzeyler kullanir.",
+                    AppThemes.Current => "Mevcut beyaz temayı olduğu gibi korur.",
+                    AppThemes.Soft => "Kırık beyaz yüzeylerle daha yumuşak ve sıcak bir görünüm sunar.",
+                    AppThemes.Dark => "Dengeli koyu yüzeyler kullanır.",
                     _ => string.Empty
                 };
                 <label class="theme-option-card @(isSelected ? "is-selected" : null)">

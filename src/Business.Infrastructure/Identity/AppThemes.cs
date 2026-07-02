@@ -3,11 +3,13 @@ namespace Business.Infrastructure.Identity;
 public static class AppThemes
 {
     public const string Current = "current";
+    public const string Soft = "soft";
     public const string Dark = "dark";
 
     public static IReadOnlyList<KeyValuePair<string, string>> Options { get; } =
     [
         new(Current, "Mevcut Tema"),
+        new(Soft, "Yumuşak Açık"),
         new(Dark, "Koyu")
     ];
 
@@ -25,6 +27,7 @@ public static class AppThemes
     {
         return value?.Trim().ToLowerInvariant() switch
         {
+            Soft => Soft,
             Dark => Dark,
             _ => Current
         };

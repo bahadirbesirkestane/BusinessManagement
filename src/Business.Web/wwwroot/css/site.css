@@ -882,6 +882,11 @@ a:hover {
   text-transform: uppercase;
 }
 
+.app-table tbody tr:not(.status-row) > td,
+.app-table tbody tr:not(.status-row) > th {
+  background: var(--panel);
+}
+
 .app-table tbody tr:nth-child(even):not(.status-row.status-completed):not(.status-row.status-done):not(.status-row.status-delivered):not(.status-row.status-fulfilled) > td {
   background: var(--panel);
 }
@@ -2856,7 +2861,7 @@ a:hover {
 }
 
 .planning-gantt-shell .grid-row:nth-child(even) {
-  fill: #fbfcfe;
+  fill: #fff;
 }
 
 .planning-gantt-shell .lower-text,
@@ -3081,7 +3086,7 @@ a:hover {
 }
 
 .planning-custom-row:nth-child(even) .planning-custom-task {
-  background: #fbfcfe;
+  background: #fff;
 }
 
 .planning-custom-timeline {
@@ -3092,7 +3097,7 @@ a:hover {
 }
 
 .planning-custom-row:nth-child(even) .planning-custom-timeline {
-  background: #fbfcfe;
+  background: #fff;
 }
 
 .planning-custom-grid {
@@ -3374,7 +3379,7 @@ a:hover {
 }
 
 .plan-list-row:nth-child(even) .plan-list-task {
-  background: #fbfcfe;
+  background: #fff;
 }
 
 .plan-list-meta {
@@ -4328,6 +4333,28 @@ html[data-theme="dark"] {
   --shadow-soft: 0 18px 38px rgba(0, 0, 0, .24);
 }
 
+html[data-theme="soft"] {
+  color-scheme: light;
+  --bg: #eeedfc;
+  --panel: #f8f7ff;
+  --ink: #1f2937;
+  --muted: #6b7280;
+  --line: #dddaf4;
+  --sidebar: #101827;
+  --sidebar-2: #1c2740;
+  --accent: #2563eb;
+  --accent-soft: #f3f2ff;
+  --ok: #0f766e;
+  --warn: #b45309;
+  --text: var(--ink);
+  --shadow-soft: 0 12px 28px rgba(84, 74, 130, .06);
+}
+
+html[data-theme="soft"] body {
+  color: var(--ink);
+  background: var(--bg);
+}
+
 html[data-theme="dark"] body {
   color: var(--ink);
   background: var(--bg);
@@ -4440,7 +4467,7 @@ html[data-theme="dark"] .planning-custom-row:nth-child(even) .planning-custom-ta
 html[data-theme="dark"] .planning-custom-row:nth-child(even) .planning-custom-timeline,
 html[data-theme="dark"] .plan-list-row:nth-child(even) .plan-list-task,
 html[data-theme="dark"] .plan-list-row:nth-child(even) .plan-list-meta {
-  background: #303134;
+  background: #292a2d;
   color: var(--ink);
 }
 
@@ -4993,6 +5020,10 @@ html[data-theme="dark"] .kanban-card-bottom {
 
 .theme-preview-current {
   background: linear-gradient(135deg, #101827 0 28%, #f5f7fb 28% 100%);
+}
+
+.theme-preview-soft {
+  background: linear-gradient(135deg, #dcd9f7 0 28%, #eeedfc 28% 100%);
 }
 
 .theme-preview-dark {
