@@ -2,6 +2,7 @@
 @{
     var title = ViewData["Title"]?.ToString() ?? "Dashboard";
     var infoText = ViewData["InfoText"]?.ToString();
+    var currentReturnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
 }
 
 <section class="panel-block">
@@ -42,14 +43,15 @@
                 <tbody>
                 @foreach (var item in Model)
                 {
-                    <tr class="status-row status-@item.StatusCss">
+                    <tr class="status-row status-@item.StatusCss"
+                        data-row-link="@Url.Action(item.Action, item.Controller, new { id = item.Id, returnUrl = currentReturnUrl })">
                         <td>@item.Module</td>
                         <td><strong>@item.Title</strong></td>
                         <td>@(item.Subtitle ?? "-")</td>
                         <td>@(item.Date?.ToString("dd.MM.yyyy") ?? "-")</td>
                         <td><span class="status-pill status-@item.StatusCss">@item.StatusText</span></td>
                         <td class="text-end">
-                            <a asp-controller="@item.Controller" asp-action="@item.Action" asp-route-id="@item.Id">Detay</a>
+                            <a asp-controller="@item.Controller" asp-action="@item.Action" asp-route-id="@item.Id" asp-route-returnUrl="@currentReturnUrl">Detay</a>
                         </td>
                     </tr>
                 }

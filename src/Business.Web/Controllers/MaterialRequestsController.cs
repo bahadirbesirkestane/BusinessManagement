@@ -4,6 +4,7 @@ using Business.Domain.Enums;
 using Business.Infrastructure.Data;
 using Business.Infrastructure.Identity;
 using Business.Web.Extensions;
+using Business.Web.Services;
 using Business.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -50,77 +51,8 @@ public class MaterialRequestsController : Controller
         bool includeFulfilled = false,
         CancellationToken cancellationToken = default)
     {
-        var query = _context.MaterialRequests
-            .Include(x => x.Project)
-            .Include(x => x.Material)
-            .AsNoTracking();
-
-        if (projectId.HasValue)
-        {
-            query = query.Where(x => x.ProjectId == projectId.Value);
-            ViewBag.ProjectId = projectId.Value;
-        }
-
-        if (!string.IsNullOrWhiteSpace(q))
-        {
-            var term = q.Trim();
-            var matchingRequesterIds = await _userManager.Users
-                .AsNoTracking()
-                .Where(x =>
-                    (x.FullName != null && x.FullName.Contains(term)) ||
-                    (x.Email != null && x.Email.Contains(term)))
-                .Select(x => x.Id)
-                .ToListAsync(cancellationToken);
-
-            query = query.Where(x =>
-                x.RequestedItem.Contains(term) ||
-                (x.QuantityText != null && x.QuantityText.Contains(term)) ||
-                (x.Quality != null && x.Quality.Contains(term)) ||
-                (x.Notes != null && x.Notes.Contains(term)) ||
-                (x.Project != null && (x.Project.Code.Contains(term) || x.Project.Name.Contains(term))) ||
-                (x.Material != null && x.Material.Name.Contains(term)) ||
-                matchingRequesterIds.Contains(x.RequestedByUserId!));
-        }
-
-        if (status.HasValue)
-        {
-            query = query.Where(x => x.Status == status.Value);
-        }
-        else if (!includeFulfilled)
-        {
-            query = query.Where(x => x.Status != MaterialRequestStatus.Fulfilled);
-        }
-
-        if (materialId.HasValue)
-        {
-            query = query.Where(x => x.MaterialId == materialId.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(requestedByUserId))
-        {
-            query = query.Where(x => x.RequestedByUserId == requestedByUserId);
-        }
-
-        if (neededFrom.HasValue)
-        {
-            query = query.Where(x => x.NeededBy >= neededFrom.Value);
-        }
-
-        if (neededTo.HasValue)
-        {
-            query = query.Where(x => x.NeededBy <= neededTo.Value);
-        }
-
-        query = sort switch
-        {
-            "item" => query.OrderBy(x => x.RequestedItem),
-            "project" => query.OrderBy(x => x.Project == null ? string.Empty : x.Project.Code),
-            "material" => query.OrderBy(x => x.Material == null ? string.Empty : x.Material.Name),
-            "status" => query.OrderBy(x => x.Status),
-            "needed" => query.OrderBy(x => x.NeededBy),
-            "oldest" => query.OrderBy(x => x.CreatedAt),
-            _ => query.OrderByDescending(x => x.CreatedAt)
-        };
+        var query = await BuildListQueryAsync(projectId, q, status, materialId, requestedByUserId, neededFrom, neededTo, includeFulfilled, cancellationToken);
+        query = ApplyListSorting(query, sort);
 
         ViewBag.FilterQ = q;
         ViewBag.FilterStatus = status;
@@ -142,6 +74,81 @@ public class MaterialRequestsController : Controller
             cancellationToken);
 
         return View(requests);
+    }
+
+    [Authorize(Policy = AppPolicies.CanViewMaterialRequests)]
+    public async Task<IActionResult> ExportList(
+        Guid? projectId,
+        string? q,
+        MaterialRequestStatus? status,
+        Guid? materialId,
+        string? requestedByUserId,
+        DateTime? neededFrom,
+        DateTime? neededTo,
+        string? sort,
+        bool includeFulfilled = false,
+        CancellationToken cancellationToken = default)
+    {
+        var query = await BuildListQueryAsync(projectId, q, status, materialId, requestedByUserId, neededFrom, neededTo, includeFulfilled, cancellationToken);
+        query = ApplyListSorting(query, sort);
+
+        var rows = await query
+            .Select(x => (IReadOnlyList<object?>)new object?[]
+            {
+                x.RequestedItem,
+                x.Project != null ? $"{x.Project.Code} - {x.Project.Name}" : "Genel",
+                x.Material != null ? x.Material.Name : null,
+                x.QuantityText ?? (x.Quantity.HasValue ? x.Quantity.Value.ToString("0.###") : null),
+                x.Unit,
+                x.Quality,
+                x.Status.ToDisplayName(),
+                x.NeededBy,
+                x.RequestedByUserId,
+                x.Notes
+            })
+            .ToListAsync(cancellationToken);
+
+        if (rows.Count > 0)
+        {
+            var requesterIds = rows
+                .Select(x => x[8] as string)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Cast<string>()
+                .Distinct()
+                .ToList();
+
+            var requesterMap = await GetRequestedByNamesAsync(requesterIds, cancellationToken);
+            rows = rows
+                .Select(x => (IReadOnlyList<object?>)new object?[]
+                {
+                    x[0],
+                    x[1],
+                    x[2],
+                    x[3],
+                    x[4],
+                    x[5],
+                    x[6],
+                    x[7],
+                    x[8] is string requesterId && requesterMap.TryGetValue(requesterId, out var requesterName) ? requesterName : "-",
+                    x[9]
+                })
+                .ToList();
+        }
+
+        var sheetName = status == MaterialRequestStatus.Fulfilled
+            ? "Karşılanan İhtiyaçlar"
+            : includeFulfilled
+                ? "Tüm İhtiyaçlar"
+                : "Malzeme İhtiyaçları";
+        var filePrefix = status == MaterialRequestStatus.Fulfilled
+            ? "karsilanan-ihtiyaclar"
+            : includeFulfilled
+                ? "tum-malzeme-ihtiyaclari"
+                : "malzeme-ihtiyaclari";
+
+        return ExcelFile(
+            [new ExcelSheet(sheetName, ["Malzeme", "Proje", "Tanımlı Malzeme", "Miktar", "Birim", "Kalite", "Durum", "Gerekli Tarih", "Veren Kişi", "Not"], rows)],
+            $"{filePrefix}-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
     }
 
     public async Task<IActionResult> All(
@@ -617,6 +624,101 @@ public class MaterialRequestsController : Controller
         _context.MaterialRequests.RemoveRange(_context.MaterialRequests.Where(x => selectedIds.Contains(x.Id)));
         await _context.SaveChangesAsync(cancellationToken);
         return RedirectToLocal(returnUrl);
+    }
+
+    private async Task<IQueryable<MaterialRequest>> BuildListQueryAsync(
+        Guid? projectId,
+        string? q,
+        MaterialRequestStatus? status,
+        Guid? materialId,
+        string? requestedByUserId,
+        DateTime? neededFrom,
+        DateTime? neededTo,
+        bool includeFulfilled,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.MaterialRequests
+            .Include(x => x.Project)
+            .Include(x => x.Material)
+            .AsNoTracking();
+
+        if (projectId.HasValue)
+        {
+            query = query.Where(x => x.ProjectId == projectId.Value);
+            ViewBag.ProjectId = projectId.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            var matchingRequesterIds = await _userManager.Users
+                .AsNoTracking()
+                .Where(x =>
+                    (x.FullName != null && x.FullName.Contains(term)) ||
+                    (x.Email != null && x.Email.Contains(term)))
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+
+            query = query.Where(x =>
+                x.RequestedItem.Contains(term) ||
+                (x.QuantityText != null && x.QuantityText.Contains(term)) ||
+                (x.Quality != null && x.Quality.Contains(term)) ||
+                (x.Notes != null && x.Notes.Contains(term)) ||
+                (x.Project != null && (x.Project.Code.Contains(term) || x.Project.Name.Contains(term))) ||
+                (x.Material != null && x.Material.Name.Contains(term)) ||
+                matchingRequesterIds.Contains(x.RequestedByUserId!));
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.Status == status.Value);
+        }
+        else if (!includeFulfilled)
+        {
+            query = query.Where(x => x.Status != MaterialRequestStatus.Fulfilled);
+        }
+
+        if (materialId.HasValue)
+        {
+            query = query.Where(x => x.MaterialId == materialId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedByUserId))
+        {
+            query = query.Where(x => x.RequestedByUserId == requestedByUserId);
+        }
+
+        if (neededFrom.HasValue)
+        {
+            query = query.Where(x => x.NeededBy >= neededFrom.Value);
+        }
+
+        if (neededTo.HasValue)
+        {
+            query = query.Where(x => x.NeededBy <= neededTo.Value);
+        }
+
+        return query;
+    }
+
+    private static IOrderedQueryable<MaterialRequest> ApplyListSorting(IQueryable<MaterialRequest> query, string? sort)
+    {
+        return sort switch
+        {
+            "item" => query.OrderBy(x => x.RequestedItem),
+            "project" => query.OrderBy(x => x.Project == null ? string.Empty : x.Project.Code),
+            "material" => query.OrderBy(x => x.Material == null ? string.Empty : x.Material.Name),
+            "status" => query.OrderBy(x => x.Status),
+            "needed" => query.OrderBy(x => x.NeededBy),
+            "oldest" => query.OrderBy(x => x.CreatedAt),
+            _ => query.OrderByDescending(x => x.CreatedAt)
+        };
+    }
+
+    private FileContentResult ExcelFile(IReadOnlyList<ExcelSheet> sheets, string fileName)
+    {
+        var bytes = ExcelWorkbookBuilder.Build(sheets);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     private static void NormalizeMaterialRequestInput(MaterialRequest request)

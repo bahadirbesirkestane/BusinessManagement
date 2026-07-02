@@ -263,7 +263,7 @@
                 }
                 @if (canDeleteTask)
                 {
-                    <button class="btn btn-outline-danger btn-sm" type="submit" formaction="@Url.Action("BulkDelete")" data-bulk-submit="bulkActionForm">Seçilenleri sil</button>
+                    <button class="btn btn-outline-danger btn-sm" type="submit" formaction="@Url.Action("BulkDelete")" data-bulk-submit="bulkActionForm" data-confirm-message="Seçilen görevleri silmek istediğinize emin misiniz?">Seçilenleri sil</button>
                 }
             </div>
         </form>

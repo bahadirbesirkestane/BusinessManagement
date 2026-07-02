@@ -162,6 +162,23 @@ function initSearchableSelects() {
     });
 }
 
+document.addEventListener('click', function (event) {
+    var confirmTrigger = event.target.closest('[data-confirm-message]');
+    if (!confirmTrigger) {
+        return;
+    }
+
+    var message = confirmTrigger.getAttribute('data-confirm-message');
+    if (!message) {
+        return;
+    }
+
+    if (!window.confirm(message)) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+});
+
 function initFreeTextLookups(root) {
     var scope = root instanceof Element ? root : document;
 

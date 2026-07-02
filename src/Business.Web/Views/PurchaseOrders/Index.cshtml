@@ -70,6 +70,24 @@
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Archived" asp-route-projectId="@ViewBag.ProjectId">Arşiv</a>
             }
+            <a class="btn btn-outline-success btn-sm"
+               asp-action="ExportList"
+               asp-route-projectId="@ViewBag.ProjectId"
+               asp-route-q="@ViewBag.FilterQ"
+               asp-route-status="@ViewBag.FilterStatus"
+               asp-route-scope="@ViewBag.FilterScope"
+               asp-route-supplierId="@ViewBag.FilterSupplierId"
+               asp-route-materialId="@ViewBag.FilterMaterialId"
+               asp-route-requestedByUserId="@ViewBag.FilterRequestedByUserId"
+               asp-route-requestedBy="@ViewBag.FilterRequestedBy"
+               asp-route-dateFrom="@ViewBag.FilterDateFrom"
+               asp-route-dateTo="@ViewBag.FilterDateTo"
+               asp-route-sort="@ViewBag.Sort"
+               asp-route-load="@ViewBag.Load"
+               asp-route-take="@ViewBag.CurrentTake"
+               asp-route-showAll="@ViewBag.ShowAll"
+               asp-route-includeDelivered="@ViewBag.IncludeDelivered"
+               asp-route-archivedOnly="@ViewBag.IsArchiveList">Excel indir</a>
             @if (canCreateOrder)
             {
                 <a class="btn btn-outline-primary btn-sm" asp-action="QuickCreate" asp-route-projectId="@ViewBag.ProjectId" asp-route-returnUrl="@currentReturnUrl">Hızlı sipariş</a>

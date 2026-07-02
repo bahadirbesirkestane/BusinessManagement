@@ -27,6 +27,17 @@
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Fulfilled" asp-route-projectId="@ViewBag.ProjectId">Karşılananlar</a>
             }
+            <a class="btn btn-outline-success btn-sm"
+               asp-action="ExportList"
+               asp-route-projectId="@ViewBag.ProjectId"
+               asp-route-q="@ViewBag.FilterQ"
+               asp-route-status="@ViewBag.FilterStatus"
+               asp-route-materialId="@ViewBag.FilterMaterialId"
+               asp-route-requestedByUserId="@ViewBag.FilterRequestedByUserId"
+               asp-route-neededFrom="@ViewBag.FilterNeededFrom"
+               asp-route-neededTo="@ViewBag.FilterNeededTo"
+               asp-route-sort="@ViewBag.Sort"
+               asp-route-includeFulfilled="@ViewBag.IncludeFulfilled">Excel indir</a>
             @if (canManageRequest)
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="QuickCreate" asp-route-projectId="@ViewBag.ProjectId" asp-route-returnUrl="@currentReturnUrl">Hızlı ihtiyaç</a>
@@ -176,7 +187,7 @@
                 }
                 @if (canManageRequest)
                 {
-                    <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkRequestSelectionForm">Seçilenleri sil</button>
+                    <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkRequestSelectionForm" data-confirm-message="Seçilen malzeme ihtiyaçlarını silmek istediğinize emin misiniz?">Seçilenleri sil</button>
                 }
             </div>
         </form>

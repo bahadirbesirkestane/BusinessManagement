@@ -111,97 +111,8 @@ public class PurchaseOrdersController : Controller
 
         ViewBag.IsDeferredLoad = false;
 
-        var query = _context.PurchaseOrders
-            .Include(x => x.Project)
-            .Include(x => x.Supplier)
-            .Include(x => x.Material)
-            .AsNoTracking()
-            .ApplyRecordVisibility(User, includeArchived: archivedOnly, onlyArchived: archivedOnly);
-
-        if (projectId.HasValue)
-        {
-            query = query.Where(x => x.ProjectId == projectId);
-        }
-
-        if (!string.IsNullOrWhiteSpace(q))
-        {
-            var term = q.Trim();
-            query = query.Where(x =>
-                x.OrderNumber.Contains(term) ||
-                x.Content.Contains(term) ||
-                (x.QuantityText != null && x.QuantityText.Contains(term)) ||
-                (x.Quality != null && x.Quality.Contains(term)) ||
-                (x.RequestedBy != null && x.RequestedBy.Contains(term)) ||
-                (x.Notes != null && x.Notes.Contains(term)) ||
-                (x.Supplier != null && x.Supplier.Name.Contains(term)) ||
-                (x.Project != null && (x.Project.Code.Contains(term) || x.Project.Name.Contains(term))) ||
-                (x.Material != null && x.Material.Name.Contains(term)));
-        }
-
-        if (status.HasValue)
-        {
-            query = query.Where(x => x.Status == status.Value);
-        }
-        else if (!archivedOnly && !includeDelivered)
-        {
-            query = query.Where(x => x.Status != PurchaseOrderStatus.Delivered);
-        }
-
-        if (scope.HasValue)
-        {
-            query = query.Where(x => x.Scope == scope.Value);
-        }
-
-        if (supplierId.HasValue)
-        {
-            query = query.Where(x => x.SupplierId == supplierId.Value);
-        }
-
-        if (materialId.HasValue)
-        {
-            query = query.Where(x => x.MaterialId == materialId.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(requestedByUserId))
-        {
-            var requester = await _userManager.FindByIdAsync(requestedByUserId);
-            var requesterName = requester?.FullName;
-            var requesterEmail = requester?.Email;
-            query = query.Where(x =>
-                x.RequestedByUserId == requestedByUserId ||
-                (requesterName != null && x.RequestedBy == requesterName) ||
-                (requesterEmail != null && x.RequestedBy == requesterEmail));
-        }
-
-        if (!string.IsNullOrWhiteSpace(requestedBy))
-        {
-            var requesterTerm = requestedBy.Trim();
-            query = query.Where(x => x.RequestedBy != null && x.RequestedBy.Contains(requesterTerm));
-        }
-
-        if (dateFrom.HasValue)
-        {
-            query = query.Where(x => x.OrderDate >= dateFrom.Value);
-        }
-
-        if (dateTo.HasValue)
-        {
-            query = query.Where(x => x.OrderDate <= dateTo.Value);
-        }
-
-        query = sort switch
-        {
-            "orderNumber" => query.OrderBy(x => x.OrderNumber),
-            "content" => query.OrderBy(x => x.Content),
-            "project" => query.OrderBy(x => x.Project == null ? string.Empty : x.Project.Code),
-            "supplier" => query.OrderBy(x => x.Supplier == null ? string.Empty : x.Supplier.Name),
-            "requester" => query.OrderBy(x => x.RequestedBy),
-            "status" => query.OrderBy(x => x.Status),
-            "date" => query.OrderBy(x => x.OrderDate),
-            "arrival" => query.OrderBy(x => x.ExpectedArrivalDate ?? DateTime.MaxValue),
-            "total" => query.OrderByDescending(x => x.OrderTotal ?? ((x.UnitPrice ?? 0) * (x.Quantity ?? 0))),
-            _ => query.OrderByDescending(x => x.CreatedAt)
-        };
+        var query = await BuildListQueryAsync(projectId, q, status, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, includeDelivered, archivedOnly, cancellationToken);
+        query = ApplyListSorting(query, sort);
 
         List<PurchaseOrder> orders;
         var hasMore = false;
@@ -225,6 +136,86 @@ public class PurchaseOrdersController : Controller
         ViewBag.ResultCount = orders.Count;
 
         return View(orders);
+    }
+
+    [Authorize(Policy = AppPolicies.CanViewPurchasing)]
+    public async Task<IActionResult> ExportList(
+        Guid? projectId,
+        string? q,
+        PurchaseOrderStatus? status,
+        PurchaseOrderScope? scope,
+        Guid? supplierId,
+        Guid? materialId,
+        string? requestedByUserId,
+        string? requestedBy,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        string? sort,
+        bool load = true,
+        int take = DefaultListTake,
+        bool showAll = false,
+        bool includeDelivered = false,
+        bool archivedOnly = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (!load)
+        {
+            return ExcelFile(
+                [new ExcelSheet("Siparişler", ["Bilgi"], [["Liste henüz yüklenmediği için dışa aktarılacak kayıt bulunamadı."]])],
+                $"siparisler-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
+        }
+
+        take = Math.Max(DefaultListTake, take);
+
+        var query = await BuildListQueryAsync(projectId, q, status, scope, supplierId, materialId, requestedByUserId, requestedBy, dateFrom, dateTo, includeDelivered, archivedOnly, cancellationToken);
+        query = ApplyListSorting(query, sort);
+
+        if (!showAll)
+        {
+            query = query.Take(take);
+        }
+
+        var rows = await query
+            .Select(x => (IReadOnlyList<object?>)new object?[]
+            {
+                x.OrderNumber,
+                x.Content,
+                x.Project != null ? $"{x.Project.Code} - {x.Project.Name}" : "Genel",
+                x.Scope.ToDisplayName(),
+                x.RequestedBy,
+                x.Supplier != null ? x.Supplier.Name : null,
+                x.Material != null ? x.Material.Name : null,
+                x.QuantityText ?? (x.Quantity.HasValue ? x.Quantity.Value.ToString("0.####") : null),
+                x.Quality,
+                x.Status.ToDisplayName(),
+                x.OrderDate,
+                x.ExpectedArrivalDate,
+                x.ArrivalDate,
+                x.UnitPriceText ?? (x.UnitPrice.HasValue ? x.UnitPrice.Value.ToString("#,##0.####") : null),
+                x.OrderTotal ?? ((x.UnitPrice ?? 0) * (x.Quantity ?? 0)),
+                x.Currency,
+                x.Notes
+            })
+            .ToListAsync(cancellationToken);
+
+        var sheetName = archivedOnly
+            ? "Arşiv Siparişler"
+            : includeDelivered
+                ? "Tüm Siparişler"
+                : status == PurchaseOrderStatus.Delivered
+                    ? "Teslim Edilen Siparişler"
+                    : "Siparişler";
+        var filePrefix = archivedOnly
+            ? "arsiv-siparisler"
+            : includeDelivered
+                ? "tum-siparisler"
+                : status == PurchaseOrderStatus.Delivered
+                    ? "teslim-edilen-siparisler"
+                    : "siparisler";
+
+        return ExcelFile(
+            [new ExcelSheet(sheetName, ["Sipariş No", "İçerik", "Proje", "Kapsam", "Veren", "Tedarikçi", "Malzeme", "Miktar", "Kalite", "Durum", "Sipariş Tarihi", "Beklenen Varış", "Teslim Tarihi", "Birim Fiyat", "Tutar", "Para Birimi", "Not"], rows)],
+            $"{filePrefix}-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
     }
 
     public async Task<IActionResult> Delivered(
@@ -894,6 +885,119 @@ public class PurchaseOrdersController : Controller
         return ExcelFile(
             [new ExcelSheet("Arşiv Siparişler", ["Sipariş No", "İçerik", "Proje", "Tedarikçi", "Malzeme", "Durum", "Miktar", "Sipariş Tarihi", "Beklenen", "Teslim", "Arşiv Tarihi", "Not"], rows)],
             $"arsiv-siparisler-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
+    }
+
+    private async Task<IQueryable<PurchaseOrder>> BuildListQueryAsync(
+        Guid? projectId,
+        string? q,
+        PurchaseOrderStatus? status,
+        PurchaseOrderScope? scope,
+        Guid? supplierId,
+        Guid? materialId,
+        string? requestedByUserId,
+        string? requestedBy,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        bool includeDelivered,
+        bool archivedOnly,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.PurchaseOrders
+            .Include(x => x.Project)
+            .Include(x => x.Supplier)
+            .Include(x => x.Material)
+            .AsNoTracking()
+            .ApplyRecordVisibility(User, includeArchived: archivedOnly, onlyArchived: archivedOnly);
+
+        if (projectId.HasValue)
+        {
+            query = query.Where(x => x.ProjectId == projectId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            query = query.Where(x =>
+                x.OrderNumber.Contains(term) ||
+                x.Content.Contains(term) ||
+                (x.QuantityText != null && x.QuantityText.Contains(term)) ||
+                (x.Quality != null && x.Quality.Contains(term)) ||
+                (x.RequestedBy != null && x.RequestedBy.Contains(term)) ||
+                (x.Notes != null && x.Notes.Contains(term)) ||
+                (x.Supplier != null && x.Supplier.Name.Contains(term)) ||
+                (x.Project != null && (x.Project.Code.Contains(term) || x.Project.Name.Contains(term))) ||
+                (x.Material != null && x.Material.Name.Contains(term)));
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.Status == status.Value);
+        }
+        else if (!archivedOnly && !includeDelivered)
+        {
+            query = query.Where(x => x.Status != PurchaseOrderStatus.Delivered);
+        }
+
+        if (scope.HasValue)
+        {
+            query = query.Where(x => x.Scope == scope.Value);
+        }
+
+        if (supplierId.HasValue)
+        {
+            query = query.Where(x => x.SupplierId == supplierId.Value);
+        }
+
+        if (materialId.HasValue)
+        {
+            query = query.Where(x => x.MaterialId == materialId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedByUserId))
+        {
+            var requester = await _userManager.FindByIdAsync(requestedByUserId);
+            var requesterName = requester?.FullName;
+            var requesterEmail = requester?.Email;
+            query = query.Where(x =>
+                x.RequestedByUserId == requestedByUserId ||
+                (requesterName != null && x.RequestedBy == requesterName) ||
+                (requesterEmail != null && x.RequestedBy == requesterEmail));
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedBy))
+        {
+            var requesterTerm = requestedBy.Trim();
+            query = query.Where(x => x.RequestedBy != null && x.RequestedBy.Contains(requesterTerm));
+        }
+
+        if (dateFrom.HasValue)
+        {
+            query = query.Where(x => x.OrderDate >= dateFrom.Value);
+        }
+
+        if (dateTo.HasValue)
+        {
+            query = query.Where(x => x.OrderDate <= dateTo.Value);
+        }
+
+        return query;
+    }
+
+    private static IOrderedQueryable<PurchaseOrder> ApplyListSorting(IQueryable<PurchaseOrder> query, string? sort)
+    {
+        return sort switch
+        {
+            "orderNumber" => query.OrderBy(x => x.OrderNumber),
+            "content" => query.OrderBy(x => x.Content),
+            "project" => query.OrderBy(x => x.Project == null ? string.Empty : x.Project.Code),
+            "supplier" => query.OrderBy(x => x.Supplier == null ? string.Empty : x.Supplier.Name),
+            "requester" => query.OrderBy(x => x.RequestedBy),
+            "status" => query.OrderBy(x => x.Status),
+            "date" => query.OrderBy(x => x.OrderDate),
+            "arrival" => query.OrderBy(x => x.ExpectedArrivalDate ?? DateTime.MaxValue),
+            "total" => query.OrderByDescending(x => x.OrderTotal ?? ((x.UnitPrice ?? 0) * (x.Quantity ?? 0))),
+            _ => query.OrderByDescending(x => x.CreatedAt)
+        };
     }
 
     private async Task FillLookupsAsync(CancellationToken cancellationToken)
