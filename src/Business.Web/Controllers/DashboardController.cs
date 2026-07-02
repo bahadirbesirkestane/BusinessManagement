@@ -301,10 +301,8 @@ public class DashboardController : Controller
 
         if (CanViewTasksModule())
         {
-            items.AddRange(await _context.ProjectTasks
+            items.AddRange(await BuildDashboardTaskQuery()
                 .Include(x => x.Project)
-                .AsNoTracking()
-                .ApplyRecordVisibility(User)
                 .Where(x =>
                     x.Status != WorkTaskStatus.Done &&
                     x.Status != WorkTaskStatus.Cancelled &&
