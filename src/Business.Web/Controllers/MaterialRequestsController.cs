@@ -19,6 +19,7 @@ public class MaterialRequestsController : Controller
     private readonly ILookupService _lookupService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IProjectTimelineService _projectTimelineService;
+    private readonly IRecordActivityService _recordActivityService;
     private readonly ApplicationDbContext _context;
 
     public MaterialRequestsController(
@@ -26,12 +27,14 @@ public class MaterialRequestsController : Controller
         ILookupService lookupService,
         UserManager<ApplicationUser> userManager,
         IProjectTimelineService projectTimelineService,
+        IRecordActivityService recordActivityService,
         ApplicationDbContext context)
     {
         _materialRequestService = materialRequestService;
         _lookupService = lookupService;
         _userManager = userManager;
         _projectTimelineService = projectTimelineService;
+        _recordActivityService = recordActivityService;
         _context = context;
     }
 
@@ -207,6 +210,14 @@ public class MaterialRequestsController : Controller
         }
 
         ViewBag.RequestedByName = await GetRequestedByNameAsync(request.RequestedByUserId, cancellationToken);
+        ViewBag.Activity = new RecordActivityViewModel
+        {
+            OwnerType = RecordOwnerType.MaterialRequest,
+            OwnerId = request.Id,
+            Comments = await _recordActivityService.GetCommentsAsync(RecordOwnerType.MaterialRequest, request.Id, cancellationToken),
+            Files = await _recordActivityService.GetFilesAsync(RecordOwnerType.MaterialRequest, request.Id, cancellationToken),
+            UserNames = await GetActivityUserNamesAsync(request.Id, cancellationToken)
+        };
         return View(request);
     }
 
@@ -759,5 +770,21 @@ public class MaterialRequestsController : Controller
             .Where(x => x.IsActive)
             .OrderBy(x => x.FullName)
             .ToListAsync(cancellationToken);
+    }
+
+    private async Task<IReadOnlyDictionary<string, string>> GetActivityUserNamesAsync(Guid ownerId, CancellationToken cancellationToken)
+    {
+        var userIds = await _context.RecordComments
+            .Where(x => x.OwnerType == RecordOwnerType.MaterialRequest && x.OwnerId == ownerId && x.CreatedByUserId != null)
+            .Select(x => x.CreatedByUserId!)
+            .Concat(_context.RecordFiles
+                .Where(x => x.OwnerType == RecordOwnerType.MaterialRequest && x.OwnerId == ownerId && x.CreatedByUserId != null)
+                .Select(x => x.CreatedByUserId!))
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return await _userManager.Users
+            .Where(x => userIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.FullName ?? x.Email ?? x.UserName ?? x.Id, cancellationToken);
     }
 }

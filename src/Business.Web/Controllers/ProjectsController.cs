@@ -253,13 +253,13 @@ public class ProjectsController : Controller
         }
         else if (await _context.Projects.AnyAsync(x => x.Code == project.Code, cancellationToken))
         {
-            ModelState.AddModelError(nameof(project.Code), "Bu proje kodu zaten kullanÄ±lÄ±yor.");
+            ModelState.AddModelError(nameof(project.Code), "Bu proje kodu zaten kullanılıyor.");
             await FillLookupsAsync(cancellationToken);
             return View(project);
         }
 
         await _projectService.CreateAsync(project, cancellationToken);
-        await _projectTimelineService.AddAsync(project.Id, "Proje oluÅŸturuldu", $"{project.Code} - {project.Name}", cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, "Proje oluşturuldu", $"{project.Code} - {project.Name}", cancellationToken);
         return RedirectToAction(nameof(Index));
     }
 
@@ -321,13 +321,13 @@ public class ProjectsController : Controller
 
         if (await _context.Projects.AnyAsync(x => x.Id != id && x.Code == project.Code, cancellationToken))
         {
-            ModelState.AddModelError(nameof(project.Code), "Bu proje kodu zaten kullanÄ±lÄ±yor.");
+            ModelState.AddModelError(nameof(project.Code), "Bu proje kodu zaten kullanılıyor.");
             await FillLookupsAsync(cancellationToken);
             return View(project);
         }
 
         await _projectService.UpdateAsync(project, cancellationToken);
-        await _projectTimelineService.AddAsync(project.Id, "Proje dÃ¼zenlendi", $"{project.Code} - {project.Name}", cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, "Proje düzenlendi", $"{project.Code} - {project.Name}", cancellationToken);
         return RedirectToAction(nameof(Index));
     }
 
@@ -387,7 +387,7 @@ public class ProjectsController : Controller
             project.Status = status;
             project.CompletedAt = status == ProjectStatus.Completed ? DateTime.UtcNow : project.CompletedAt;
             await _projectService.UpdateAsync(project, cancellationToken);
-            await _projectTimelineService.AddAsync(project.Id, "Proje durumu deÄŸiÅŸti", $"{project.Code} - {status.ToDisplayName()}", cancellationToken);
+            await _projectTimelineService.AddAsync(project.Id, "Proje durumu değişti", $"{project.Code} - {status.ToDisplayName()}", cancellationToken);
         }
 
         return RedirectToLocal(returnUrl);
@@ -410,7 +410,7 @@ public class ProjectsController : Controller
 
         SetProjectArchiveState(project, archived);
         await _context.SaveChangesAsync(cancellationToken);
-        await _projectTimelineService.AddAsync(project.Id, archived ? "Proje arÅŸivlendi" : "Proje arÅŸivden Ã§Ä±karÄ±ldÄ±", $"{project.Code} - {project.Name}", cancellationToken);
+        await _projectTimelineService.AddAsync(project.Id, archived ? "Proje arşivlendi" : "Proje arşivden çıkarıldı", $"{project.Code} - {project.Name}", cancellationToken);
         return RedirectToLocal(returnUrl);
     }
 
@@ -492,7 +492,7 @@ public class ProjectsController : Controller
             .ToListAsync(cancellationToken);
 
         return ExcelFile(
-            [new ExcelSheet("ArÅŸiv Projeler", ["Kod", "Proje", "MÃ¼ÅŸteri", "Durum", "Ã–ncelik", "BaÅŸlangÄ±Ã§", "Hedef", "Tamamlanma", "ArÅŸiv Tarihi", "AÃ§Ä±klama", "Not"], rows)],
+            [new ExcelSheet("Arşiv Projeler", ["Kod", "Proje", "Müşteri", "Durum", "Öncelik", "Başlangıç", "Hedef", "Tamamlanma", "Arşiv Tarihi", "Açıklama", "Not"], rows)],
             $"arsiv-projeler-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
     }
 
@@ -620,7 +620,7 @@ public class ProjectsController : Controller
         {
             if (!string.IsNullOrWhiteSpace(task.WbsCode))
             {
-                return $"HiyerarÅŸi: {task.WbsCode}";
+                return $"Hiyerarşi: {task.WbsCode}";
             }
 
             var path = new List<int>();
@@ -645,8 +645,8 @@ public class ProjectsController : Controller
             }
 
             return path.Count > 1
-                ? $"HiyerarÅŸi: {string.Join(".", path)}"
-                : "HiyerarÅŸi: Ana gÃ¶rev";
+                ? $"Hiyerarşi: {string.Join(".", path)}"
+                : "Hiyerarşi: Ana görev";
         }
     }
 

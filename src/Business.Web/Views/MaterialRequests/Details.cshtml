@@ -32,3 +32,8 @@
         <dt class="col-sm-3">Not</dt><dd class="col-sm-9">@(Model.Notes ?? "-")</dd>
     </dl>
 </section>
+
+@if (ViewBag.Activity is Business.Web.ViewModels.RecordActivityViewModel activity)
+{
+    @await Html.PartialAsync("_RecordActivity", activity)
+}

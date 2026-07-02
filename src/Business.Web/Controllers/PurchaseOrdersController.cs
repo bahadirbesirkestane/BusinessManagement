@@ -477,7 +477,7 @@ public class PurchaseOrdersController : Controller
                 .AnyAsync(x => x.Id == model.ProjectId.Value, cancellationToken);
             if (!canUseProject)
             {
-                ModelState.AddModelError(nameof(model.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+                ModelState.AddModelError(nameof(model.ProjectId), "Seçilen proje için yetkiniz bulunmuyor.");
             }
         }
 
@@ -595,7 +595,7 @@ public class PurchaseOrdersController : Controller
                 .AnyAsync(x => x.Id == order.ProjectId.Value, cancellationToken);
             if (!canUseProject)
             {
-                ModelState.AddModelError(nameof(order.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+                ModelState.AddModelError(nameof(order.ProjectId), "Seçilen proje için yetkiniz bulunmuyor.");
             }
         }
 
@@ -666,7 +666,7 @@ public class PurchaseOrdersController : Controller
                 .AnyAsync(x => x.Id == order.ProjectId.Value, cancellationToken);
             if (!canUseProject)
             {
-                ModelState.AddModelError(nameof(order.ProjectId), "SeÃ§ilen proje iÃ§in yetkiniz bulunmuyor.");
+                ModelState.AddModelError(nameof(order.ProjectId), "Seçilen proje için yetkiniz bulunmuyor.");
             }
         }
 

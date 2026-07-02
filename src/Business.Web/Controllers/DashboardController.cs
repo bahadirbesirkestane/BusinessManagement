@@ -198,127 +198,14 @@ public class DashboardController : Controller
         ViewData["InfoText"] = "Termin veya ihtiyaç tarihi bugünden önce kalan, henüz tamamlanmamış ya da teslim edilmemiş kayıtlar gösterilir.";
         return View("WorkItems", await GetOverdueWorkItemsAsync(DateTime.Today, cancellationToken));
     }
-
-    public async Task<IActionResult> CriticalAlerts(CancellationToken cancellationToken)
-    {
-        ViewData["Title"] = "Kritik Uyarılar";
-        ViewData["InfoText"] = "Kritik öncelikli açık görevler, çok yaklaşan açık siparişler ve kritik stok uyarıları listelenir.";
-        var today = DateTime.Today;
-        var soonDate = today.AddDays(3).Date;
-        var items = new List<DashboardWorkItemViewModel>();
-
-        if (CanViewTasksModule())
-        {
-            items.AddRange(await _context.ProjectTasks
-                .Include(x => x.Project)
-                .AsNoTracking()
-                .ApplyRecordVisibility(User)
-                .Where(x =>
-                    x.Priority == ProjectPriority.Critical &&
-                    x.Status != WorkTaskStatus.Done &&
-                    x.Status != WorkTaskStatus.Cancelled &&
-                    (
-                        (!x.StartDate.HasValue && !x.DueDate.HasValue) ||
-                        (x.StartDate.HasValue && !x.DueDate.HasValue && x.StartDate.Value.Date == today.Date) ||
-                        (!x.StartDate.HasValue && x.DueDate.HasValue && x.DueDate.Value.Date <= soonDate) ||
-                        (x.StartDate.HasValue && x.DueDate.HasValue &&
-                            (
-                                (x.StartDate.Value.Date <= today.Date && x.DueDate.Value.Date >= today.Date) ||
-                                x.DueDate.Value.Date <= soonDate
-                            ))
-                    ))
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(60)
-                .Select(x => new DashboardWorkItemViewModel
-                {
-                    Module = "Görev",
-                    Title = x.Title,
-                    Subtitle = x.Project == null ? x.ManualProjectName : x.Project.Code,
-                    StatusText = x.Status.ToDisplayName(),
-                    StatusCss = x.Status.ToString().ToLowerInvariant(),
-                    Date = x.DueDate ?? x.StartDate,
-                    CreatedAt = x.CreatedAt,
-                    Controller = "ProjectTasks",
-                    Id = x.Id
-                })
-                .ToListAsync(cancellationToken));
-        }
-
-        if (CanViewPurchasingModule())
-        {
-            items.AddRange(await _context.PurchaseOrders
-                .Include(x => x.Project)
-                .AsNoTracking()
-                .ApplyRecordVisibility(User)
-                .Where(x =>
-                    x.Status != PurchaseOrderStatus.Delivered &&
-                    x.Status != PurchaseOrderStatus.Cancelled &&
-                    (
-                        (x.OrderDate.HasValue && x.ExpectedArrivalDate.HasValue &&
-                            (
-                                (x.OrderDate.Value.Date <= today.Date && x.ExpectedArrivalDate.Value.Date >= today.Date) ||
-                                x.ExpectedArrivalDate.Value.Date <= soonDate
-                            )) ||
-                        (!x.OrderDate.HasValue && x.ExpectedArrivalDate.HasValue && x.ExpectedArrivalDate.Value.Date <= soonDate) ||
-                        (x.OrderDate.HasValue && !x.ExpectedArrivalDate.HasValue && x.OrderDate.Value.Date == today.Date)
-                    ))
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(60)
-                .Select(x => new DashboardWorkItemViewModel
-                {
-                    Module = "Sipariş",
-                    Title = x.Content,
-                    Subtitle = x.Project == null ? "Genel" : x.Project.Code,
-                    StatusText = x.Status.ToDisplayName(),
-                    StatusCss = x.Status.ToString().ToLowerInvariant(),
-                    Date = x.ExpectedArrivalDate ?? x.OrderDate,
-                    CreatedAt = x.CreatedAt,
-                    Controller = "PurchaseOrders",
-                    Id = x.Id
-                })
-                .ToListAsync(cancellationToken));
-        }
-
-        if (CanViewStockModule())
-        {
-            items.AddRange(await _context.StockItems
-                .Include(x => x.Material)
-                .AsNoTracking()
-                .Where(x => x.Status == StockStatus.LowStock || x.Status == StockStatus.OutOfStock)
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(60)
-                .Select(x => new DashboardWorkItemViewModel
-                {
-                    Module = "Stok",
-                    Title = x.Name,
-                    Subtitle = x.Material == null ? x.Location : x.Material.Name,
-                    StatusText = x.Status.ToDisplayName(),
-                    StatusCss = x.Status.ToString().ToLowerInvariant(),
-                    Date = x.UpdatedAt ?? x.CreatedAt,
-                    CreatedAt = x.CreatedAt,
-                    Controller = "Stock",
-                    Action = x.MaterialId.HasValue ? "Details" : "Index",
-                    Id = x.MaterialId ?? x.Id
-                })
-                .ToListAsync(cancellationToken));
-        }
-
-        return View("WorkItems", items
-            .OrderByDescending(x => x.CreatedAt)
-            .ThenBy(x => x.Date ?? DateTime.MaxValue)
-            .ToList());
-    }
-
     private async Task<IReadOnlyList<DashboardWorkItemViewModel>> GetTodayWorkItemsAsync(DateTime today, CancellationToken cancellationToken)
     {
         var items = new List<DashboardWorkItemViewModel>();
 
         if (CanViewTasksModule())
         {
-            items.AddRange(await _context.ProjectTasks
+            items.AddRange(await BuildDashboardTaskQuery()
                 .Include(x => x.Project)
-                .AsNoTracking()
-                .ApplyRecordVisibility(User)
                 .Where(x =>
                     x.Status != WorkTaskStatus.Done &&
                     x.Status != WorkTaskStatus.Cancelled &&
@@ -503,16 +390,37 @@ public class DashboardController : Controller
 
     private IQueryable<ProjectTask> BuildUserTaskQuery(string userId)
     {
-        return _context.ProjectTasks
+        return BuildDashboardTaskQuery()
             .Include(x => x.Project)
             .Include(x => x.Customer)
             .Include(x => x.Assignments)
-            .AsNoTracking()
-            .ApplyRecordVisibility(User)
             .Where(x => !x.IsArchived &&
                 (x.ResponsibleUserId == userId ||
                  x.AssignedToUserId == userId ||
                  x.Assignments.Any(assignment => assignment.UserId == userId)));
+    }
+
+    private IQueryable<ProjectTask> BuildDashboardTaskQuery()
+    {
+        var query = _context.ProjectTasks
+            .AsNoTracking()
+            .ApplyRecordVisibility(User);
+
+        if (CanSeeAllTasks())
+        {
+            return query;
+        }
+
+        var userId = _userManager.GetUserId(User);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return query.Where(x => false);
+        }
+
+        return query.Where(x =>
+            x.Assignments.Any(assignment => assignment.UserId == userId) ||
+            x.AssignedToUserId == userId ||
+            x.ResponsibleUserId == userId);
     }
 
     private async Task<IReadOnlyList<DashboardUserTaskViewModel>> MapUserTasksAsync(
@@ -635,6 +543,12 @@ public class DashboardController : Controller
     {
         return User.IsInRole(AppRoles.Admin) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete);
+    }
+
+    private bool CanSeeAllTasks()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksViewAll);
     }
 
     private bool HasAnyPermission(params string[] permissions)

@@ -156,28 +156,31 @@
 
     @if (canUseBulkSelection)
     {
-        <form id="bulkRequestSelectionForm" asp-action="BulkDelete" method="post" class="bulk-action-bar">
+        <form id="bulkRequestSelectionForm" asp-action="BulkDelete" method="post" class="bulk-action-bar smart-bulk-bar" data-bulk-panel="bulkRequestSelectionForm" hidden>
             @Html.AntiForgeryToken()
             <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
             <span class="bulk-selection-count" data-bulk-count="bulkRequestSelectionForm">0 kayıt seçildi</span>
-            @if (canManageRequest)
-            {
-                <select name="status" class="form-select form-select-sm">
-                    @foreach (MaterialRequestStatus item in Enum.GetValues<MaterialRequestStatus>())
-                    {
-                        <option value="@item">@item.ToDisplayName()</option>
-                    }
-                </select>
-                <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("BulkUpdateStatus")" data-bulk-submit="bulkRequestSelectionForm">Durumu güncelle</button>
-            }
-            @if (canCreateOrder)
-            {
-                <button class="btn btn-outline-primary btn-sm" type="submit" formaction="@Url.Action("TransferToQuickOrder")" data-bulk-submit="bulkRequestSelectionForm">Seçilenleri siparişe aktar</button>
-            }
-            @if (canManageRequest)
-            {
-                <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkRequestSelectionForm">Seçilenleri sil</button>
-            }
+            <div class="bulk-bar-actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bulk-clear="bulkRequestSelectionForm">Seçimi temizle</button>
+                @if (canManageRequest)
+                {
+                    <select name="status" class="form-select form-select-sm" aria-label="Toplu ihtiyaç durumu">
+                        @foreach (MaterialRequestStatus item in Enum.GetValues<MaterialRequestStatus>())
+                        {
+                            <option value="@item">@item.ToDisplayName()</option>
+                        }
+                    </select>
+                    <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("BulkUpdateStatus")">Durumu güncelle</button>
+                }
+                @if (canCreateOrder)
+                {
+                    <button class="btn btn-outline-primary btn-sm" type="submit" formaction="@Url.Action("TransferToQuickOrder")" data-bulk-submit="bulkRequestSelectionForm">Seçilenleri siparişe aktar</button>
+                }
+                @if (canManageRequest)
+                {
+                    <button class="btn btn-outline-danger btn-sm" type="submit" data-bulk-submit="bulkRequestSelectionForm">Seçilenleri sil</button>
+                }
+            </div>
         </form>
     }
 

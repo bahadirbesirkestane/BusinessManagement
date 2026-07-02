@@ -196,6 +196,12 @@ public class RecordActivityController : Controller
                 .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
                 .AnyAsync(x => x.Id == ownerId, cancellationToken),
 
+            RecordOwnerType.MaterialRequest => await _context.MaterialRequests
+                .Include(x => x.Project)
+                .AsNoTracking()
+                .ApplyProjectRecordVisibility(User)
+                .AnyAsync(x => x.Id == ownerId, cancellationToken),
+
             _ => false
         };
     }
