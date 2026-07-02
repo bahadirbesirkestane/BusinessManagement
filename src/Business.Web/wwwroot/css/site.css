@@ -4428,6 +4428,67 @@ html[data-theme="dark"] .kanban-card:hover {
   color: var(--ink);
 }
 
+html[data-theme="dark"] .planning-custom-row .planning-custom-task,
+html[data-theme="dark"] .planning-custom-row .planning-custom-timeline,
+html[data-theme="dark"] .plan-list-row .plan-list-task,
+html[data-theme="dark"] .plan-list-row .plan-list-meta {
+  background: #292a2d;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .planning-custom-row:nth-child(even) .planning-custom-task,
+html[data-theme="dark"] .planning-custom-row:nth-child(even) .planning-custom-timeline,
+html[data-theme="dark"] .plan-list-row:nth-child(even) .plan-list-task,
+html[data-theme="dark"] .plan-list-row:nth-child(even) .plan-list-meta {
+  background: #303134;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .planning-custom-row:hover .planning-custom-task,
+html[data-theme="dark"] .planning-custom-row:hover .planning-custom-timeline,
+html[data-theme="dark"] .plan-list-row:hover .plan-list-task,
+html[data-theme="dark"] .plan-list-row:hover .plan-list-meta {
+  background: #34363a;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .planning-gantt-legend-strip,
+html[data-theme="dark"] .planning-gantt-modes,
+html[data-theme="dark"] .planning-gantt-modes button,
+html[data-theme="dark"] .planning-task-modal .modal-content,
+html[data-theme="dark"] .planning-task-modal .modal-header,
+html[data-theme="dark"] .planning-task-modal .modal-body,
+html[data-theme="dark"] .planning-task-modal .modal-footer {
+  border-color: var(--line) !important;
+  background: #292a2d !important;
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] .planning-gantt-modes button:hover,
+html[data-theme="dark"] .planning-gantt-modes button.active {
+  background: #303134 !important;
+  color: #d2e3fc !important;
+}
+
+html[data-theme="dark"] .planning-task-modal .modal-header .text-muted,
+html[data-theme="dark"] .planning-task-modal .modal-body .form-label,
+html[data-theme="dark"] .planning-task-modal .modal-body .text-muted,
+html[data-theme="dark"] .planning-gantt-legend span {
+  color: var(--muted) !important;
+}
+
+html[data-theme="dark"] .planning-task-modal .btn-close {
+  filter: invert(1) grayscale(100%);
+}
+
+html[data-theme="dark"] .plan-list-row.status-done .plan-list-task,
+html[data-theme="dark"] .plan-list-row.status-done .plan-list-task strong,
+html[data-theme="dark"] .plan-list-row.status-done .plan-list-task a,
+html[data-theme="dark"] .plan-list-row.status-done .plan-list-task em,
+html[data-theme="dark"] .plan-list-row.status-done .plan-list-description {
+  color: #8ab4f8 !important;
+}
+
 html[data-theme="dark"] .app-table thead th,
 html[data-theme="dark"] .calendar-weekday,
 html[data-theme="dark"] .stock-group-heading,

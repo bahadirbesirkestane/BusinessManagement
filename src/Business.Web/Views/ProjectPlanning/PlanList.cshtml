@@ -134,7 +134,6 @@
             </select>
             <input name="BaseStartDate" type="date" class="form-control form-control-sm" value="@(Model.TemplateApplyForm.BaseStartDate?.ToString("yyyy-MM-dd"))" />
             <button class="btn btn-outline-primary btn-sm" type="submit">Şablondan yükle</button>
-            <a class="btn btn-outline-secondary btn-sm" asp-controller="ProjectTemplates" asp-action="Index">Şablonlar</a>
         </form>
     }
 
@@ -194,7 +193,15 @@
                 </div>
                 @foreach (var task in Model.Tasks)
                 {
-                    <div class="plan-list-row status-@task.StatusCss" data-plan-list-row data-task-id="@task.Id" data-parent-id="@task.ParentTaskId">
+                    <div class="plan-list-row status-@task.StatusCss"
+                         data-plan-list-row
+                         data-task-id="@task.Id"
+                         data-parent-id="@task.ParentTaskId"
+                         data-preview-title="@($"{task.DisplayWbsCode} {task.Title}".Trim())"
+                         data-preview-subtitle="Durum: @task.StatusText | Öncelik: @task.PriorityText"
+                         data-preview-meta="Tarih: @GetDateRangeText(task) | Atanan: @task.AssignedText | Gün: @GetDayInfo(task)"
+                         data-preview-description="@(string.IsNullOrWhiteSpace(task.LatestUpdateDescription) ? task.Description ?? "Bu görev için ek açıklama girilmemiş." : $"Son güncelleme: {task.LatestUpdateText}. {task.LatestUpdateDescription}")"
+                         data-preview-status="@task.StatusText">
                         <div class="plan-list-task">
                             @if (task.HasChildren)
                             {
@@ -212,11 +219,11 @@
                                 }
                             </a>
                             <div class="planning-task-actions">
+                                <button class="preview-trigger" type="button" data-preview-trigger title="Ek bilgi" aria-label="Ek bilgi">i</button>
                                 @if (canCreateTask)
                                 {
                                     <button class="planning-add-child" type="button" data-plan-list-task-trigger data-parent-id="@task.Id" data-parent-title="@task.Title" title="Alt görev ekle">+</button>
                                 }
-                                <button class="planning-add-child is-disabled" type="button" title="Silme bu aşamada pasif" aria-disabled="true">−</button>
                                 @if (canUpdateTask)
                                 {
                                     <button class="planning-add-child" type="button" data-plan-list-edit-task="@task.Id" title="Görevi düzenle">✎</button>

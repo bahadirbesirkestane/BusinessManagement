@@ -109,7 +109,6 @@
             </select>
             <input name="BaseStartDate" type="date" class="form-control form-control-sm" value="@(Model.TemplateApplyForm.BaseStartDate?.ToString("yyyy-MM-dd"))" />
             <button class="btn btn-outline-primary btn-sm" type="submit">Şablondan yükle</button>
-            <a class="btn btn-outline-secondary btn-sm" asp-controller="ProjectTemplates" asp-action="Index">Şablonlar</a>
         </form>
     }
 
@@ -646,7 +645,6 @@
                     const actionButtons = `
                         <div class="planning-task-actions">
                             ${customBoard.dataset.canCreateTask === 'true' ? `<button class="planning-add-child" type="button" data-planning-task-trigger data-parent-id="${escapePlanningHtml(task.id)}" data-parent-title="${escapePlanningHtml(task.title)}" title="Alt görev ekle">+</button>` : ''}
-                            <button class="planning-add-child is-disabled" type="button" title="Silme bu aşamada pasif" aria-disabled="true">−</button>
                             ${customBoard.dataset.canUpdateTask === 'true' ? `<button class="planning-add-child" type="button" data-planning-edit-task="${escapePlanningHtml(task.id)}" title="Görevi düzenle">✎</button>` : ''}
                         </div>`;
 
@@ -709,17 +707,6 @@
                         actions.insertBefore(previewButton, actions.firstChild);
                     }
 
-                    const disabledDeleteButton = actions.querySelector('.planning-add-child.is-disabled');
-                    if (disabledDeleteButton && customBoard.dataset.canUpdateTask === 'true') {
-                        const deleteButton = document.createElement('button');
-                        deleteButton.type = 'button';
-                        deleteButton.className = 'planning-add-child is-danger';
-                        deleteButton.dataset.planningDeleteTask = task.id;
-                        deleteButton.dataset.taskTitle = task.title || '';
-                        deleteButton.title = 'Görevi sil';
-                        deleteButton.textContent = '−';
-                        disabledDeleteButton.replaceWith(deleteButton);
-                    }
                 });
 
                 customBoard.querySelectorAll('[data-custom-tree-toggle]').forEach(function (button) {

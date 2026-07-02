@@ -52,16 +52,11 @@
             @if (isArchiveList)
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Aktif liste</a>
-                <a class="btn btn-outline-secondary btn-sm" asp-action="All">Gerçek tüm liste</a>
                 <a class="btn btn-outline-primary btn-sm" asp-action="DownloadArchive">Arşivi indir</a>
             }
             else
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Archived">Arşiv</a>
-            }
-            @if (!isArchiveList)
-            {
-                <a class="btn btn-outline-secondary btn-sm" asp-action="All">Gerçek tüm liste</a>
             }
             @if (canCreateProject)
             {

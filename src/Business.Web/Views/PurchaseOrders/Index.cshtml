@@ -64,20 +64,14 @@
             @if (isArchiveList)
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-projectId="@ViewBag.ProjectId">Aktif liste</a>
-                <a class="btn btn-outline-secondary btn-sm" asp-action="All" asp-route-projectId="@ViewBag.ProjectId">Gerçek tüm liste</a>
                 <a class="btn btn-outline-primary btn-sm" asp-action="DownloadArchive">Arşivi indir</a>
             }
             else
             {
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Archived" asp-route-projectId="@ViewBag.ProjectId">Arşiv</a>
             }
-            @if (!isArchiveList)
-            {
-                <a class="btn btn-outline-secondary btn-sm" asp-action="All" asp-route-projectId="@ViewBag.ProjectId">Gerçek tüm liste</a>
-            }
             @if (canCreateOrder)
             {
-                <a class="btn btn-outline-secondary btn-sm" asp-controller="PurchaseOrderTemplates" asp-action="Index">Şablonlar</a>
                 <a class="btn btn-outline-primary btn-sm" asp-action="QuickCreate" asp-route-projectId="@ViewBag.ProjectId" asp-route-returnUrl="@currentReturnUrl">Hızlı sipariş</a>
                 <a class="btn btn-primary btn-sm" asp-action="Create" asp-route-projectId="@ViewBag.ProjectId" asp-route-returnUrl="@currentReturnUrl">Yeni sipariş</a>
             }
