@@ -656,8 +656,24 @@ public class PurchaseOrdersController : Controller
             return BadRequest();
         }
 
+        var existingOrder = await _context.PurchaseOrders
+            .Include(x => x.Project)
+            .AsNoTracking()
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (existingOrder is null || !existingOrder.IsVisibleTo(User))
+        {
+            return NotFound();
+        }
+
         order.Visibility = User.NormalizeRecordVisibility(order.Visibility);
         NormalizePurchaseOrderInput(order);
+
+        if (CanKeepExistingTransferredSchedule(existingOrder, order))
+        {
+            ModelState.Remove(nameof(PurchaseOrder.ExpectedArrivalDate));
+        }
+
         if (order.ProjectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -1238,6 +1254,26 @@ public class PurchaseOrdersController : Controller
     {
         order.IsArchived = archived;
         order.ArchivedAt = archived ? DateTime.UtcNow : null;
+    }
+
+    private static bool CanKeepExistingTransferredSchedule(PurchaseOrder existingOrder, PurchaseOrder updatedOrder)
+    {
+        if (!existingOrder.OrderDate.HasValue ||
+            !existingOrder.ExpectedArrivalDate.HasValue ||
+            !updatedOrder.OrderDate.HasValue ||
+            !updatedOrder.ExpectedArrivalDate.HasValue)
+        {
+            return false;
+        }
+
+        var existingInvalidSchedule = existingOrder.ExpectedArrivalDate.Value.Date < existingOrder.OrderDate.Value.Date;
+        if (!existingInvalidSchedule)
+        {
+            return false;
+        }
+
+        return existingOrder.OrderDate.Value.Date == updatedOrder.OrderDate.Value.Date &&
+               existingOrder.ExpectedArrivalDate.Value.Date == updatedOrder.ExpectedArrivalDate.Value.Date;
     }
 
     private FileContentResult ExcelFile(IReadOnlyList<ExcelSheet> sheets, string fileName)
