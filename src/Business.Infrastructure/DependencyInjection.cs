@@ -44,6 +44,8 @@ public static class DependencyInjection
         {
             options.LoginPath = "/Identity/Account/Login";
             options.AccessDeniedPath = "/Identity/Account/AccessDenied";
+            options.ExpireTimeSpan = TimeSpan.FromDays(30);
+            options.SlidingExpiration = true;
         });
 
         services.AddScoped<SignInManager<ApplicationUser>, ApplicationSignInManager>();

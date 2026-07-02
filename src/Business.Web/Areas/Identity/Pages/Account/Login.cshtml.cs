@@ -81,6 +81,6 @@ public class LoginModel : PageModel
         public string Password { get; set; } = string.Empty;
 
         [Display(Name = "Beni hatırla")]
-        public bool RememberMe { get; set; }
+        public bool RememberMe { get; set; } = true;
     }
 }
