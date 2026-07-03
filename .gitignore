@@ -12,3 +12,5 @@ src/Business.Web/logs/
 artifacts/
 BusinessManagement/
 *.xlsx
+/src/Business.Web/Properties/PublishProfiles
+/docs
