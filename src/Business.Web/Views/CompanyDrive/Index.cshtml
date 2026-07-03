@@ -233,7 +233,7 @@
                                            asp-route-fileId="@file.Id">
                                             Indir
                                         </a>
-                                        @if (Model.CanManage)
+                                        @if (Model.CanDeleteFiles)
                                         {
                                             <form asp-action="DeleteFile" method="post" class="inline-form">
                                                 @Html.AntiForgeryToken()

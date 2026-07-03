@@ -214,7 +214,9 @@ public class ProjectsController : Controller
                 OwnerType = RecordOwnerType.Project,
                 OwnerId = project.Id,
                 Comments = await _recordActivityService.GetCommentsAsync(RecordOwnerType.Project, project.Id, cancellationToken),
-                Files = await _recordActivityService.GetFilesAsync(RecordOwnerType.Project, project.Id, cancellationToken)
+                Files = await _recordActivityService.GetFilesAsync(RecordOwnerType.Project, project.Id, cancellationToken),
+                CanDeleteComments = CanDeleteProjectActivity(),
+                CanDeleteFiles = CanDeleteProjectActivity()
             }
         });
     }
@@ -547,6 +549,12 @@ public class ProjectsController : Controller
     {
         return User.IsInRole(AppRoles.Admin) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectBudgetManage);
+    }
+
+    private bool CanDeleteProjectActivity()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsDeleteActivity);
     }
 
     private async Task<string> GenerateProjectCodeAsync(CancellationToken cancellationToken)

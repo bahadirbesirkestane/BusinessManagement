@@ -13,6 +13,7 @@ public static class AppPermissionCatalog
             AppPermissions.ProjectsDelete,
             AppPermissions.ProjectsChangeStatus,
             AppPermissions.ProjectsManage,
+            AppPermissions.ProjectsDeleteActivity,
             AppPermissions.TasksView,
             AppPermissions.TasksViewAll,
             AppPermissions.TasksCreate,
@@ -21,12 +22,14 @@ public static class AppPermissionCatalog
             AppPermissions.TasksChangeStatus,
             AppPermissions.TasksComplete,
             AppPermissions.TasksManage,
+            AppPermissions.TasksDeleteActivity,
             AppPermissions.PurchasingView,
             AppPermissions.PurchasingCreate,
             AppPermissions.PurchasingUpdate,
             AppPermissions.PurchasingDelete,
             AppPermissions.PurchasingChangeStatus,
             AppPermissions.PurchasingManage,
+            AppPermissions.PurchasingDeleteActivity,
             AppPermissions.SuppliersView,
             AppPermissions.SuppliersManage,
             AppPermissions.MaterialsView,
@@ -36,6 +39,7 @@ public static class AppPermissionCatalog
             AppPermissions.ProductionUpdatesView,
             AppPermissions.MaterialRequestsView,
             AppPermissions.MaterialRequestsManage,
+            AppPermissions.MaterialRequestsDeleteActivity,
             AppPermissions.CustomersView,
             AppPermissions.CustomersManage,
             AppPermissions.InvoicesView,
@@ -49,7 +53,9 @@ public static class AppPermissionCatalog
             AppPermissions.RolesManage,
             AppPermissions.SettingsManage,
             AppPermissions.CompanyFilesView,
-            AppPermissions.CompanyFilesManage
+            AppPermissions.CompanyFilesManage,
+            AppPermissions.CompanyFilesDeleteFiles,
+            AppPermissions.ProjectDriveDeleteFiles
         ],
         [AppRoles.Employee] =
         [

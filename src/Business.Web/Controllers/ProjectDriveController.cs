@@ -191,9 +191,13 @@ public class ProjectDriveController : Controller
 
     [HttpPost("DeleteFile")]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = AppPolicies.CanUpdateProjects)]
     public async Task<IActionResult> DeleteFile(Guid projectId, Guid fileId, Guid? folderId, CancellationToken cancellationToken)
     {
+        if (!CanDeleteDriveFiles())
+        {
+            return NotFound();
+        }
+
         try
         {
             await _projectDriveUploadService.DeleteFileAsync(fileId, User.CanViewAdminOnlyRecords(), cancellationToken);
@@ -256,6 +260,13 @@ public class ProjectDriveController : Controller
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
     }
 
+    private bool CanDeleteDriveFiles()
+    {
+        return CanManageDrive() ||
+               User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectDriveDeleteFiles);
+    }
+
     private ProjectDriveIndexViewModel BuildIndexViewModel(Project project, IReadOnlyList<ProjectDriveTreeNode> tree, ProjectDriveFolderContent content)
     {
         return new ProjectDriveIndexViewModel
@@ -266,6 +277,7 @@ public class ProjectDriveController : Controller
             CurrentFolderId = content.FolderId,
             CurrentFolderName = content.FolderName ?? "Kök klasör",
             CanManage = CanManageDrive(),
+            CanDeleteFiles = CanDeleteDriveFiles(),
             MaxUploadSizeBytes = _projectDriveUploadService.MaxUploadSizeBytes,
             AllowedExtensionsText = _projectDriveUploadService.GetAllowedExtensionsText(),
             SubFolderCount = content.Folders.Count,

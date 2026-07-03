@@ -9,6 +9,7 @@ public static class AppPermissions
     public const string ProjectsDelete = "projects.delete";
     public const string ProjectsChangeStatus = "projects.change-status";
     public const string ProjectsManage = "projects.manage";
+    public const string ProjectsDeleteActivity = "projects.activity-delete";
     public const string TasksView = "tasks.view";
     public const string TasksViewAll = "tasks.view-all";
     public const string TasksCreate = "tasks.create";
@@ -17,12 +18,14 @@ public static class AppPermissions
     public const string TasksChangeStatus = "tasks.change-status";
     public const string TasksComplete = "tasks.complete";
     public const string TasksManage = "tasks.manage";
+    public const string TasksDeleteActivity = "tasks.activity-delete";
     public const string PurchasingView = "purchasing.view";
     public const string PurchasingCreate = "purchasing.create";
     public const string PurchasingUpdate = "purchasing.update";
     public const string PurchasingDelete = "purchasing.delete";
     public const string PurchasingChangeStatus = "purchasing.change-status";
     public const string PurchasingManage = "purchasing.manage";
+    public const string PurchasingDeleteActivity = "purchasing.activity-delete";
     public const string SuppliersView = "suppliers.view";
     public const string SuppliersManage = "suppliers.manage";
     public const string MaterialsView = "materials.view";
@@ -32,6 +35,7 @@ public static class AppPermissions
     public const string ProductionUpdatesView = "production-updates.view";
     public const string MaterialRequestsView = "material-requests.view";
     public const string MaterialRequestsManage = "material-requests.manage";
+    public const string MaterialRequestsDeleteActivity = "material-requests.activity-delete";
     public const string CustomersView = "customers.view";
     public const string CustomersManage = "customers.manage";
     public const string InvoicesView = "invoices.view";
@@ -46,6 +50,8 @@ public static class AppPermissions
     public const string SettingsManage = "settings.manage";
     public const string CompanyFilesView = "companyfiles.view";
     public const string CompanyFilesManage = "companyfiles.manage";
+    public const string CompanyFilesDeleteFiles = "companyfiles.delete-files";
+    public const string ProjectDriveDeleteFiles = "project-drive.delete-files";
 
     public static readonly IReadOnlyList<PermissionDefinition> All =
     [
@@ -56,6 +62,7 @@ public static class AppPermissions
         new(ProjectsDelete, "Projeler", "Proje sil"),
         new(ProjectsChangeStatus, "Projeler", "Proje durumu değiştir"),
         new(ProjectsManage, "Projeler", "Proje tam yönetim"),
+        new(ProjectsDeleteActivity, "Projeler", "Proje yorum ve dosyalarını sil"),
         new(TasksView, "Görevler", "Görevleri görüntüle"),
         new(TasksViewAll, "Görevler", "Tüm görevleri görüntüle"),
         new(TasksCreate, "Görevler", "Görev oluştur"),
@@ -64,12 +71,14 @@ public static class AppPermissions
         new(TasksChangeStatus, "Görevler", "Görev durumu değiştir"),
         new(TasksComplete, "Görevler", "Görevi tamamlandı yap"),
         new(TasksManage, "Görevler", "Görev tam yönetim"),
+        new(TasksDeleteActivity, "Görevler", "Görev yorum ve dosyalarını sil"),
         new(PurchasingView, "Siparişler", "Siparişleri görüntüle"),
         new(PurchasingCreate, "Siparişler", "Sipariş oluştur"),
         new(PurchasingUpdate, "Siparişler", "Sipariş güncelle"),
         new(PurchasingDelete, "Siparişler", "Sipariş sil"),
         new(PurchasingChangeStatus, "Siparişler", "Sipariş durumu değiştir"),
         new(PurchasingManage, "Siparişler", "Sipariş tam yönetim"),
+        new(PurchasingDeleteActivity, "Siparişler", "Sipariş yorum ve dosyalarını sil"),
         new(SuppliersView, "Tedarikçiler", "Tedarikçileri görüntüle"),
         new(SuppliersManage, "Tedarikçiler", "Tedarikçi yönet"),
         new(MaterialsView, "Malzemeler", "Malzemeleri görüntüle"),
@@ -79,6 +88,7 @@ public static class AppPermissions
         new(ProductionUpdatesView, "Üretim", "Üretim güncellemelerini görüntüle"),
         new(MaterialRequestsView, "İhtiyaç", "İhtiyaç listesini görüntüle"),
         new(MaterialRequestsManage, "İhtiyaç", "İhtiyaç listesi yönet"),
+        new(MaterialRequestsDeleteActivity, "İhtiyaç", "İhtiyaç yorum ve dosyalarını sil"),
         new(CustomersView, "Müşteriler", "Müşterileri görüntüle"),
         new(CustomersManage, "Müşteriler", "Müşteri yönet"),
         new(InvoicesView, "Faturalar", "Faturaları görüntüle"),
@@ -92,7 +102,9 @@ public static class AppPermissions
         new(RolesManage, "Kullanıcılar ve Yetkiler", "Rol ve izin yönet"),
         new(SettingsManage, "Ayarlar", "Sistem ayarlarını yönet"),
         new(CompanyFilesView, "Dosya Yönetimi", "Firma dosyalarını görüntüle"),
-        new(CompanyFilesManage, "Dosya Yönetimi", "Firma dosyalarını yönet")
+        new(CompanyFilesManage, "Dosya Yönetimi", "Firma dosyalarını yönet"),
+        new(CompanyFilesDeleteFiles, "Dosya Yönetimi", "Firma dosyalarını sil"),
+        new(ProjectDriveDeleteFiles, "Dosya Yönetimi", "Proje drive dosyalarını sil")
     ];
 }
 

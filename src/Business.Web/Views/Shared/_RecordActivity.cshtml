@@ -74,7 +74,7 @@
                             <strong>@comment.CommentText</strong>
                             <small>@creator · @comment.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
                         </span>
-                        @if (User.IsInRole(AppRoles.Admin))
+                        @if (Model.CanDeleteComments)
                         {
                             <form asp-controller="RecordActivity" asp-action="DeleteComment" asp-route-id="@comment.Id" method="post" class="inline-form">
                                 <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
@@ -166,7 +166,7 @@
                                 <a class="btn btn-outline-primary btn-sm" href="@file.RelativePath" target="_blank" rel="noopener">Aç</a>
                             }
 
-                            @if (User.IsInRole(AppRoles.Admin))
+                            @if (Model.CanDeleteFiles)
                             {
                                 <form asp-controller="RecordActivity" asp-action="DeleteFile" asp-route-id="@file.Id" method="post" class="inline-form">
                                     <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />

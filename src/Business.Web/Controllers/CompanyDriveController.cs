@@ -151,9 +151,13 @@ public class CompanyDriveController : Controller
 
     [HttpPost("DeleteFile")]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = AppPolicies.CanManageCompanyFiles)]
     public async Task<IActionResult> DeleteFile(Guid fileId, Guid? folderId, CancellationToken cancellationToken)
     {
+        if (!CanDeleteDriveFiles())
+        {
+            return NotFound();
+        }
+
         try
         {
             await _companyDriveUploadService.DeleteFileAsync(fileId, cancellationToken);
@@ -201,6 +205,12 @@ public class CompanyDriveController : Controller
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.CompanyFilesManage);
     }
 
+    private bool CanDeleteDriveFiles()
+    {
+        return CanManageDrive() ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.CompanyFilesDeleteFiles);
+    }
+
     private CompanyDriveIndexViewModel BuildIndexViewModel(IReadOnlyList<CompanyDriveTreeNode> tree, CompanyDriveFolderContent content)
     {
         return new CompanyDriveIndexViewModel
@@ -208,6 +218,7 @@ public class CompanyDriveController : Controller
             CurrentFolderId = content.FolderId,
             CurrentFolderName = content.FolderName ?? "Kok klasor",
             CanManage = CanManageDrive(),
+            CanDeleteFiles = CanDeleteDriveFiles(),
             MaxUploadSizeBytes = _companyDriveUploadService.MaxUploadSizeBytes,
             AllowedExtensionsText = _companyDriveUploadService.GetAllowedExtensionsText(),
             SubFolderCount = content.Folders.Count,

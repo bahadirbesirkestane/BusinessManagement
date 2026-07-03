@@ -223,7 +223,9 @@ public class MaterialRequestsController : Controller
             OwnerId = request.Id,
             Comments = await _recordActivityService.GetCommentsAsync(RecordOwnerType.MaterialRequest, request.Id, cancellationToken),
             Files = await _recordActivityService.GetFilesAsync(RecordOwnerType.MaterialRequest, request.Id, cancellationToken),
-            UserNames = await GetActivityUserNamesAsync(request.Id, cancellationToken)
+            UserNames = await GetActivityUserNamesAsync(request.Id, cancellationToken),
+            CanDeleteComments = CanDeleteMaterialRequestActivity(),
+            CanDeleteFiles = CanDeleteMaterialRequestActivity()
         };
         return View(request);
     }
@@ -1060,5 +1062,11 @@ public class MaterialRequestsController : Controller
         return await _userManager.Users
             .Where(x => userIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.FullName ?? x.Email ?? x.UserName ?? x.Id, cancellationToken);
+    }
+
+    private bool CanDeleteMaterialRequestActivity()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsDeleteActivity);
     }
 }

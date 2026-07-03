@@ -5,6 +5,7 @@ public class CompanyDriveIndexViewModel
     public Guid? CurrentFolderId { get; set; }
     public string CurrentFolderName { get; set; } = "Kök klasör";
     public bool CanManage { get; set; }
+    public bool CanDeleteFiles { get; set; }
     public long MaxUploadSizeBytes { get; set; }
     public string AllowedExtensionsText { get; set; } = string.Empty;
     public int SubFolderCount { get; set; }

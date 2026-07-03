@@ -104,26 +104,32 @@ public class RecordActivityController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> DeleteComment(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
+        var comment = await _recordActivityService.GetCommentAsync(id, cancellationToken);
+        if (comment is null || !await CanDeleteActivityAsync(comment.OwnerType, comment.OwnerId, cancellationToken))
+        {
+            return NotFound();
+        }
+
         await _recordActivityService.DeleteCommentAsync(id, cancellationToken);
         return RedirectToLocal(returnUrl);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> DeleteFile(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var file = await _recordActivityService.GetFileAsync(id, cancellationToken);
-        if (file is not null)
+        if (file is null || !await CanDeleteActivityAsync(file.OwnerType, file.OwnerId, cancellationToken))
         {
-            var physicalPath = Path.Combine(_environment.WebRootPath, file.RelativePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-            if (System.IO.File.Exists(physicalPath))
-            {
-                System.IO.File.Delete(physicalPath);
-            }
+            return NotFound();
+        }
+
+        var physicalPath = Path.Combine(_environment.WebRootPath, file.RelativePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+        if (System.IO.File.Exists(physicalPath))
+        {
+            System.IO.File.Delete(physicalPath);
         }
 
         await _recordActivityService.DeleteFileAsync(id, cancellationToken);
@@ -235,5 +241,27 @@ public class RecordActivityController : Controller
         return task.Assignments.Any(x => x.UserId == userId) ||
                task.AssignedToUserId == userId ||
                task.ResponsibleUserId == userId;
+    }
+
+    private async Task<bool> CanDeleteActivityAsync(RecordOwnerType ownerType, Guid ownerId, CancellationToken cancellationToken)
+    {
+        if (!await CanAccessOwnerAsync(ownerType, ownerId, cancellationToken))
+        {
+            return false;
+        }
+
+        if (User.IsInRole(AppRoles.Admin))
+        {
+            return true;
+        }
+
+        return ownerType switch
+        {
+            RecordOwnerType.Project => User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsDeleteActivity),
+            RecordOwnerType.ProjectTask => User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksDeleteActivity),
+            RecordOwnerType.PurchaseOrder => User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingDeleteActivity),
+            RecordOwnerType.MaterialRequest => User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsDeleteActivity),
+            _ => false
+        };
     }
 }

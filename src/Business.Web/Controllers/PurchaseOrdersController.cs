@@ -324,7 +324,9 @@ public class PurchaseOrdersController : Controller
             OwnerType = RecordOwnerType.PurchaseOrder,
             OwnerId = order.Id,
             Comments = await _recordActivityService.GetCommentsAsync(RecordOwnerType.PurchaseOrder, order.Id, cancellationToken),
-            Files = await _recordActivityService.GetFilesAsync(RecordOwnerType.PurchaseOrder, order.Id, cancellationToken)
+            Files = await _recordActivityService.GetFilesAsync(RecordOwnerType.PurchaseOrder, order.Id, cancellationToken),
+            CanDeleteComments = CanDeletePurchaseOrderActivity(),
+            CanDeleteFiles = CanDeletePurchaseOrderActivity()
         };
 
         return View(order);
@@ -1572,6 +1574,12 @@ public class PurchaseOrdersController : Controller
     {
         var bytes = ExcelWorkbookBuilder.Build(sheets);
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
+
+    private bool CanDeletePurchaseOrderActivity()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingDeleteActivity);
     }
 }
 

@@ -342,7 +342,9 @@ public class ProjectTasksController : Controller
             OwnerId = task.Id,
             Comments = await _recordActivityService.GetCommentsAsync(RecordOwnerType.ProjectTask, task.Id, cancellationToken),
             Files = await _recordActivityService.GetFilesAsync(RecordOwnerType.ProjectTask, task.Id, cancellationToken),
-            UserNames = await GetActivityUserNamesAsync(RecordOwnerType.ProjectTask, task.Id, cancellationToken)
+            UserNames = await GetActivityUserNamesAsync(RecordOwnerType.ProjectTask, task.Id, cancellationToken),
+            CanDeleteComments = CanDeleteTaskActivity(),
+            CanDeleteFiles = CanDeleteTaskActivity()
         };
 
         return View(task);
@@ -873,6 +875,12 @@ public class ProjectTasksController : Controller
     {
         return User.IsInRole(AppRoles.Admin) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage);
+    }
+
+    private bool CanDeleteTaskActivity()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksDeleteActivity);
     }
 
     private bool CanCompleteTasks()

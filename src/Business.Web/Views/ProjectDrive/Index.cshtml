@@ -231,7 +231,7 @@
                                            asp-route-fileId="@file.Id">
                                             İndir
                                         </a>
-                                        @if (Model.CanManage)
+                                        @if (Model.CanDeleteFiles)
                                         {
                                             <form asp-action="DeleteFile" asp-route-projectId="@Model.ProjectId" method="post" class="inline-form">
                                                 @Html.AntiForgeryToken()
