@@ -12,3 +12,6 @@ src/Business.Web/logs/
 artifacts/
 BusinessManagement/
 *.xlsx
+/docs
+/src/Business.Web/Properties/PublishProfiles
+/NuGet.Config
