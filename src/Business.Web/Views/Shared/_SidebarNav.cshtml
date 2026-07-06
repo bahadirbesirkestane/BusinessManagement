@@ -65,6 +65,7 @@
             Title = "Kişisel Alan",
             Items = new[]
             {
+                (Label: "Profil Ayarları", Url: "/Identity/Account/Manage"),
                 (Label: "Kişisel Notlar", Url: "/PersonalNotes"),
                 (Label: "Kişisel Görevler", Url: "/PersonalTasks")
             }
@@ -184,6 +185,11 @@
 
     bool IsActiveLink(string url)
     {
+        if (url.StartsWith("/Identity/Account/Manage", StringComparison.OrdinalIgnoreCase))
+        {
+            return currentPath.StartsWith(url, StringComparison.OrdinalIgnoreCase);
+        }
+
         return currentPath.Equals(url, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -218,6 +224,11 @@
 
         if (url.StartsWith("/PersonalNotes", StringComparison.OrdinalIgnoreCase) ||
             url.StartsWith("/PersonalTasks", StringComparison.OrdinalIgnoreCase))
+        {
+            return User.Identity?.IsAuthenticated == true;
+        }
+
+        if (url.StartsWith("/Identity/Account/Manage", StringComparison.OrdinalIgnoreCase))
         {
             return User.Identity?.IsAuthenticated == true;
         }

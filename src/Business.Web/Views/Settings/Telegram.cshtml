@@ -28,14 +28,14 @@
                 <input asp-for="BotUserName" class="form-control" placeholder="FirmaTakipBot" />
             </div>
             <span asp-validation-for="BotUserName" class="text-danger"></span>
-            <small class="text-muted">Kullanıcılar Telegram hesabını bağlarken bu bot kullanıcı adını kullanacaktır.</small>
+            <small class="theme-muted-text">Kullanıcılar Telegram hesabını bağlarken bu bot kullanıcı adını kullanacaktır.</small>
         </div>
 
         <div class="mb-3">
             <label asp-for="LinkCodeTtlMinutes" class="form-label"></label>
             <input asp-for="LinkCodeTtlMinutes" type="number" min="1" max="1440" class="form-control" />
             <span asp-validation-for="LinkCodeTtlMinutes" class="text-danger"></span>
-            <small class="text-muted">Kullanıcının hesap ekranından üreteceği Telegram bağlama kodu bu süre boyunca geçerli kalır.</small>
+            <small class="theme-muted-text">Kullanıcının hesap ekranından üreteceği Telegram bağlama kodu bu süre boyunca geçerli kalır.</small>
         </div>
 
         <div class="mb-3">
@@ -55,22 +55,22 @@
                                 @user.DisplayName
                                 @if (!string.IsNullOrWhiteSpace(user.TelegramUserName))
                                 {
-                                    <small class="d-block text-muted">@($"@{user.TelegramUserName}")</small>
+                                    <small class="d-block theme-muted-text">@($"@{user.TelegramUserName}")</small>
                                 }
                                 @if (!user.HasLinkedChat)
                                 {
-                                    <small class="d-block text-muted">Telegram hesabı henüz bağlı değil</small>
+                                    <small class="d-block theme-muted-text">Telegram hesabı henüz bağlı değil</small>
                                 }
                                 @if (!user.NotificationsEnabled)
                                 {
-                                    <small class="d-block text-muted">Kullanıcının kişisel Telegram bildirim tercihi kapalı</small>
+                                    <small class="d-block theme-muted-text">Kullanıcının kişisel Telegram bildirim tercihi kapalı</small>
                                 }
                             </span>
                         </label>
                     }
                 </div>
             }
-            <small class="text-muted d-block mt-2">Malzeme ihtiyacı oluşturulurken işaretlenen Telegram bildirimi seçeneği bu listedeki kişilere gönderim yapar.</small>
+            <small class="theme-muted-text d-block mt-2">Malzeme ihtiyacı oluşturulurken işaretlenen Telegram bildirimi seçeneği bu listedeki kişilere gönderim yapar.</small>
         </div>
 
         <div class="mb-3">
@@ -90,22 +90,22 @@
                                 @user.DisplayName
                                 @if (!string.IsNullOrWhiteSpace(user.TelegramUserName))
                                 {
-                                    <small class="d-block text-muted">@($"@{user.TelegramUserName}")</small>
+                                    <small class="d-block theme-muted-text">@($"@{user.TelegramUserName}")</small>
                                 }
                                 @if (!user.HasLinkedChat)
                                 {
-                                    <small class="d-block text-muted">Telegram hesabı henüz bağlı değil</small>
+                                    <small class="d-block theme-muted-text">Telegram hesabı henüz bağlı değil</small>
                                 }
                                 @if (!user.NotificationsEnabled)
                                 {
-                                    <small class="d-block text-muted">Kullanıcının kişisel Telegram bildirim tercihi kapalı</small>
+                                    <small class="d-block theme-muted-text">Kullanıcının kişisel Telegram bildirim tercihi kapalı</small>
                                 }
                             </span>
                         </label>
                     }
                 </div>
             }
-            <small class="text-muted d-block mt-2">Sipariş oluşturulurken işaretlenen Telegram bildirimi seçeneği bu listedeki kişilere gönderim yapar.</small>
+            <small class="theme-muted-text d-block mt-2">Sipariş oluşturulurken işaretlenen Telegram bildirimi seçeneği bu listedeki kişilere gönderim yapar.</small>
         </div>
 
         <div class="mb-3">
@@ -117,7 +117,7 @@
                     <span><strong>Webhook gizli anahtarı</strong><small>@(Model.IsWebhookSecretConfigured ? "Yapılandırılmış" : "Henüz yapılandırılmadı")</small></span>
                 </div>
             </div>
-            <small class="text-muted d-block mt-2">Güvenlik nedeniyle bot token ve webhook gizli anahtarı bu ekrandan kaydedilmez. Bunları konfigürasyon veya User Secrets üzerinden <code>Telegram:Bot:Token</code> ve <code>Telegram:Bot:WebhookSecret</code> anahtarları ile tanımlamalısın.</small>
+            <small class="theme-muted-text d-block mt-2">Güvenlik nedeniyle bot token ve webhook gizli anahtarı bu ekrandan kaydedilmez. Bunları konfigürasyon veya User Secrets üzerinden <code>Telegram:Bot:Token</code> ve <code>Telegram:Bot:WebhookSecret</code> anahtarları ile tanımlamalısın.</small>
         </div>
 
         <div class="form-actions">

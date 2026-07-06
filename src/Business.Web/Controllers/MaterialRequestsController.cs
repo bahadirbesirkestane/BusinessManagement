@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.Text;
 
 namespace Business.Web.Controllers;
@@ -24,6 +25,7 @@ public class MaterialRequestsController : Controller
     private readonly IRecordActivityService _recordActivityService;
     private readonly ApplicationDbContext _context;
     private readonly ITelegramNotificationService _telegramNotificationService;
+    private readonly PublicAppUrlOptions _publicAppUrlOptions;
 
     public MaterialRequestsController(
         IMaterialRequestService materialRequestService,
@@ -32,7 +34,8 @@ public class MaterialRequestsController : Controller
         IProjectTimelineService projectTimelineService,
         IRecordActivityService recordActivityService,
         ApplicationDbContext context,
-        ITelegramNotificationService telegramNotificationService)
+        ITelegramNotificationService telegramNotificationService,
+        IOptions<PublicAppUrlOptions> publicAppUrlOptions)
     {
         _materialRequestService = materialRequestService;
         _lookupService = lookupService;
@@ -41,6 +44,7 @@ public class MaterialRequestsController : Controller
         _recordActivityService = recordActivityService;
         _context = context;
         _telegramNotificationService = telegramNotificationService;
+        _publicAppUrlOptions = publicAppUrlOptions.Value;
     }
 
     public async Task<IActionResult> Index(
@@ -1173,6 +1177,7 @@ public class MaterialRequestsController : Controller
 
         var requesterName = await GetRequestedByNameAsync(request.RequestedByUserId, cancellationToken) ?? "Belirtilmedi";
         var builder = new StringBuilder();
+        var listUrl = BuildMaterialRequestListUrl();
         builder.AppendLine("Yeni malzeme ihtiyacı oluşturuldu.");
         builder.AppendLine();
         AddTelegramLine(builder, "Proje", request.Project is not null ? $"{request.Project.Code} - {request.Project.Name}" : "Genel");
@@ -1184,6 +1189,7 @@ public class MaterialRequestsController : Controller
         AddTelegramLine(builder, "Gerekli Tarih", request.NeededBy.ToString("dd.MM.yyyy"));
         AddTelegramLine(builder, "Talebi Açan", requesterName);
         AddTelegramLine(builder, "Not", request.Notes);
+        AddTelegramLine(builder, "İhtiyaç Detayı", BuildMaterialRequestDetailUrl(request.Id));
         return builder.ToString().Trim();
     }
 
@@ -1207,11 +1213,13 @@ public class MaterialRequestsController : Controller
         var firstRequest = requests[0];
         var requesterName = await GetRequestedByNameAsync(firstRequest.RequestedByUserId, cancellationToken) ?? "Belirtilmedi";
         var projectName = firstRequest.Project is not null ? $"{firstRequest.Project.Code} - {firstRequest.Project.Name}" : "Genel";
+        var listUrl = BuildMaterialRequestListUrl();
         var builder = new StringBuilder();
         builder.AppendLine($"{requests.Count} adet malzeme ihtiyacı oluşturuldu.");
         builder.AppendLine();
         AddTelegramLine(builder, "Proje", projectName);
         AddTelegramLine(builder, "Talebi Açan", requesterName);
+        AddTelegramLine(builder, "Aktif İhtiyaçlar", listUrl);
         builder.AppendLine("Özet:");
 
         foreach (var request in requests.Take(5))
@@ -1234,6 +1242,7 @@ public class MaterialRequestsController : Controller
 
             builder.Append(" / ");
             builder.Append(request.NeededBy.ToString("dd.MM.yyyy"));
+
             builder.AppendLine();
         }
 
@@ -1243,6 +1252,38 @@ public class MaterialRequestsController : Controller
         }
 
         return builder.ToString().Trim();
+    }
+
+    private string? BuildMaterialRequestDetailUrl(Guid requestId)
+    {
+        var baseUrl = _publicAppUrlOptions.PublicBaseUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/", UriKind.Absolute, out var baseUri))
+        {
+            return null;
+        }
+
+        return new Uri(baseUri, $"MaterialRequests/Details/{requestId}").ToString();
+    }
+
+    private string? BuildMaterialRequestListUrl()
+    {
+        var baseUrl = _publicAppUrlOptions.PublicBaseUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/", UriKind.Absolute, out var baseUri))
+        {
+            return null;
+        }
+
+        return new Uri(baseUri, "MaterialRequests").ToString();
     }
 
     private static string? BuildTelegramWarningMessage(string subject, TelegramDispatchResult result)

@@ -1559,6 +1559,10 @@ a:hover {
   width: fit-content;
 }
 
+.theme-muted-text {
+  color: var(--muted);
+}
+
 .task-relation-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -4689,6 +4693,11 @@ html[data-theme="dark"] .check-card span,
 html[data-theme="dark"] .collapsible-section summary,
 html[data-theme="dark"] .google-visualization-tooltip {
   color: var(--ink);
+}
+
+html[data-theme="dark"] .theme-muted-text,
+html[data-theme="dark"] .check-card small {
+  color: var(--muted) !important;
 }
 
 html[data-theme="dark"] .diagram-hero p:not(.section-kicker),

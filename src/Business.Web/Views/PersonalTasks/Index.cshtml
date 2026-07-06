@@ -15,6 +15,7 @@
 
     <form asp-action="Index" method="get" class="list-filter-bar">
         <select name="filter" class="form-select form-select-sm">
+            <option value="all" selected="@(Model.Filter == "all")">Tümü</option>
             <option value="open" selected="@(Model.Filter == "open")">Açık görevler</option>
             <option value="completed" selected="@(Model.Filter == "completed")">Tamamlananlar</option>
             <option value="overdue" selected="@(Model.Filter == "overdue")">Gecikenler</option>

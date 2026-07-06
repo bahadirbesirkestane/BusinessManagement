@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.Text;
 
 namespace Business.Web.Controllers;
@@ -26,6 +27,7 @@ public class PurchaseOrdersController : Controller
     private readonly IPurchaseOrderTemplateService _purchaseOrderTemplateService;
     private readonly ApplicationDbContext _context;
     private readonly ITelegramNotificationService _telegramNotificationService;
+    private readonly PublicAppUrlOptions _publicAppUrlOptions;
 
     public PurchaseOrdersController(
         IPurchaseOrderService purchaseOrderService,
@@ -35,7 +37,8 @@ public class PurchaseOrdersController : Controller
         IProjectTimelineService projectTimelineService,
         IPurchaseOrderTemplateService purchaseOrderTemplateService,
         ApplicationDbContext context,
-        ITelegramNotificationService telegramNotificationService)
+        ITelegramNotificationService telegramNotificationService,
+        IOptions<PublicAppUrlOptions> publicAppUrlOptions)
     {
         _purchaseOrderService = purchaseOrderService;
         _lookupService = lookupService;
@@ -45,6 +48,7 @@ public class PurchaseOrdersController : Controller
         _purchaseOrderTemplateService = purchaseOrderTemplateService;
         _context = context;
         _telegramNotificationService = telegramNotificationService;
+        _publicAppUrlOptions = publicAppUrlOptions.Value;
     }
 
     public async Task<IActionResult> Index(
@@ -1689,6 +1693,7 @@ public class PurchaseOrdersController : Controller
         AddTelegramLine(builder, "Beklenen Varış", order.ExpectedArrivalDate?.ToString("dd.MM.yyyy"));
         AddTelegramLine(builder, "Siparişi Oluşturan", order.RequestedBy);
         AddTelegramLine(builder, "Not", order.Notes);
+        AddTelegramLine(builder, "Sipariş Detayı", BuildPurchaseOrderDetailUrl(order.Id));
         return builder.ToString().Trim();
     }
 
@@ -1711,11 +1716,13 @@ public class PurchaseOrdersController : Controller
         }
 
         var firstOrder = orders[0];
+        var listUrl = BuildPurchaseOrderListUrl();
         var builder = new StringBuilder();
         builder.AppendLine($"{orders.Count} adet sipariş oluşturuldu.");
         builder.AppendLine();
         AddTelegramLine(builder, "Proje", firstOrder.Project is not null ? $"{firstOrder.Project.Code} - {firstOrder.Project.Name}" : "Genel");
         AddTelegramLine(builder, "Siparişi Oluşturan", firstOrder.RequestedBy);
+        AddTelegramLine(builder, "Aktif Siparişler", listUrl);
         builder.AppendLine("Özet:");
 
         foreach (var order in orders.Take(5))
@@ -1753,6 +1760,38 @@ public class PurchaseOrdersController : Controller
         }
 
         return builder.ToString().Trim();
+    }
+
+    private string? BuildPurchaseOrderDetailUrl(Guid orderId)
+    {
+        var baseUrl = _publicAppUrlOptions.PublicBaseUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/", UriKind.Absolute, out var baseUri))
+        {
+            return null;
+        }
+
+        return new Uri(baseUri, $"PurchaseOrders/Details/{orderId}").ToString();
+    }
+
+    private string? BuildPurchaseOrderListUrl()
+    {
+        var baseUrl = _publicAppUrlOptions.PublicBaseUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/", UriKind.Absolute, out var baseUri))
+        {
+            return null;
+        }
+
+        return new Uri(baseUri, "PurchaseOrders").ToString();
     }
 
     private static string? BuildTelegramWarningMessage(string subject, TelegramDispatchResult result)

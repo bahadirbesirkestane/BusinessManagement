@@ -60,14 +60,14 @@
                 <label asp-for="Input.PhoneNumber" class="form-label"></label>
                 <input asp-for="Input.PhoneNumber" class="form-control" placeholder="+90 5xx xxx xx xx" />
                 <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
-                <small class="text-muted">Telefon alanı kullanıcı kartında saklanır. Telegram eşleştirmesi için zorunlu değildir ama iletişim kaydı için faydalıdır.</small>
+                <small class="theme-muted-text">Telefon alanı kullanıcı kartında saklanır. Telegram eşleştirmesi için zorunlu değildir ama iletişim kaydı için faydalıdır.</small>
             </div>
             <div class="mb-3">
                 <label class="check-card check-inline">
                     <input asp-for="Input.TelegramNotificationsEnabled" />
                     <span>Telegram bildirimlerini aktif tut</span>
                 </label>
-                <small class="text-muted d-block mt-2">Görev bildirimleri yalnızca Telegram hesabın bağlandıktan sonra gönderilir.</small>
+                <small class="theme-muted-text d-block mt-2">Görev bildirimleri yalnızca Telegram hesabın bağlandıktan sonra gönderilir.</small>
             </div>
         </div>
 

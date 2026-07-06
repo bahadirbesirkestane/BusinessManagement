@@ -36,7 +36,8 @@ public class PersonalTasksController : Controller
         {
             "completed" => tasks.Where(x => x.Status == PersonalTaskStatus.Done).ToList(),
             "overdue" => tasks.Where(x => x.Status != PersonalTaskStatus.Done && x.DueDate.HasValue && x.DueDate.Value.Date < today).ToList(),
-            _ => tasks.Where(x => x.Status != PersonalTaskStatus.Done).ToList()
+            "open" => tasks.Where(x => x.Status != PersonalTaskStatus.Done).ToList(),
+            _ => tasks
         };
 
         if (customerId.HasValue)
@@ -62,7 +63,7 @@ public class PersonalTasksController : Controller
 
         var model = new PersonalTaskIndexViewModel
         {
-            Filter = string.IsNullOrWhiteSpace(filter) ? "open" : filter,
+            Filter = string.IsNullOrWhiteSpace(filter) ? "all" : filter,
             CustomerId = customerId,
             ProjectId = projectId,
             ProjectTaskId = projectTaskId,

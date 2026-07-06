@@ -31,11 +31,11 @@
                                 @user.DisplayName
                                 @if (!string.IsNullOrWhiteSpace(user.TelegramUserName))
                                 {
-                                    <small class="d-block text-muted">@($"@{user.TelegramUserName}")</small>
+                                    <small class="d-block theme-muted-text">@($"@{user.TelegramUserName}")</small>
                                 }
                                 @if (!user.NotificationsEnabled)
                                 {
-                                    <small class="d-block text-muted">Otomatik bildirim tercihi kapalı</small>
+                                    <small class="d-block theme-muted-text">Otomatik bildirim tercihi kapalı</small>
                                 }
                             </span>
                         </label>
@@ -48,7 +48,7 @@
             <label asp-for="Message" class="form-label"></label>
             <textarea asp-for="Message" class="form-control" rows="8" placeholder="Göndermek istediğiniz Telegram mesajını yazın."></textarea>
             <span asp-validation-for="Message" class="text-danger"></span>
-            <small class="text-muted">Bu ekran test veya genel kullanım için seçilen kişilere metin mesajı gönderir.</small>
+            <small class="theme-muted-text">Bu ekran test veya genel kullanım için seçilen kişilere metin mesajı gönderir.</small>
         </div>
 
         <div class="form-actions">
