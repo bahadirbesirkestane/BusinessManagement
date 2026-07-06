@@ -26,6 +26,7 @@ builder.Services.AddScoped<ITelegramLinkService, TelegramLinkService>();
 builder.Services.AddScoped<ITelegramNotificationService, TelegramNotificationService>();
 builder.Services.Configure<SmtpEmailOptions>(builder.Configuration.GetSection("Email:Smtp"));
 builder.Services.Configure<TelegramBotOptions>(builder.Configuration.GetSection(TelegramBotOptions.SectionName));
+builder.Services.Configure<PublicAppUrlOptions>(builder.Configuration.GetSection(PublicAppUrlOptions.SectionName));
 builder.Services.Configure<AdminTwoFactorOptions>(builder.Configuration.GetSection("Security:AdminTwoFactor"));
 builder.Services.Configure<CompanyFileStorageOptions>(builder.Configuration.GetSection(CompanyFileStorageOptions.SectionName));
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();

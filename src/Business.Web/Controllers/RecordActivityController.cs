@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -26,6 +27,7 @@ public class RecordActivityController : Controller
     private readonly IProjectTimelineService _projectTimelineService;
     private readonly ApplicationDbContext _context;
     private readonly IEmailSender _emailSender;
+    private readonly PublicAppUrlOptions _publicAppUrlOptions;
 
     public RecordActivityController(
         IRecordActivityService recordActivityService,
@@ -33,7 +35,8 @@ public class RecordActivityController : Controller
         IWebHostEnvironment environment,
         IProjectTimelineService projectTimelineService,
         ApplicationDbContext context,
-        IEmailSender emailSender)
+        IEmailSender emailSender,
+        IOptions<PublicAppUrlOptions> publicAppUrlOptions)
     {
         _recordActivityService = recordActivityService;
         _recordFileUploadService = recordFileUploadService;
@@ -41,6 +44,7 @@ public class RecordActivityController : Controller
         _projectTimelineService = projectTimelineService;
         _context = context;
         _emailSender = emailSender;
+        _publicAppUrlOptions = publicAppUrlOptions.Value;
     }
 
     [HttpPost]
@@ -378,14 +382,21 @@ public class RecordActivityController : Controller
         var responsibleName = await GetUserDisplayNameAsync(task.ResponsibleUserId, cancellationToken);
         var assignedNames = await GetAssignedUserNamesAsync(task.Assignments.Select(x => x.UserId), cancellationToken);
         var recipients = ParseRecipientEmails(recipientEmails);
+        var taskDetailUrl = BuildTaskDetailUrl(task.Id);
 
         var htmlBody = includeContent
-            ? BuildTaskFilesAddedHtmlBody(task, responsibleName, assignedNames, files, description)
+            ? BuildTaskFilesAddedHtmlBody(task, responsibleName, assignedNames, files, description, taskDetailUrl)
             : "<p>Göreve yeni dosyalar eklendi. Dosyalar ektedir.</p>";
 
         var textBody = includeContent
-            ? BuildTaskFilesAddedTextBody(task, responsibleName, assignedNames, files, description)
+            ? BuildTaskFilesAddedTextBody(task, responsibleName, assignedNames, files, description, taskDetailUrl)
             : "Göreve yeni dosyalar eklendi. Dosyalar ektedir.";
+
+        if (!includeContent)
+        {
+            htmlBody = BuildTaskLinkOnlyHtmlBody("Göreve yeni dosyalar eklendi. Dosyalar ektedir.", taskDetailUrl);
+            textBody = BuildTaskLinkOnlyTextBody("Göreve yeni dosyalar eklendi. Dosyalar ektedir.", taskDetailUrl);
+        }
 
         var attachments = includeAttachments
             ? await CreateEmailAttachmentsAsync(files, cancellationToken)
@@ -443,7 +454,8 @@ public class RecordActivityController : Controller
         string responsibleName,
         IReadOnlyList<string> assignedNames,
         IReadOnlyList<RecordFile> files,
-        string? description)
+        string? description,
+        string? taskDetailUrl)
     {
         var lines = CreateTaskDetailLines(task, responsibleName, assignedNames, files, description);
         var builder = new StringBuilder();
@@ -463,6 +475,15 @@ public class RecordActivityController : Controller
         }
 
         builder.Append("</table>");
+        if (!string.IsNullOrWhiteSpace(taskDetailUrl))
+        {
+            builder.Append("<p style=\"margin-top:16px;\">");
+            builder.Append("<a href=\"");
+            builder.Append(HtmlEncoder.Default.Encode(taskDetailUrl));
+            builder.Append("\">Görev detayını aç</a>");
+            builder.Append("</p>");
+        }
+
         return builder.ToString();
     }
 
@@ -471,7 +492,8 @@ public class RecordActivityController : Controller
         string responsibleName,
         IReadOnlyList<string> assignedNames,
         IReadOnlyList<RecordFile> files,
-        string? description)
+        string? description,
+        string? taskDetailUrl)
     {
         var builder = new StringBuilder();
         builder.AppendLine("Bir göreve yeni dosyalar eklendi.");
@@ -482,7 +504,62 @@ public class RecordActivityController : Controller
             builder.AppendLine($"{line.Key}: {line.Value}");
         }
 
+        if (!string.IsNullOrWhiteSpace(taskDetailUrl))
+        {
+            builder.AppendLine();
+            builder.AppendLine($"Görev detayı: {taskDetailUrl}");
+        }
+
         return builder.ToString();
+    }
+
+    private static string BuildTaskLinkOnlyHtmlBody(string message, string? taskDetailUrl)
+    {
+        var builder = new StringBuilder();
+        builder.Append("<p>");
+        builder.Append(HtmlEncoder.Default.Encode(message));
+        builder.Append("</p>");
+
+        if (!string.IsNullOrWhiteSpace(taskDetailUrl))
+        {
+            builder.Append("<p style=\"margin-top:16px;\">");
+            builder.Append("<a href=\"");
+            builder.Append(HtmlEncoder.Default.Encode(taskDetailUrl));
+            builder.Append("\">Görev detayını aç</a>");
+            builder.Append("</p>");
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildTaskLinkOnlyTextBody(string message, string? taskDetailUrl)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(message);
+
+        if (!string.IsNullOrWhiteSpace(taskDetailUrl))
+        {
+            builder.AppendLine();
+            builder.AppendLine($"Görev detayı: {taskDetailUrl}");
+        }
+
+        return builder.ToString();
+    }
+
+    private string? BuildTaskDetailUrl(Guid taskId)
+    {
+        var baseUrl = _publicAppUrlOptions.PublicBaseUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/", UriKind.Absolute, out var baseUri))
+        {
+            return null;
+        }
+
+        return new Uri(baseUri, $"ProjectTasks/Details/{taskId}").ToString();
     }
 
     private IReadOnlyList<KeyValuePair<string, string>> CreateTaskDetailLines(

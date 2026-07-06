@@ -4,6 +4,7 @@
     var isCreateMode = string.Equals(ViewContext.RouteData.Values["action"]?.ToString(), "Create", StringComparison.OrdinalIgnoreCase);
     var formStatusOptions = (IReadOnlyList<WorkTaskStatus>)(ViewBag.FormStatusOptions ?? Enum.GetValues<WorkTaskStatus>().ToList());
     var sendTaskEmail = ViewBag.SendTaskEmail is bool sendMailValue && sendMailValue;
+    var sendTelegramNotification = ViewBag.SendTelegramNotification is bool sendTelegramValue ? sendTelegramValue : true;
     var emailIncludeContent = ViewBag.EmailIncludeContent is bool includeContentValue ? includeContentValue : true;
     var emailIncludeAttachments = ViewBag.EmailIncludeAttachments is bool includeAttachmentsValue && includeAttachmentsValue;
     var taskMailRecipientsConfigured = ViewBag.TaskMailRecipientsConfigured is bool recipientsConfigured && recipientsConfigured;
@@ -146,6 +147,20 @@
                         </div>
                         <div class="file-upload-list" data-file-upload-list></div>
                     </div>
+                </div>
+
+                <div class="mb-3 wide">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="sendTelegramNotification"
+                               name="sendTelegramNotification"
+                               value="true"
+                               checked="@sendTelegramNotification" />
+                        <label class="form-check-label" for="sendTelegramNotification">Görev oluşturulunca Telegram bildirimi gönderilsin</label>
+                    </div>
+                    <input type="hidden" name="sendTelegramNotification" value="false" />
+                    <small class="text-muted">Atanan ve Telegram hesabını bağlamış kullanıcılara bildirim gönderilir. Görev kaydı başarısız olmaz.</small>
                 </div>
 
                 <div class="mb-3 wide">

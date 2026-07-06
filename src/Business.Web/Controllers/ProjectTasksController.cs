@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.Text;
 using System.Text.Encodings.Web;
 
@@ -30,6 +31,7 @@ public class ProjectTasksController : Controller
     private readonly IEmailSender _emailSender;
     private readonly ITelegramNotificationService _telegramNotificationService;
     private readonly IWebHostEnvironment _environment;
+    private readonly PublicAppUrlOptions _publicAppUrlOptions;
 
     public ProjectTasksController(
         ApplicationDbContext context,
@@ -39,7 +41,8 @@ public class ProjectTasksController : Controller
         IProjectTimelineService projectTimelineService,
         IEmailSender emailSender,
         ITelegramNotificationService telegramNotificationService,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        IOptions<PublicAppUrlOptions> publicAppUrlOptions)
     {
         _context = context;
         _userManager = userManager;
@@ -49,6 +52,7 @@ public class ProjectTasksController : Controller
         _emailSender = emailSender;
         _telegramNotificationService = telegramNotificationService;
         _environment = environment;
+        _publicAppUrlOptions = publicAppUrlOptions.Value;
     }
 
     public async Task<IActionResult> Index(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, bool includeCompleted = false, bool archivedOnly = false, CancellationToken cancellationToken = default)
@@ -435,6 +439,7 @@ public class ProjectTasksController : Controller
         var task = new ProjectTask { ProjectId = projectId };
         await FillLookupsAsync(task.Status, cancellationToken);
         await SetTaskEmailFormStateAsync(sendTaskEmail: false, emailIncludeContent: true, emailIncludeAttachments: false, cancellationToken: cancellationToken);
+        ViewBag.SendTelegramNotification = true;
         if (projectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -468,6 +473,7 @@ public class ProjectTasksController : Controller
         bool sendTaskEmail,
         bool emailIncludeContent,
         bool emailIncludeAttachments,
+        bool sendTelegramNotification,
         CancellationToken cancellationToken)
     {
         task.Visibility = User.NormalizeRecordVisibility(task.Visibility);
@@ -513,6 +519,7 @@ public class ProjectTasksController : Controller
         {
             await FillLookupsAsync(task.Status, cancellationToken);
             await SetTaskEmailFormStateAsync(sendTaskEmail, emailIncludeContent, emailIncludeAttachments, cancellationToken);
+            ViewBag.SendTelegramNotification = sendTelegramNotification;
             ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
             return View(task);
         }
@@ -614,7 +621,7 @@ public class ProjectTasksController : Controller
         }
 
         var telegramRecipientIds = CollectTelegramRecipientUserIds(task.AssignedToUserId, selectedAssignedUserIds);
-        if (telegramRecipientIds.Count > 0)
+        if (sendTelegramNotification && telegramRecipientIds.Count > 0)
         {
             try
             {
@@ -1017,13 +1024,14 @@ public class ProjectTasksController : Controller
             cancellationToken);
         var recipients = ParseRecipientEmails(recipientEmails);
 
+        var taskDetailUrl = BuildTaskDetailUrl(task.Id);
         var htmlBody = includeContent
-            ? BuildTaskEmailHtmlBody(task, responsibleName, assignedNames)
-            : "<p>Görev dosyaları ektedir.</p>";
+            ? BuildTaskEmailHtmlBody(task, responsibleName, assignedNames, taskDetailUrl)
+            : BuildTaskLinkOnlyHtmlBody("Görev dosyaları ektedir.", taskDetailUrl);
 
         var textBody = includeContent
-            ? BuildTaskEmailTextBody(task, responsibleName, assignedNames)
-            : "Görev dosyaları ektedir.";
+            ? BuildTaskEmailTextBody(task, responsibleName, assignedNames, taskDetailUrl)
+            : BuildTaskLinkOnlyTextBody("Görev dosyaları ektedir.", taskDetailUrl);
 
         var attachments = includeAttachments
             ? await CreateEmailAttachmentsAsync(files, cancellationToken)
@@ -1081,7 +1089,7 @@ public class ProjectTasksController : Controller
         return attachments;
     }
 
-    private string BuildTaskEmailHtmlBody(ProjectTask task, string responsibleName, IReadOnlyList<string> assignedNames)
+    private string BuildTaskEmailHtmlBody(ProjectTask task, string responsibleName, IReadOnlyList<string> assignedNames, string? taskDetailUrl)
     {
         var lines = CreateTaskDetailLines(task, responsibleName, assignedNames);
         var builder = new StringBuilder();
@@ -1101,10 +1109,19 @@ public class ProjectTasksController : Controller
         }
 
         builder.Append("</table>");
+        if (!string.IsNullOrWhiteSpace(taskDetailUrl))
+        {
+            builder.Append("<p style=\"margin-top:16px;\">");
+            builder.Append("<a href=\"");
+            builder.Append(HtmlEncoder.Default.Encode(taskDetailUrl));
+            builder.Append("\">Görev detayını aç</a>");
+            builder.Append("</p>");
+        }
+
         return builder.ToString();
     }
 
-    private string BuildTaskEmailTextBody(ProjectTask task, string responsibleName, IReadOnlyList<string> assignedNames)
+    private string BuildTaskEmailTextBody(ProjectTask task, string responsibleName, IReadOnlyList<string> assignedNames, string? taskDetailUrl)
     {
         var builder = new StringBuilder();
         builder.AppendLine("Yeni bir görev oluşturuldu.");
@@ -1113,6 +1130,45 @@ public class ProjectTasksController : Controller
         foreach (var line in CreateTaskDetailLines(task, responsibleName, assignedNames))
         {
             builder.AppendLine($"{line.Key}: {line.Value}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(taskDetailUrl))
+        {
+            builder.AppendLine();
+            builder.AppendLine($"Görev detayı: {taskDetailUrl}");
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildTaskLinkOnlyHtmlBody(string message, string? taskDetailUrl)
+    {
+        var builder = new StringBuilder();
+        builder.Append("<p>");
+        builder.Append(HtmlEncoder.Default.Encode(message));
+        builder.Append("</p>");
+
+        if (!string.IsNullOrWhiteSpace(taskDetailUrl))
+        {
+            builder.Append("<p style=\"margin-top:16px;\">");
+            builder.Append("<a href=\"");
+            builder.Append(HtmlEncoder.Default.Encode(taskDetailUrl));
+            builder.Append("\">Görev detayını aç</a>");
+            builder.Append("</p>");
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildTaskLinkOnlyTextBody(string message, string? taskDetailUrl)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(message);
+
+        if (!string.IsNullOrWhiteSpace(taskDetailUrl))
+        {
+            builder.AppendLine();
+            builder.AppendLine($"Görev detayı: {taskDetailUrl}");
         }
 
         return builder.ToString();
@@ -1190,6 +1246,7 @@ public class ProjectTasksController : Controller
         var customerName = task.Customer?.Name
             ?? task.Project?.Customer?.Name
             ?? task.ManualCustomerName;
+        var taskDetailUrl = BuildTaskDetailUrl(task.Id);
 
         var builder = new StringBuilder();
         builder.AppendLine("Yeni görev atandı.");
@@ -1206,8 +1263,25 @@ public class ProjectTasksController : Controller
         AddTelegramLine(builder, "Termin", task.DueDate?.ToString("dd.MM.yyyy"));
         AddTelegramLine(builder, "Açıklama", task.Description);
         AddTelegramLine(builder, "Not", task.Notes);
+        AddTelegramLine(builder, "Görev Detayı", taskDetailUrl);
 
         return builder.ToString().Trim();
+    }
+
+    private string? BuildTaskDetailUrl(Guid taskId)
+    {
+        var baseUrl = _publicAppUrlOptions.PublicBaseUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/", UriKind.Absolute, out var baseUri))
+        {
+            return null;
+        }
+
+        return new Uri(baseUri, $"ProjectTasks/Details/{taskId}").ToString();
     }
 
     private static void AddTelegramLine(StringBuilder builder, string label, string? value)

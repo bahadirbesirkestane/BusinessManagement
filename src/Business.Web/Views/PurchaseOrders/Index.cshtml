@@ -339,7 +339,17 @@
                             data-preview-meta="Sipariş tarihi: @(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-") | Beklenen varış: @(order.ExpectedArrivalDate?.ToString("dd.MM.yyyy") ?? "-")"
                             data-preview-description="@previewDescription"
                             data-preview-status="@order.Status.ToDisplayName()">
-                            <td><strong>@order.Content</strong><small class="d-block text-muted table-note-clamp">@order.Notes</small></td>
+                            <td>
+                                <strong>@order.Content</strong>
+                                <small class="d-block text-muted table-note-clamp">
+                                    @(string.IsNullOrWhiteSpace(order.Notes)
+                                                                ? ""
+                                                                : order.Notes.Length > 150
+                                                                ? order.Notes.Substring(0, 150) + "..."
+                                                                : order.Notes)
+                                </small>
+                            </td>
+                            @* <td><strong>@order.Content</strong><small class="d-block text-muted table-note-clamp">@order.Notes</small></td> *@
                             @if (canUseBulkActions)
                             {
                                 <td><input type="checkbox" name="ids" value="@order.Id" form="bulkActionForm" /></td>

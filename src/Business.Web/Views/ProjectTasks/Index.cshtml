@@ -338,7 +338,16 @@
                             data-preview-meta="Görev sahibi: @(!string.IsNullOrWhiteSpace(task.ResponsibleUserId) && userNames.TryGetValue(task.ResponsibleUserId, out var responsibleName) ? responsibleName : "Atanmadı") | İlerleme: %@task.ProgressPercent"
                             data-preview-description="@previewDescription"
                             data-preview-status="@task.Status.ToDisplayName()">
-                            <td><strong>@task.Title</strong></td>
+                            <td>
+                                <strong>@task.Title</strong>
+                                <small class="d-block text-muted table-note-clamp">
+                                    @(string.IsNullOrWhiteSpace(task.Description)
+                                                                ? ""
+                                                                : task.Description.Length > 150
+                                                                ? task.Description.Substring(0, 150) + "..."
+                                                                : task.Description)
+                                </small>
+                            </td>
                             <td>@(task.Project?.Code ?? task.Customer?.Name ?? task.ManualProjectName ?? task.ManualCustomerName ?? "Genel")</td>
                             @if (canUseBulkActions)
                             {
