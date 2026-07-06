@@ -1,0 +1,62 @@
+@model Business.Web.ViewModels.TelegramMessageViewModel
+@{
+    ViewData["Title"] = "Telegram Mesaj Gönder";
+}
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Ayarlar</p>
+            <h2>Telegram Mesaj Gönder</h2>
+        </div>
+    </div>
+
+    <form asp-action="TelegramMessage" method="post" class="app-form">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="mb-3">
+            <label class="form-label">Mesaj gönderilecek kullanıcılar</label>
+            @if (Model.AvailableRecipients.Count == 0)
+            {
+                <p class="empty-note">Telegram hesabı bağlı aktif kullanıcı bulunmuyor.</p>
+            }
+            else
+            {
+                <div class="planning-user-checks">
+                    @foreach (var user in Model.AvailableRecipients)
+                    {
+                        <label class="check-card">
+                            <input type="checkbox" name="SelectedUserIds" value="@user.UserId" checked="@Model.SelectedUserIds.Contains(user.UserId)" />
+                            <span>
+                                @user.DisplayName
+                                @if (!string.IsNullOrWhiteSpace(user.TelegramUserName))
+                                {
+                                    <small class="d-block text-muted">@($"@{user.TelegramUserName}")</small>
+                                }
+                                @if (!user.NotificationsEnabled)
+                                {
+                                    <small class="d-block text-muted">Otomatik bildirim tercihi kapalı</small>
+                                }
+                            </span>
+                        </label>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Message" class="form-label"></label>
+            <textarea asp-for="Message" class="form-control" rows="8" placeholder="Göndermek istediğiniz Telegram mesajını yazın."></textarea>
+            <span asp-validation-for="Message" class="text-danger"></span>
+            <small class="text-muted">Bu ekran test veya genel kullanım için seçilen kişilere metin mesajı gönderir.</small>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Mesaj Gönder</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

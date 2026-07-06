@@ -14,6 +14,11 @@
         </div>
     </div>
 
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-info">@Model.StatusMessage</div>
+    }
+
     <div class="table-responsive">
         <table class="table app-table align-middle">
             <tbody>
@@ -38,6 +43,107 @@
             </tbody>
         </table>
     </div>
+</section>
+
+<section class="panel-block mt-3">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">İletişim ve Bildirim</p>
+            <h2>Telefon ve Telegram</h2>
+        </div>
+    </div>
+
+    <form method="post" asp-page-handler="SaveProfile" class="app-form">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="mb-3">
+                <label asp-for="Input.PhoneNumber" class="form-label"></label>
+                <input asp-for="Input.PhoneNumber" class="form-control" placeholder="+90 5xx xxx xx xx" />
+                <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+                <small class="text-muted">Telefon alanı kullanıcı kartında saklanır. Telegram eşleştirmesi için zorunlu değildir ama iletişim kaydı için faydalıdır.</small>
+            </div>
+            <div class="mb-3">
+                <label class="check-card check-inline">
+                    <input asp-for="Input.TelegramNotificationsEnabled" />
+                    <span>Telegram bildirimlerini aktif tut</span>
+                </label>
+                <small class="text-muted d-block mt-2">Görev bildirimleri yalnızca Telegram hesabın bağlandıktan sonra gönderilir.</small>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">İletişim Ayarlarını Kaydet</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel-block mt-3">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Telegram</p>
+            <h2>Hesap Bağlama</h2>
+        </div>
+    </div>
+
+    @if (!Model.TelegramSettingsEnabled || string.IsNullOrWhiteSpace(Model.TelegramBotUserName))
+    {
+        <p class="empty-note">Telegram bağlama sistemi şu anda hazır değil. Lütfen sistem yöneticinizle görüşün.</p>
+    }
+    else
+    {
+        <div class="list-stack">
+            <div class="list-row">
+                <span>
+                    <strong>Bağlı hesap durumu</strong>
+                    <small>
+                        @if (!string.IsNullOrWhiteSpace(Model.TelegramChatId))
+                        {
+                            <text>Telegram hesabın bağlı.</text>
+                        }
+                        else
+                        {
+                            <text>Henüz Telegram hesabı bağlanmadı.</text>
+                        }
+                    </small>
+                </span>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.TelegramUsername))
+            {
+                <div class="list-row">
+                    <span><strong>Kullanıcı adı</strong><small>@($"@{Model.TelegramUsername}")</small></span>
+                </div>
+            }
+
+            @if (Model.TelegramLinkedAt.HasValue)
+            {
+                <div class="list-row">
+                    <span><strong>Bağlanma tarihi</strong><small>@Model.TelegramLinkedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small></span>
+                </div>
+            }
+        </div>
+
+        <div class="mt-3">
+            <p class="mb-2">Telegram hesabını bağlamak için:</p>
+            <ol>
+                <li><strong>@($"@{Model.TelegramBotUserName}")</strong> botunu Telegram'da aç.</li>
+                <li>Aşağıdaki bağlama kodunu üret.</li>
+                <li>Üretilen kodu bota mesaj olarak gönder.</li>
+            </ol>
+        </div>
+
+        <form method="post" asp-page-handler="GenerateTelegramLink" class="mt-3">
+            <button type="submit" class="btn btn-outline-primary">Telegram Bağlama Kodu Üret</button>
+        </form>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ActiveTelegramLinkCode) && Model.ActiveTelegramLinkExpiresAt.HasValue)
+        {
+            <div class="alert alert-secondary mt-3">
+                <strong>Aktif bağlama kodu:</strong> <code>@Model.ActiveTelegramLinkCode</code><br />
+                <small>Son geçerlilik: @Model.ActiveTelegramLinkExpiresAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+            </div>
+        }
+    }
 </section>
 
 <section class="panel-block mt-3">
@@ -75,3 +181,7 @@
         </div>
     </form>
 </section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

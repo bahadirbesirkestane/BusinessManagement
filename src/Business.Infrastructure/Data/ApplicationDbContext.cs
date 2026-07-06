@@ -57,6 +57,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<AdminRecoveryCode> AdminRecoveryCodes => Set<AdminRecoveryCode>();
     public DbSet<TaskEmailNotificationSetting> TaskEmailNotificationSettings => Set<TaskEmailNotificationSetting>();
+    public DbSet<TelegramNotificationSetting> TelegramNotificationSettings => Set<TelegramNotificationSetting>();
+    public DbSet<TelegramUserLinkRequest> TelegramUserLinkRequests => Set<TelegramUserLinkRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -107,6 +109,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.Property(x => x.FullName).HasMaxLength(160);
             entity.Property(x => x.ThemePreference).HasMaxLength(24);
+            entity.Property(x => x.TelegramChatId).HasMaxLength(64);
+            entity.Property(x => x.TelegramUsername).HasMaxLength(128);
+            entity.Property(x => x.TelegramNotificationsEnabled).HasDefaultValue(false);
             entity.HasOne<Department>().WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -260,6 +265,22 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<TaskEmailNotificationSetting>(entity =>
         {
             entity.Property(x => x.RecipientEmails).HasMaxLength(2000);
+        });
+
+        builder.Entity<TelegramNotificationSetting>(entity =>
+        {
+            entity.Property(x => x.BotUserName).HasMaxLength(128);
+            entity.Property(x => x.LinkCodeTtlMinutes).HasDefaultValue(15);
+        });
+
+        builder.Entity<TelegramUserLinkRequest>(entity =>
+        {
+            entity.HasIndex(x => new { x.UserId, x.CreatedAt });
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            entity.Property(x => x.Code).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.TelegramChatId).HasMaxLength(64);
+            entity.Property(x => x.TelegramUsername).HasMaxLength(128);
         });
 
         builder.Entity<ProjectUpdate>(entity =>

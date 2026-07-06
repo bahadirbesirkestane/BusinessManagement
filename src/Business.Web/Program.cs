@@ -22,10 +22,14 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IRecordFileUploadService, RecordFileUploadService>();
 builder.Services.AddScoped<IProjectDriveUploadService, ProjectDriveUploadService>();
 builder.Services.AddScoped<ICompanyDriveUploadService, CompanyDriveUploadService>();
+builder.Services.AddScoped<ITelegramLinkService, TelegramLinkService>();
+builder.Services.AddScoped<ITelegramNotificationService, TelegramNotificationService>();
 builder.Services.Configure<SmtpEmailOptions>(builder.Configuration.GetSection("Email:Smtp"));
+builder.Services.Configure<TelegramBotOptions>(builder.Configuration.GetSection(TelegramBotOptions.SectionName));
 builder.Services.Configure<AdminTwoFactorOptions>(builder.Configuration.GetSection("Security:AdminTwoFactor"));
 builder.Services.Configure<CompanyFileStorageOptions>(builder.Configuration.GetSection(CompanyFileStorageOptions.SectionName));
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddHttpClient("TelegramBot");
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddControllersWithViews(options =>

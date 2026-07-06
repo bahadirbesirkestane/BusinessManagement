@@ -1,0 +1,61 @@
+@model Business.Web.ViewModels.TelegramSettingsViewModel
+@{
+    ViewData["Title"] = "Telegram Ayarları";
+}
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Ayarlar</p>
+            <h2>Telegram Ayarları</h2>
+        </div>
+    </div>
+
+    <form asp-action="Telegram" method="post" class="app-form">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="mb-3">
+            <label class="check-card check-inline">
+                <input asp-for="IsEnabled" />
+                <span>Telegram bildirim sistemi aktif</span>
+            </label>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="BotUserName" class="form-label"></label>
+            <div class="input-group">
+                <span class="input-group-text">@@</span>
+                <input asp-for="BotUserName" class="form-control" placeholder="FirmaTakipBot" />
+            </div>
+            <span asp-validation-for="BotUserName" class="text-danger"></span>
+            <small class="text-muted">Kullanıcılar Telegram hesabını bağlarken bu bot kullanıcı adını kullanacaktır.</small>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="LinkCodeTtlMinutes" class="form-label"></label>
+            <input asp-for="LinkCodeTtlMinutes" type="number" min="1" max="1440" class="form-control" />
+            <span asp-validation-for="LinkCodeTtlMinutes" class="text-danger"></span>
+            <small class="text-muted">Kullanıcının hesap ekranından üreteceği Telegram bağlama kodu bu süre boyunca geçerli kalır.</small>
+        </div>
+
+        <div class="mb-3">
+            <div class="list-stack">
+                <div class="list-row">
+                    <span><strong>Bot token</strong><small>@(Model.IsBotTokenConfigured ? "Yapılandırılmış" : "Henüz yapılandırılmadı")</small></span>
+                </div>
+                <div class="list-row">
+                    <span><strong>Webhook gizli anahtarı</strong><small>@(Model.IsWebhookSecretConfigured ? "Yapılandırılmış" : "Henüz yapılandırılmadı")</small></span>
+                </div>
+            </div>
+            <small class="text-muted d-block mt-2">Güvenlik nedeniyle bot token ve webhook gizli anahtarı bu ekrandan kaydedilmez. Bunları konfigürasyon veya User Secrets üzerinden <code>Telegram:Bot:Token</code> ve <code>Telegram:Bot:WebhookSecret</code> anahtarları ile tanımlamalısın.</small>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Kaydet</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

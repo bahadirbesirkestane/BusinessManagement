@@ -28,6 +28,7 @@ public class ProjectTasksController : Controller
     private readonly IRecordFileUploadService _recordFileUploadService;
     private readonly IProjectTimelineService _projectTimelineService;
     private readonly IEmailSender _emailSender;
+    private readonly ITelegramNotificationService _telegramNotificationService;
     private readonly IWebHostEnvironment _environment;
 
     public ProjectTasksController(
@@ -37,6 +38,7 @@ public class ProjectTasksController : Controller
         IRecordFileUploadService recordFileUploadService,
         IProjectTimelineService projectTimelineService,
         IEmailSender emailSender,
+        ITelegramNotificationService telegramNotificationService,
         IWebHostEnvironment environment)
     {
         _context = context;
@@ -45,6 +47,7 @@ public class ProjectTasksController : Controller
         _recordFileUploadService = recordFileUploadService;
         _projectTimelineService = projectTimelineService;
         _emailSender = emailSender;
+        _telegramNotificationService = telegramNotificationService;
         _environment = environment;
     }
 
@@ -514,9 +517,15 @@ public class ProjectTasksController : Controller
             return View(task);
         }
 
+        var selectedAssignedUserIds = Request.Form["AssignedUserIds"]
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct()
+            .ToList();
+
         _context.ProjectTasks.Add(task);
         await _context.SaveChangesAsync(cancellationToken);
-        await SyncAssignmentsAsync(task.Id, Request.Form["AssignedUserIds"].Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!), cancellationToken);
+        await SyncAssignmentsAsync(task.Id, selectedAssignedUserIds, cancellationToken);
         await _projectTimelineService.AddForTaskAsync(task.Id, "Görev eklendi", task.Title, cancellationToken);
 
         var warningMessages = new List<string>();
@@ -601,6 +610,43 @@ public class ProjectTasksController : Controller
                         warningMessages.Add("Görev kaydedildi fakat e-posta gönderilemedi.");
                     }
                 }
+            }
+        }
+
+        var telegramRecipientIds = CollectTelegramRecipientUserIds(task.AssignedToUserId, selectedAssignedUserIds);
+        if (telegramRecipientIds.Count > 0)
+        {
+            try
+            {
+                var telegramResult = await _telegramNotificationService.SendMessageToUsersAsync(
+                    telegramRecipientIds,
+                    await BuildTaskTelegramMessageAsync(task.Id, cancellationToken),
+                    cancellationToken: cancellationToken);
+
+                if (!telegramResult.IsEnabled)
+                {
+                    // Sistem yöneticisi Telegram bildirimlerini kapattıysa görev kaydını etkilemeden sessizce geç.
+                }
+                else if (!telegramResult.IsConfigured)
+                {
+                    warningMessages.Add("Görev kaydedildi fakat Telegram bot ayarları eksik olduğu için bildirim gönderilemedi.");
+                }
+                else
+                {
+                    if (telegramResult.MissingChatRecipients.Count > 0)
+                    {
+                        warningMessages.Add($"Telegram hesabı bağlı olmayan atanan kullanıcılar için bildirim gönderilemedi: {string.Join(", ", telegramResult.MissingChatRecipients)}.");
+                    }
+
+                    if (telegramResult.FailedRecipients.Count > 0)
+                    {
+                        warningMessages.Add($"Bazı atanan kullanıcılara Telegram bildirimi gönderilemedi: {string.Join(", ", telegramResult.FailedRecipients)}.");
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                warningMessages.Add("Görev kaydedildi fakat Telegram bildirimi gönderilemedi.");
             }
         }
 
@@ -963,7 +1009,12 @@ public class ProjectTasksController : Controller
         }
 
         var responsibleName = await GetUserDisplayNameAsync(task.ResponsibleUserId);
-        var assignedNames = await GetAssignedUserNamesAsync(task.Assignments.Select(x => x.UserId), cancellationToken);
+        var assignedNames = await GetAssignedUserNamesAsync(
+            task.Assignments.Select(x => x.UserId)
+                .Append(task.AssignedToUserId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!),
+            cancellationToken);
         var recipients = ParseRecipientEmails(recipientEmails);
 
         var htmlBody = includeContent
@@ -1102,6 +1153,68 @@ public class ProjectTasksController : Controller
         if (!string.IsNullOrWhiteSpace(value))
         {
             lines.Add(new KeyValuePair<string, string>(label, value.Trim()));
+        }
+    }
+
+    private static IReadOnlyList<string> CollectTelegramRecipientUserIds(string? assignedToUserId, IEnumerable<string> selectedAssignedUserIds)
+    {
+        return selectedAssignedUserIds
+            .Append(assignedToUserId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct()
+            .ToList();
+    }
+
+    private async Task<string> BuildTaskTelegramMessageAsync(Guid taskId, CancellationToken cancellationToken)
+    {
+        var task = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .ThenInclude(x => x!.Customer)
+            .Include(x => x.Customer)
+            .Include(x => x.TaskCategory)
+            .Include(x => x.Assignments)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == taskId, cancellationToken);
+
+        if (task is null)
+        {
+            throw new InvalidOperationException("Görev bilgisi bulunamadığı için Telegram mesajı hazırlanamadı.");
+        }
+
+        var responsibleName = await GetUserDisplayNameAsync(task.ResponsibleUserId);
+        var assignedNames = await GetAssignedUserNamesAsync(task.Assignments.Select(x => x.UserId), cancellationToken);
+        var projectName = task.Project is not null
+            ? $"{task.Project.Code} - {task.Project.Name}"
+            : task.ManualProjectName;
+        var customerName = task.Customer?.Name
+            ?? task.Project?.Customer?.Name
+            ?? task.ManualCustomerName;
+
+        var builder = new StringBuilder();
+        builder.AppendLine("Yeni görev atandı.");
+        builder.AppendLine();
+        builder.AppendLine($"Görev: {task.Title}");
+        AddTelegramLine(builder, "Durum", task.Status.ToDisplayName());
+        AddTelegramLine(builder, "Öncelik", task.Priority.ToDisplayName());
+        AddTelegramLine(builder, "Proje", projectName);
+        AddTelegramLine(builder, "Müşteri", customerName);
+        AddTelegramLine(builder, "Kategori", task.TaskCategory?.Name);
+        AddTelegramLine(builder, "Görev Sahibi", responsibleName == "Atanmamış" ? null : responsibleName);
+        AddTelegramLine(builder, "Atanan Kişiler", assignedNames.Count > 0 ? string.Join(", ", assignedNames) : null);
+        AddTelegramLine(builder, "Başlangıç", task.StartDate?.ToString("dd.MM.yyyy"));
+        AddTelegramLine(builder, "Termin", task.DueDate?.ToString("dd.MM.yyyy"));
+        AddTelegramLine(builder, "Açıklama", task.Description);
+        AddTelegramLine(builder, "Not", task.Notes);
+
+        return builder.ToString().Trim();
+    }
+
+    private static void AddTelegramLine(StringBuilder builder, string label, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            builder.AppendLine($"{label}: {value.Trim()}");
         }
     }
 
