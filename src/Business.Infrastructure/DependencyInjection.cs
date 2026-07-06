@@ -167,6 +167,11 @@ public static class DependencyInjection
             options.AddPolicy(AppPolicies.CanManageUsers, policy =>
                 policy.RequireClaim(AppClaimTypes.Permission, AppPermissions.UsersManage));
 
+            options.AddPolicy(AppPolicies.CanManageSettings, policy =>
+                policy.RequireAssertion(context =>
+                    context.User.IsInRole(AppRoles.Admin) ||
+                    context.User.HasClaim(AppClaimTypes.Permission, AppPermissions.SettingsManage)));
+
             options.AddPolicy(AppPolicies.CanViewCompanyFiles, policy =>
                 policy.RequireAssertion(context =>
                     context.User.IsInRole(AppRoles.Admin) ||

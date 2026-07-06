@@ -3,6 +3,11 @@
     var returnUrl = ViewBag.ReturnUrl as string;
     var isCreateMode = string.Equals(ViewContext.RouteData.Values["action"]?.ToString(), "Create", StringComparison.OrdinalIgnoreCase);
     var formStatusOptions = (IReadOnlyList<WorkTaskStatus>)(ViewBag.FormStatusOptions ?? Enum.GetValues<WorkTaskStatus>().ToList());
+    var sendTaskEmail = ViewBag.SendTaskEmail is bool sendMailValue && sendMailValue;
+    var emailIncludeContent = ViewBag.EmailIncludeContent is bool includeContentValue ? includeContentValue : true;
+    var emailIncludeAttachments = ViewBag.EmailIncludeAttachments is bool includeAttachmentsValue && includeAttachmentsValue;
+    var taskMailRecipientsConfigured = ViewBag.TaskMailRecipientsConfigured is bool recipientsConfigured && recipientsConfigured;
+    var taskMailRecipientSummary = ViewBag.TaskMailRecipientSummary as string;
 }
 
 <section class="panel-block form-panel">
@@ -138,6 +143,38 @@
                         <div class="file-upload-list" data-file-upload-list></div>
                     </div>
                 </div>
+
+                <div class="mb-3 wide">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="sendTaskEmail"
+                               name="sendTaskEmail"
+                               value="true"
+                               checked="@sendTaskEmail"
+                               data-task-email-toggle />
+                        <label class="form-check-label" for="sendTaskEmail">Görev oluşturulunca mail gönderilsin</label>
+                    </div>
+                    <small class="text-muted">
+                        @(taskMailRecipientsConfigured
+                            ? $"Tanımlı alıcılar: {taskMailRecipientSummary}"
+                            : "Henüz görev mail alıcısı tanımlanmadı. Ayarlar ekranından alıcı e-posta adreslerini kaydedebilirsin.")
+                    </small>
+                </div>
+
+                <div class="mb-3 wide" data-task-email-options @(sendTaskEmail ? "" : "hidden")>
+                    <div class="planning-user-checks">
+                        <label class="check-card">
+                            <input type="checkbox" name="emailIncludeContent" value="true" checked="@emailIncludeContent" />
+                            <span>Görev içeriğini gönder</span>
+                        </label>
+                        <label class="check-card">
+                            <input type="checkbox" name="emailIncludeAttachments" value="true" checked="@emailIncludeAttachments" />
+                            <span>Yüklenen dosyaları ek olarak gönder</span>
+                        </label>
+                    </div>
+                    <small class="text-muted">Mail içeriğinde görev başlığı, proje, müşteri, kategori, durum, öncelik, tarih ve açıklama bilgileri okunabilir biçimde gönderilir.</small>
+                </div>
             }
         </div>
         <div class="form-actions">
@@ -153,3 +190,23 @@
         </div>
     </form>
 </section>
+
+@if (isCreateMode)
+{
+    <script>
+        (function () {
+            const toggle = document.querySelector('[data-task-email-toggle]');
+            const options = document.querySelector('[data-task-email-options]');
+            if (!toggle || !options) {
+                return;
+            }
+
+            const sync = function () {
+                options.hidden = !toggle.checked;
+            };
+
+            toggle.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
+}

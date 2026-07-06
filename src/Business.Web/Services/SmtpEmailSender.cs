@@ -21,6 +21,11 @@ public sealed class SmtpEmailSender : IEmailSender
         if (string.IsNullOrWhiteSpace(_options.Host) ||
             string.IsNullOrWhiteSpace(_options.FromEmail))
         {
+            if (message.RequireConfiguredDelivery)
+            {
+                throw new InvalidOperationException("SMTP ayarları eksik olduğu için e-posta gönderilemedi.");
+            }
+
             _logger.LogInformation(
                 "SMTP ayarı bulunamadı. E-posta log'a yazıldı. Alıcı: {To}, Konu: {Subject}, İçerik: {Body}",
                 message.To,
@@ -29,15 +34,33 @@ public sealed class SmtpEmailSender : IEmailSender
             return;
         }
 
+        var recipients = message.ToList?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? [];
+        if (recipients.Count == 0 && !string.IsNullOrWhiteSpace(message.To))
+        {
+            recipients.Add(message.To);
+        }
+
         var email = new MimeMessage();
         email.From.Add(new MailboxAddress(_options.FromName ?? _options.FromEmail, _options.FromEmail));
-        email.To.Add(MailboxAddress.Parse(message.To));
+        foreach (var recipient in recipients.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            email.To.Add(MailboxAddress.Parse(recipient));
+        }
+
         email.Subject = message.Subject;
-        email.Body = new BodyBuilder
+
+        var bodyBuilder = new BodyBuilder
         {
             HtmlBody = message.HtmlBody,
             TextBody = message.TextBody
-        }.ToMessageBody();
+        };
+
+        foreach (var attachment in message.Attachments)
+        {
+            bodyBuilder.Attachments.Add(attachment.FileName, attachment.Content, ContentType.Parse(attachment.ContentType));
+        }
+
+        email.Body = bodyBuilder.ToMessageBody();
 
         using var client = new SmtpClient();
         var secureSocketOptions = GetSecureSocketOptions();

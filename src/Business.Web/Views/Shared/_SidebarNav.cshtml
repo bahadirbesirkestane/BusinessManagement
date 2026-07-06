@@ -168,6 +168,7 @@
             Title = "Ayarlar",
             Items = new[]
             {
+                (Label: "Görev Mail Ayarları", Url: "/Settings/TaskMail"),
                 (Label: "Yedekleme", Url: "/Backup"),
                 (Label: "Veri Aktarımı", Url: "/DataImport")
             }
@@ -327,12 +328,17 @@
 
         if (url.StartsWith("/Backup", StringComparison.OrdinalIgnoreCase))
         {
-            return User.IsInRole(AppRoles.Admin);
+            return User.IsInRole(AppRoles.Admin) || HasPermission(AppPermissions.SettingsManage);
         }
 
         if (url.StartsWith("/DataImport", StringComparison.OrdinalIgnoreCase))
         {
-            return User.IsInRole(AppRoles.Admin);
+            return User.IsInRole(AppRoles.Admin) || HasPermission(AppPermissions.SettingsManage);
+        }
+
+        if (url.StartsWith("/Settings", StringComparison.OrdinalIgnoreCase))
+        {
+            return User.IsInRole(AppRoles.Admin) || HasPermission(AppPermissions.SettingsManage);
         }
 
         return true;

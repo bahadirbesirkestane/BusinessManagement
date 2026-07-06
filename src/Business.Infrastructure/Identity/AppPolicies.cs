@@ -40,6 +40,7 @@ public static class AppPolicies
     public const string CanManageStock = "CanManageStock";
     public const string CanViewUsers = "CanViewUsers";
     public const string CanManageUsers = "CanManageUsers";
+    public const string CanManageSettings = "CanManageSettings";
     public const string CanViewCompanyFiles = "CanViewCompanyFiles";
     public const string CanManageCompanyFiles = "CanManageCompanyFiles";
 }

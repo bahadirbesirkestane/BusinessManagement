@@ -56,6 +56,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ProjectTemplateTask> ProjectTemplateTasks => Set<ProjectTemplateTask>();
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<AdminRecoveryCode> AdminRecoveryCodes => Set<AdminRecoveryCode>();
+    public DbSet<TaskEmailNotificationSetting> TaskEmailNotificationSettings => Set<TaskEmailNotificationSetting>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -254,6 +255,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.Name).IsUnique();
             entity.Property(x => x.Name).HasMaxLength(160).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(500);
+        });
+
+        builder.Entity<TaskEmailNotificationSetting>(entity =>
+        {
+            entity.Property(x => x.RecipientEmails).HasMaxLength(2000);
         });
 
         builder.Entity<ProjectUpdate>(entity =>

@@ -1,0 +1,32 @@
+@model Business.Web.ViewModels.TaskEmailSettingsViewModel
+@{
+    ViewData["Title"] = "Görev Mail Ayarları";
+}
+
+<section class="panel-block form-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="section-kicker">Ayarlar</p>
+            <h2>Görev Mail Ayarları</h2>
+        </div>
+    </div>
+
+    <form asp-action="TaskMail" method="post" class="app-form">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="mb-3">
+            <label asp-for="RecipientEmails" class="form-label"></label>
+            <textarea asp-for="RecipientEmails" class="form-control" rows="5" placeholder="ornek@firma.com&#10;ikinci@firma.com"></textarea>
+            <span asp-validation-for="RecipientEmails" class="text-danger"></span>
+            <small class="text-muted">Birden fazla adres gireceksen her satıra bir adres yazabilir veya virgül ya da noktalı virgül ile ayırabilirsin.</small>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Kaydet</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

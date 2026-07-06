@@ -7,9 +7,12 @@ using Business.Web.Extensions;
 using Business.Web.Services;
 using Business.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
+using System.Text.Encodings.Web;
 
 namespace Business.Web.Controllers;
 
@@ -22,19 +25,25 @@ public class ProjectTasksController : Controller
     private readonly IRecordActivityService _recordActivityService;
     private readonly IRecordFileUploadService _recordFileUploadService;
     private readonly IProjectTimelineService _projectTimelineService;
+    private readonly IEmailSender _emailSender;
+    private readonly IWebHostEnvironment _environment;
 
     public ProjectTasksController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         IRecordActivityService recordActivityService,
         IRecordFileUploadService recordFileUploadService,
-        IProjectTimelineService projectTimelineService)
+        IProjectTimelineService projectTimelineService,
+        IEmailSender emailSender,
+        IWebHostEnvironment environment)
     {
         _context = context;
         _userManager = userManager;
         _recordActivityService = recordActivityService;
         _recordFileUploadService = recordFileUploadService;
         _projectTimelineService = projectTimelineService;
+        _emailSender = emailSender;
+        _environment = environment;
     }
 
     public async Task<IActionResult> Index(Guid? projectId, string? q, WorkTaskStatus? status, ProjectPriority? priority, Guid? categoryId, Guid? customerId, string? responsibleUserId, string? assignedUserId, string? sort, bool load = true, int take = DefaultListTake, bool showAll = false, bool includeCompleted = false, bool archivedOnly = false, CancellationToken cancellationToken = default)
@@ -414,6 +423,7 @@ public class ProjectTasksController : Controller
     {
         var task = new ProjectTask { ProjectId = projectId };
         await FillLookupsAsync(task.Status, cancellationToken);
+        await SetTaskEmailFormStateAsync(sendTaskEmail: false, emailIncludeContent: true, emailIncludeAttachments: false, cancellationToken: cancellationToken);
         if (projectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -440,7 +450,14 @@ public class ProjectTasksController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanCreateTasks)]
-    public async Task<IActionResult> Create(ProjectTask task, string? returnUrl, List<IFormFile>? files, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(
+        ProjectTask task,
+        string? returnUrl,
+        List<IFormFile>? files,
+        bool sendTaskEmail,
+        bool emailIncludeContent,
+        bool emailIncludeAttachments,
+        CancellationToken cancellationToken)
     {
         task.Visibility = User.NormalizeRecordVisibility(task.Visibility);
         NormalizeTaskRelation(task);
@@ -448,6 +465,17 @@ public class ProjectTasksController : Controller
         var validFiles = files?
             .Where(file => file is not null && file.Length > 0)
             .ToList() ?? [];
+
+        if (sendTaskEmail && !emailIncludeContent && !emailIncludeAttachments)
+        {
+            ModelState.AddModelError(string.Empty, "Mail gönderimi seçildiğinde içerik veya dosya eki seçeneklerinden en az biri işaretlenmelidir.");
+        }
+
+        if (sendTaskEmail && emailIncludeAttachments && validFiles.Count == 0)
+        {
+            ModelState.AddModelError(string.Empty, "Dosya ekli mail seçildi ancak görev için dosya yüklenmedi.");
+        }
+
         if (task.ProjectId.HasValue)
         {
             var canUseProject = await _context.Projects
@@ -456,7 +484,7 @@ public class ProjectTasksController : Controller
                 .AnyAsync(x => x.Id == task.ProjectId.Value, cancellationToken);
             if (!canUseProject)
             {
-                ModelState.AddModelError(nameof(task.ProjectId), "SeÃƒÂ§ilen proje iÃƒÂ§in yetkiniz bulunmuyor.");
+                ModelState.AddModelError(nameof(task.ProjectId), "Seçilen proje için yetkiniz bulunmuyor.");
             }
         }
 
@@ -473,6 +501,7 @@ public class ProjectTasksController : Controller
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(task.Status, cancellationToken);
+            await SetTaskEmailFormStateAsync(sendTaskEmail, emailIncludeContent, emailIncludeAttachments, cancellationToken);
             ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
             return View(task);
         }
@@ -481,11 +510,14 @@ public class ProjectTasksController : Controller
         await _context.SaveChangesAsync(cancellationToken);
         await SyncAssignmentsAsync(task.Id, Request.Form["AssignedUserIds"].Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!), cancellationToken);
         await _projectTimelineService.AddForTaskAsync(task.Id, "Görev eklendi", task.Title, cancellationToken);
+
+        var warningMessages = new List<string>();
+        var savedFiles = new List<RecordFile>();
         if (validFiles.Count > 0)
         {
             try
             {
-                var savedFiles = await _recordFileUploadService.SaveFilesAsync(RecordOwnerType.ProjectTask, task.Id, validFiles, null, cancellationToken);
+                savedFiles = (await _recordFileUploadService.SaveFilesAsync(RecordOwnerType.ProjectTask, task.Id, validFiles, null, cancellationToken)).ToList();
                 foreach (var savedFile in savedFiles)
                 {
                     await _recordActivityService.AddFileAsync(savedFile, cancellationToken);
@@ -499,12 +531,60 @@ public class ProjectTasksController : Controller
             }
             catch (IOException)
             {
-                TempData["Error"] = "Görev kaydedildi fakat dosyalar yüklenirken bir hata oluştu.";
+                warningMessages.Add("Görev kaydedildi fakat dosyalar yüklenirken bir hata oluştu.");
             }
             catch (UnauthorizedAccessException)
             {
-                TempData["Error"] = "Görev kaydedildi fakat dosyalar yüklenemedi.";
+                warningMessages.Add("Görev kaydedildi fakat dosyalar yüklenemedi.");
             }
+        }
+
+        if (sendTaskEmail)
+        {
+            var taskMailSettings = await GetTaskEmailSettingAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(taskMailSettings?.RecipientEmails))
+            {
+                warningMessages.Add("Görev kaydedildi fakat görev mail alıcıları ayarlanmadığı için e-posta gönderilemedi.");
+            }
+            else
+            {
+                var includeAttachmentsInMail = emailIncludeAttachments && savedFiles.Count > 0;
+                if (emailIncludeAttachments && savedFiles.Count == 0)
+                {
+                    if (emailIncludeContent)
+                    {
+                        warningMessages.Add("Dosyalar yüklenemediği için e-posta eki olmadan yalnızca görev içeriği gönderildi.");
+                    }
+                    else
+                    {
+                        warningMessages.Add("Görev kaydedildi fakat dosya ekleri hazırlanamadığı için e-posta gönderilemedi.");
+                        includeAttachmentsInMail = false;
+                    }
+                }
+
+                if (emailIncludeContent || includeAttachmentsInMail)
+                {
+                    try
+                    {
+                        await SendTaskCreatedEmailAsync(
+                            task.Id,
+                            taskMailSettings.RecipientEmails!,
+                            emailIncludeContent,
+                            includeAttachmentsInMail,
+                            savedFiles,
+                            cancellationToken);
+                    }
+                    catch (Exception)
+                    {
+                        warningMessages.Add("Görev kaydedildi fakat e-posta gönderilemedi.");
+                    }
+                }
+            }
+        }
+
+        if (warningMessages.Count > 0)
+        {
+            TempData["Error"] = string.Join(" ", warningMessages.Distinct());
         }
 
         return RedirectToLocal(returnUrl, fallbackRouteValues: task.ProjectId.HasValue ? new { projectId = task.ProjectId } : null);
@@ -816,6 +896,184 @@ public class ProjectTasksController : Controller
         ViewBag.FilterCustomers = await _context.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         ViewBag.FilterTaskCategories = await _context.TaskCategories.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync(cancellationToken);
         ViewBag.FilterUsers = await _userManager.Users.Where(x => x.IsActive).OrderBy(x => x.FullName).ToListAsync(cancellationToken);
+    }
+
+    private async Task SetTaskEmailFormStateAsync(bool sendTaskEmail, bool emailIncludeContent, bool emailIncludeAttachments, CancellationToken cancellationToken)
+    {
+        var settings = await GetTaskEmailSettingAsync(cancellationToken);
+        ViewBag.SendTaskEmail = sendTaskEmail;
+        ViewBag.EmailIncludeContent = emailIncludeContent;
+        ViewBag.EmailIncludeAttachments = emailIncludeAttachments;
+        ViewBag.TaskMailRecipientsConfigured = !string.IsNullOrWhiteSpace(settings?.RecipientEmails);
+        ViewBag.TaskMailRecipientSummary = settings?.RecipientEmails;
+    }
+
+    private Task<TaskEmailNotificationSetting?> GetTaskEmailSettingAsync(CancellationToken cancellationToken)
+    {
+        return _context.TaskEmailNotificationSettings
+            .AsNoTracking()
+            .OrderBy(x => x.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task SendTaskCreatedEmailAsync(
+        Guid taskId,
+        string recipientEmails,
+        bool includeContent,
+        bool includeAttachments,
+        IReadOnlyList<RecordFile> files,
+        CancellationToken cancellationToken)
+    {
+        var task = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .ThenInclude(x => x!.Customer)
+            .Include(x => x.Customer)
+            .Include(x => x.TaskCategory)
+            .Include(x => x.Assignments)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == taskId, cancellationToken);
+
+        if (task is null)
+        {
+            throw new InvalidOperationException("Görev bilgisi bulunamadığı için e-posta hazırlanamadı.");
+        }
+
+        var responsibleName = await GetUserDisplayNameAsync(task.ResponsibleUserId);
+        var assignedNames = await GetAssignedUserNamesAsync(task.Assignments.Select(x => x.UserId), cancellationToken);
+        var recipients = ParseRecipientEmails(recipientEmails);
+
+        var htmlBody = includeContent
+            ? BuildTaskEmailHtmlBody(task, responsibleName, assignedNames)
+            : "<p>Görev dosyaları ektedir.</p>";
+
+        var textBody = includeContent
+            ? BuildTaskEmailTextBody(task, responsibleName, assignedNames)
+            : "Görev dosyaları ektedir.";
+
+        var attachments = includeAttachments
+            ? await CreateEmailAttachmentsAsync(files, cancellationToken)
+            : [];
+
+        await _emailSender.SendAsync(new EmailMessage
+        {
+            ToList = recipients,
+            Subject = $"Yeni görev oluşturuldu: {task.Title}",
+            HtmlBody = htmlBody,
+            TextBody = textBody,
+            Attachments = attachments,
+            RequireConfiguredDelivery = true
+        }, cancellationToken);
+    }
+
+    private static IReadOnlyList<string> ParseRecipientEmails(string recipientEmails)
+    {
+        return recipientEmails
+            .Split(['\r', '\n', ',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<EmailAttachment>> CreateEmailAttachmentsAsync(IReadOnlyList<RecordFile> files, CancellationToken cancellationToken)
+    {
+        var attachments = new List<EmailAttachment>();
+        foreach (var file in files)
+        {
+            if (string.IsNullOrWhiteSpace(file.RelativePath))
+            {
+                continue;
+            }
+
+            var normalizedPath = file.RelativePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            var physicalPath = Path.Combine(_environment.WebRootPath, normalizedPath);
+            if (!System.IO.File.Exists(physicalPath))
+            {
+                continue;
+            }
+
+            attachments.Add(new EmailAttachment
+            {
+                FileName = file.OriginalFileName,
+                ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                Content = await System.IO.File.ReadAllBytesAsync(physicalPath, cancellationToken)
+            });
+        }
+
+        return attachments;
+    }
+
+    private string BuildTaskEmailHtmlBody(ProjectTask task, string responsibleName, IReadOnlyList<string> assignedNames)
+    {
+        var lines = CreateTaskDetailLines(task, responsibleName, assignedNames);
+        var builder = new StringBuilder();
+        builder.Append("<p>Yeni bir görev oluşturuldu.</p>");
+        builder.Append("<table style=\"border-collapse:collapse;width:100%;\">");
+
+        foreach (var line in lines)
+        {
+            builder.Append("<tr>");
+            builder.Append("<td style=\"padding:6px 10px;border:1px solid #d7dbe0;font-weight:600;width:220px;\">");
+            builder.Append(HtmlEncoder.Default.Encode(line.Key));
+            builder.Append("</td>");
+            builder.Append("<td style=\"padding:6px 10px;border:1px solid #d7dbe0;\">");
+            builder.Append(HtmlEncoder.Default.Encode(line.Value));
+            builder.Append("</td>");
+            builder.Append("</tr>");
+        }
+
+        builder.Append("</table>");
+        return builder.ToString();
+    }
+
+    private string BuildTaskEmailTextBody(ProjectTask task, string responsibleName, IReadOnlyList<string> assignedNames)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("Yeni bir görev oluşturuldu.");
+        builder.AppendLine();
+
+        foreach (var line in CreateTaskDetailLines(task, responsibleName, assignedNames))
+        {
+            builder.AppendLine($"{line.Key}: {line.Value}");
+        }
+
+        return builder.ToString();
+    }
+
+    private IReadOnlyList<KeyValuePair<string, string>> CreateTaskDetailLines(ProjectTask task, string responsibleName, IReadOnlyList<string> assignedNames)
+    {
+        var projectName = task.Project is not null
+            ? $"{task.Project.Code} - {task.Project.Name}"
+            : task.ManualProjectName;
+        var customerName = task.Customer?.Name
+            ?? task.Project?.Customer?.Name
+            ?? task.ManualCustomerName;
+
+        var lines = new List<KeyValuePair<string, string>>
+        {
+            new("Görev Başlığı", task.Title),
+            new("Durum", task.Status.ToDisplayName()),
+            new("Öncelik", task.Priority.ToDisplayName()),
+            new("İlerleme", $"%{task.ProgressPercent}")
+        };
+
+        AddLineIfHasValue(lines, "Proje", projectName);
+        AddLineIfHasValue(lines, "Müşteri", customerName);
+        AddLineIfHasValue(lines, "Kategori", task.TaskCategory?.Name);
+        AddLineIfHasValue(lines, "Görev Sahibi", responsibleName == "Atanmamış" ? null : responsibleName);
+        AddLineIfHasValue(lines, "Atanan Kişiler", assignedNames.Count > 0 ? string.Join(", ", assignedNames) : null);
+        AddLineIfHasValue(lines, "Başlangıç Tarihi", task.StartDate?.ToString("dd.MM.yyyy"));
+        AddLineIfHasValue(lines, "Termin Tarihi", task.DueDate?.ToString("dd.MM.yyyy"));
+        AddLineIfHasValue(lines, "Açıklama", task.Description);
+        AddLineIfHasValue(lines, "Not", task.Notes);
+
+        return lines;
+    }
+
+    private static void AddLineIfHasValue(ICollection<KeyValuePair<string, string>> lines, string label, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            lines.Add(new KeyValuePair<string, string>(label, value.Trim()));
+        }
     }
 
     private IActionResult RedirectToLocal(string? returnUrl, string fallbackAction = nameof(Index), object? fallbackRouteValues = null)

@@ -4,3 +4,7 @@
 }
 
 @await Html.PartialAsync("_ProjectTaskForm", Model)
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
