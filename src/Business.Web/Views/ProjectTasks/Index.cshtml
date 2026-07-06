@@ -343,8 +343,8 @@
                                 <small class="d-block text-muted table-note-clamp">
                                     @(string.IsNullOrWhiteSpace(task.Description)
                                                                 ? ""
-                                                                : task.Description.Length > 150
-                                                                ? task.Description.Substring(0, 150) + "..."
+                                                                : task.Description.Length > 80
+                                                                ? task.Description.Substring(0, 80) + "..."
                                                                 : task.Description)
                                 </small>
                             </td>

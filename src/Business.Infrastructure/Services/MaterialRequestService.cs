@@ -19,6 +19,13 @@ public class MaterialRequestService : CrudService<MaterialRequest>, IMaterialReq
             .Include(x => x.Material);
     }
 
+    protected override IQueryable<MaterialRequest> DetailsQuery()
+    {
+        return Repository.Query()
+            .Include(x => x.Project)
+            .Include(x => x.Material);
+    }
+
     public Task<List<MaterialRequest>> GetRecentAsync(int count = 6, CancellationToken cancellationToken = default)
     {
         return ListQuery().OrderByDescending(x => x.CreatedAt).Take(count).ToListAsync(cancellationToken);

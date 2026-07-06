@@ -351,54 +351,65 @@ public class PurchaseOrdersController : Controller
             return NotFound();
         }
 
-        var currentUser = await _userManager.GetUserAsync(User);
-        var orderNumber = await GenerateOrderNumberAsync(cancellationToken);
-        var today = DateTime.Today;
-        var repeatedOrder = new PurchaseOrder
+        return RedirectToAction(nameof(Create), new
         {
-            ProjectId = sourceOrder.ProjectId,
-            SupplierId = sourceOrder.SupplierId,
-            MaterialId = sourceOrder.MaterialId,
-            OrderNumber = orderNumber,
-            Visibility = sourceOrder.Visibility,
-            Scope = sourceOrder.Scope,
-            TrackingState = 0,
-            Content = sourceOrder.Content,
-            Quantity = sourceOrder.Quantity,
-            QuantityText = sourceOrder.QuantityText,
-            Unit = sourceOrder.Unit,
-            Quality = sourceOrder.Quality,
-            Status = PurchaseOrderStatus.Requested,
-            OrderDate = today,
-            ExpectedArrivalDate = sourceOrder.ExpectedArrivalDate.HasValue && sourceOrder.ExpectedArrivalDate.Value.Date >= today
-                ? sourceOrder.ExpectedArrivalDate
-                : null,
-            ArrivalDate = null,
-            RequestedBy = currentUser?.FullName ?? User.Identity?.Name ?? sourceOrder.RequestedBy,
-            RequestedByUserId = currentUser?.Id,
-            PaymentTerm = sourceOrder.PaymentTerm,
-            UnitPrice = sourceOrder.UnitPrice,
-            UnitPriceText = sourceOrder.UnitPriceText,
-            OrderTotal = sourceOrder.OrderTotal,
-            Currency = sourceOrder.Currency,
-            VatRate = sourceOrder.VatRate,
-            Notes = sourceOrder.Notes,
-            IsActive = sourceOrder.IsActive
-        };
-
-        await _purchaseOrderService.CreateAsync(repeatedOrder, cancellationToken);
-        await _projectTimelineService.AddForOrderAsync(repeatedOrder.Id, "Sipariş tekrarlandı", $"{repeatedOrder.OrderNumber} - {repeatedOrder.Content}", cancellationToken);
-        TempData["Success"] = $"Yeni sipariş oluşturuldu: {orderNumber}";
-
-        return RedirectToLocal(returnUrl);
+            projectId = sourceOrder.ProjectId,
+            sourceOrderId = sourceOrder.Id,
+            returnUrl = NormalizeReturnUrl(returnUrl)
+        });
     }
 
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
-    public async Task<IActionResult> Create(Guid? projectId, Guid? materialRequestId, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid? projectId, Guid? materialRequestId, Guid? sourceOrderId, string? returnUrl, CancellationToken cancellationToken)
     {
         PurchaseOrder? prefilledOrder = null;
 
-        if (materialRequestId.HasValue)
+        if (sourceOrderId.HasValue)
+        {
+            var sourceOrder = await _context.PurchaseOrders
+                .Include(x => x.Supplier)
+                .Include(x => x.Material)
+                .AsNoTracking()
+                .ApplyRecordVisibility(User)
+                .FirstOrDefaultAsync(x => x.Id == sourceOrderId.Value, cancellationToken);
+            if (sourceOrder is null)
+            {
+                return NotFound();
+            }
+
+            var today = DateTime.Today;
+            projectId ??= sourceOrder.ProjectId;
+            prefilledOrder = new PurchaseOrder
+            {
+                ProjectId = sourceOrder.ProjectId,
+                SupplierId = sourceOrder.SupplierId,
+                SupplierNameInput = sourceOrder.Supplier?.Name,
+                MaterialId = sourceOrder.MaterialId,
+                MaterialNameInput = sourceOrder.Material?.Name,
+                OrderNumber = await GenerateOrderNumberAsync(cancellationToken),
+                Visibility = sourceOrder.Visibility,
+                Scope = sourceOrder.Scope,
+                Content = sourceOrder.Content,
+                Quantity = sourceOrder.Quantity,
+                QuantityText = sourceOrder.QuantityText,
+                Unit = sourceOrder.Unit,
+                Quality = sourceOrder.Quality,
+                Status = PurchaseOrderStatus.Requested,
+                OrderDate = today,
+                ExpectedArrivalDate = sourceOrder.ExpectedArrivalDate.HasValue && sourceOrder.ExpectedArrivalDate.Value.Date >= today
+                    ? sourceOrder.ExpectedArrivalDate
+                    : null,
+                PaymentTerm = sourceOrder.PaymentTerm,
+                UnitPrice = sourceOrder.UnitPrice,
+                UnitPriceText = sourceOrder.UnitPriceText,
+                OrderTotal = sourceOrder.OrderTotal,
+                Currency = sourceOrder.Currency,
+                VatRate = sourceOrder.VatRate,
+                Notes = sourceOrder.Notes,
+                IsActive = sourceOrder.IsActive
+            };
+        }
+        else if (materialRequestId.HasValue)
         {
             var materialRequest = await _context.MaterialRequests
                 .Include(x => x.Project)

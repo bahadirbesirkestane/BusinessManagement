@@ -221,6 +221,19 @@ public class MaterialRequestsController : Controller
         }
 
         ViewBag.RequestedByName = await GetRequestedByNameAsync(request.RequestedByUserId, cancellationToken);
+        ViewBag.Breadcrumbs = request.Project is not null
+            ? new Dictionary<string, string?>
+            {
+                ["Projeler"] = Url.Action("Index", "Projects"),
+                [request.Project.Code] = Url.Action("Details", "Projects", new { id = request.Project.Id }),
+                ["İhtiyaçlar"] = Url.Action(nameof(Index), new { projectId = request.Project.Id }),
+                [request.RequestedItem] = null
+            }
+            : new Dictionary<string, string?>
+            {
+                ["İhtiyaçlar"] = Url.Action(nameof(Index)),
+                [request.RequestedItem] = null
+            };
         ViewBag.Activity = new RecordActivityViewModel
         {
             OwnerType = RecordOwnerType.MaterialRequest,
@@ -235,14 +248,46 @@ public class MaterialRequestsController : Controller
     }
 
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
-    public async Task<IActionResult> Create(Guid? projectId, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid? projectId, Guid? sourceRequestId, string? returnUrl, CancellationToken cancellationToken)
     {
-        var model = new MaterialRequest
+        MaterialRequest model;
+
+        if (sourceRequestId.HasValue)
         {
-            NeededBy = DateTime.Today.AddDays(3),
-            Status = MaterialRequestStatus.Requested,
-            ProjectId = projectId
-        };
+            var sourceRequest = await _context.MaterialRequests
+                .Include(x => x.Material)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == sourceRequestId.Value, cancellationToken);
+            if (sourceRequest is null)
+            {
+                return NotFound();
+            }
+
+            projectId ??= sourceRequest.ProjectId;
+            model = new MaterialRequest
+            {
+                ProjectId = sourceRequest.ProjectId,
+                MaterialId = sourceRequest.MaterialId,
+                MaterialNameInput = sourceRequest.Material?.Name,
+                RequestedItem = sourceRequest.RequestedItem,
+                Quantity = sourceRequest.Quantity,
+                QuantityText = sourceRequest.QuantityText,
+                Unit = sourceRequest.Unit,
+                Quality = sourceRequest.Quality,
+                NeededBy = sourceRequest.NeededBy,
+                Notes = sourceRequest.Notes,
+                Status = MaterialRequestStatus.Requested
+            };
+        }
+        else
+        {
+            model = new MaterialRequest
+            {
+                NeededBy = DateTime.Today.AddDays(3),
+                Status = MaterialRequestStatus.Requested,
+                ProjectId = projectId
+            };
+        }
 
         if (projectId.HasValue)
         {
@@ -693,34 +738,12 @@ public class MaterialRequestsController : Controller
             return NotFound();
         }
 
-        var repeatedRequest = new MaterialRequest
+        return RedirectToAction(nameof(Create), new
         {
-            ProjectId = sourceRequest.ProjectId,
-            MaterialId = sourceRequest.MaterialId,
-            RequestedItem = sourceRequest.RequestedItem,
-            Quantity = sourceRequest.Quantity,
-            QuantityText = sourceRequest.QuantityText,
-            Unit = sourceRequest.Unit,
-            Quality = sourceRequest.Quality,
-            NeededBy = sourceRequest.NeededBy,
-            Notes = sourceRequest.Notes,
-            Status = MaterialRequestStatus.Requested,
-            RequestedByUserId = _userManager.GetUserId(User)
-        };
-
-        NormalizeMaterialRequestInput(repeatedRequest);
-        await _materialRequestService.CreateAsync(repeatedRequest, cancellationToken);
-
-        if (repeatedRequest.ProjectId.HasValue)
-        {
-            await _projectTimelineService.AddAsync(
-                repeatedRequest.ProjectId.Value,
-                "İhtiyaç kaydı tekrarlandı",
-                repeatedRequest.RequestedItem,
-                cancellationToken);
-        }
-
-        return RedirectToLocal(returnUrl);
+            projectId = sourceRequest.ProjectId,
+            sourceRequestId = sourceRequest.Id,
+            returnUrl = NormalizeReturnUrl(returnUrl)
+        });
     }
 
     [HttpPost]
