@@ -20,6 +20,8 @@ namespace Business.Web.Controllers;
 public class ProjectTasksController : Controller
 {
     private const int DefaultListTake = 50;
+    private const long MaxMailAttachmentTotalBytes = 25L * 1024 * 1024;
+    private const string MaxMailAttachmentTotalSizeLabel = "25 MB";
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IRecordActivityService _recordActivityService;
@@ -345,6 +347,7 @@ public class ProjectTasksController : Controller
         ViewBag.TaskUpdates = task.Updates
             .OrderByDescending(x => x.CreatedAt)
             .ToList();
+        var taskMailSettings = await GetTaskEmailSettingAsync(cancellationToken);
         ViewBag.Activity = new RecordActivityViewModel
         {
             OwnerType = RecordOwnerType.ProjectTask,
@@ -353,7 +356,12 @@ public class ProjectTasksController : Controller
             Files = await _recordActivityService.GetFilesAsync(RecordOwnerType.ProjectTask, task.Id, cancellationToken),
             UserNames = await GetActivityUserNamesAsync(RecordOwnerType.ProjectTask, task.Id, cancellationToken),
             CanDeleteComments = CanDeleteTaskActivity(),
-            CanDeleteFiles = CanDeleteTaskActivity()
+            CanDeleteFiles = CanDeleteTaskActivity(),
+            ShowTaskEmailOptions = true,
+            TaskMailRecipientsConfigured = !string.IsNullOrWhiteSpace(taskMailSettings?.RecipientEmails),
+            TaskMailRecipientSummary = taskMailSettings?.RecipientEmails,
+            TaskMailAttachmentLimitBytes = MaxMailAttachmentTotalBytes,
+            TaskMailAttachmentLimitLabel = MaxMailAttachmentTotalSizeLabel
         };
 
         return View(task);
@@ -560,6 +568,20 @@ public class ProjectTasksController : Controller
                         warningMessages.Add("Görev kaydedildi fakat dosya ekleri hazırlanamadığı için e-posta gönderilemedi.");
                         includeAttachmentsInMail = false;
                     }
+                }
+
+                if (includeAttachmentsInMail && !AreAttachmentsWithinMailLimit(savedFiles))
+                {
+                    if (emailIncludeContent)
+                    {
+                        warningMessages.Add($"Mail eklerinin toplam boyutu {MaxMailAttachmentTotalSizeLabel} sınırını aştığı için yalnızca görev içeriği gönderildi.");
+                    }
+                    else
+                    {
+                        warningMessages.Add($"Görev kaydedildi fakat mail eklerinin toplam boyutu {MaxMailAttachmentTotalSizeLabel} sınırını aştığı için e-posta gönderilemedi.");
+                    }
+
+                    includeAttachmentsInMail = false;
                 }
 
                 if (emailIncludeContent || includeAttachmentsInMail)
@@ -906,6 +928,8 @@ public class ProjectTasksController : Controller
         ViewBag.EmailIncludeAttachments = emailIncludeAttachments;
         ViewBag.TaskMailRecipientsConfigured = !string.IsNullOrWhiteSpace(settings?.RecipientEmails);
         ViewBag.TaskMailRecipientSummary = settings?.RecipientEmails;
+        ViewBag.TaskMailAttachmentLimitLabel = MaxMailAttachmentTotalSizeLabel;
+        ViewBag.TaskMailAttachmentLimitBytes = MaxMailAttachmentTotalBytes;
     }
 
     private Task<TaskEmailNotificationSetting?> GetTaskEmailSettingAsync(CancellationToken cancellationToken)
@@ -971,6 +995,11 @@ public class ProjectTasksController : Controller
             .Split(['\r', '\n', ',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static bool AreAttachmentsWithinMailLimit(IEnumerable<RecordFile> files)
+    {
+        return files.Sum(file => Math.Max(0, file.Size)) <= MaxMailAttachmentTotalBytes;
     }
 
     private async Task<IReadOnlyList<EmailAttachment>> CreateEmailAttachmentsAsync(IReadOnlyList<RecordFile> files, CancellationToken cancellationToken)

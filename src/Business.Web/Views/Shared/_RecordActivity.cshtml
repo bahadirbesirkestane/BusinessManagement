@@ -111,6 +111,41 @@
                     <div class="file-upload-list" data-file-upload-list></div>
                 </div>
                 <input type="text" name="description" class="form-control" placeholder="Açıklama" />
+
+                @if (Model.ShowTaskEmailOptions)
+                {
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="sendTaskEmail-@Model.OwnerId"
+                               name="sendTaskEmail"
+                               value="true"
+                               data-task-file-email-toggle />
+                        <label class="form-check-label" for="sendTaskEmail-@Model.OwnerId">Yüklenen dosyaları mail ile gönder</label>
+                    </div>
+                    <small class="text-muted d-block">
+                        @(Model.TaskMailRecipientsConfigured
+                            ? $"Tanımlı alıcılar: {Model.TaskMailRecipientSummary}"
+                            : "Henüz görev mail alıcısı tanımlanmadı. Ayarlar ekranından alıcı e-posta adreslerini kaydedebilirsin.")
+                    </small>
+
+                    <div class="mt-2" data-task-file-email-options hidden>
+                        <div class="planning-user-checks">
+                            <label class="check-card">
+                                <input type="checkbox" name="emailIncludeContent" value="true" checked />
+                                <span>Görev içeriğini gönder</span>
+                            </label>
+                            <label class="check-card">
+                                <input type="checkbox" name="emailIncludeAttachments" value="true" checked />
+                                <span>Yüklenen dosyaları ek olarak gönder</span>
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-2">Mail içeriğinde görev bilgileri, eklenen dosya adları, toplam dosya boyutu ve varsa dosya açıklaması düzenli şekilde yer alır.</small>
+                        <small class="text-muted d-block mt-1">Mail eklerinin toplam boyutu en fazla @Model.TaskMailAttachmentLimitLabel olabilir. Bu sınır aşılırsa dosyalar kaydedilir, fakat mail ekleri gönderilmez.</small>
+                        <small class="text-danger d-block mt-1" data-task-file-email-warning hidden></small>
+                    </div>
+                }
+
                 <button class="btn btn-outline-primary" type="submit">Dosya Ekle</button>
             </form>
 
@@ -184,3 +219,79 @@
         </div>
     </div>
 </section>
+
+@if (Model.ShowTaskEmailOptions)
+{
+    <script>
+        (function () {
+            const forms = document.querySelectorAll('form[action*="RecordActivity/AddFile"]');
+
+            const formatSize = function (size) {
+                if (!size) {
+                    return '0 KB';
+                }
+
+                if (size >= 1024 * 1024) {
+                    return (size / (1024 * 1024)).toFixed(1) + ' MB';
+                }
+
+                return Math.max(1, Math.round(size / 1024)) + ' KB';
+            };
+
+            forms.forEach(function (form) {
+                const toggle = form.querySelector('[data-task-file-email-toggle]');
+                const options = form.querySelector('[data-task-file-email-options]');
+                const fileInput = form.querySelector('[data-file-upload-input]');
+                const attachmentOption = form.querySelector('input[name="emailIncludeAttachments"]');
+                const warning = form.querySelector('[data-task-file-email-warning]');
+                const attachmentLimitBytes = @Model.TaskMailAttachmentLimitBytes;
+                const attachmentLimitLabel = '@Model.TaskMailAttachmentLimitLabel';
+
+                if (!toggle || !options) {
+                    return;
+                }
+
+                const syncAttachmentWarning = function () {
+                    if (!warning || !fileInput || !attachmentOption || !toggle.checked || !attachmentOption.checked) {
+                        if (warning) {
+                            warning.hidden = true;
+                            warning.textContent = '';
+                        }
+
+                        return;
+                    }
+
+                    const totalSize = Array.from(fileInput.files || []).reduce(function (sum, file) {
+                        return sum + (file.size || 0);
+                    }, 0);
+
+                    if (totalSize > attachmentLimitBytes) {
+                        warning.hidden = false;
+                        warning.textContent = 'Seçilen dosyaların toplamı ' + formatSize(totalSize) + '. Mail ekleri en fazla ' + attachmentLimitLabel + ' olabilir.';
+                        return;
+                    }
+
+                    warning.hidden = true;
+                    warning.textContent = '';
+                };
+
+                const sync = function () {
+                    options.hidden = !toggle.checked;
+                    syncAttachmentWarning();
+                };
+
+                toggle.addEventListener('change', sync);
+
+                if (fileInput) {
+                    fileInput.addEventListener('change', syncAttachmentWarning);
+                }
+
+                if (attachmentOption) {
+                    attachmentOption.addEventListener('change', syncAttachmentWarning);
+                }
+
+                sync();
+            });
+        })();
+    </script>
+}

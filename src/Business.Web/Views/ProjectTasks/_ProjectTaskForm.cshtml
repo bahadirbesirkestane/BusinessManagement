@@ -8,6 +8,10 @@
     var emailIncludeAttachments = ViewBag.EmailIncludeAttachments is bool includeAttachmentsValue && includeAttachmentsValue;
     var taskMailRecipientsConfigured = ViewBag.TaskMailRecipientsConfigured is bool recipientsConfigured && recipientsConfigured;
     var taskMailRecipientSummary = ViewBag.TaskMailRecipientSummary as string;
+    var taskMailAttachmentLimitLabel = ViewBag.TaskMailAttachmentLimitLabel as string ?? "25 MB";
+    var taskMailAttachmentLimitBytes = ViewBag.TaskMailAttachmentLimitBytes is long attachmentLimitBytes
+        ? attachmentLimitBytes
+        : 25L * 1024 * 1024;
 }
 
 <section class="panel-block form-panel">
@@ -174,6 +178,8 @@
                         </label>
                     </div>
                     <small class="text-muted">Mail içeriğinde görev başlığı, proje, müşteri, kategori, durum, öncelik, tarih ve açıklama bilgileri okunabilir biçimde gönderilir.</small>
+                    <small class="text-muted d-block mt-2">Mail eklerinin toplam boyutu en fazla @taskMailAttachmentLimitLabel olabilir. Bu sÄ±nÄ±r aÅŸÄ±lÄ±rsa gÃ¶rev kaydedilir, fakat dosya ekleri mail ile gÃ¶nderilmez.</small>
+                    <small class="text-danger d-block mt-1" data-task-mail-attachment-warning hidden></small>
                 </div>
             }
         </div>
@@ -197,15 +203,65 @@
         (function () {
             const toggle = document.querySelector('[data-task-email-toggle]');
             const options = document.querySelector('[data-task-email-options]');
+            const fileInput = document.querySelector('[data-file-upload-input]');
+            const attachmentOption = document.querySelector('input[name="emailIncludeAttachments"]');
+            const warning = document.querySelector('[data-task-mail-attachment-warning]');
+            const attachmentLimitBytes = @taskMailAttachmentLimitBytes;
+            const attachmentLimitLabel = '@taskMailAttachmentLimitLabel';
             if (!toggle || !options) {
                 return;
             }
 
+            const formatSize = function (size) {
+                if (!size) {
+                    return '0 KB';
+                }
+
+                if (size >= 1024 * 1024) {
+                    return (size / (1024 * 1024)).toFixed(1) + ' MB';
+                }
+
+                return Math.max(1, Math.round(size / 1024)) + ' KB';
+            };
+
+            const syncAttachmentWarning = function () {
+                if (!warning || !fileInput || !attachmentOption || !toggle.checked || !attachmentOption.checked) {
+                    if (warning) {
+                        warning.hidden = true;
+                        warning.textContent = '';
+                    }
+
+                    return;
+                }
+
+                const totalSize = Array.from(fileInput.files || []).reduce(function (sum, file) {
+                    return sum + (file.size || 0);
+                }, 0);
+
+                if (totalSize > attachmentLimitBytes) {
+                    warning.hidden = false;
+                    warning.textContent = 'SeÃ§ilen dosyalarÄ±n toplamÄ± ' + formatSize(totalSize) + '. Mail ekleri en fazla ' + attachmentLimitLabel + ' olabilir.';
+                    return;
+                }
+
+                warning.hidden = true;
+                warning.textContent = '';
+            };
+
             const sync = function () {
                 options.hidden = !toggle.checked;
+                syncAttachmentWarning();
             };
 
             toggle.addEventListener('change', sync);
+            if (fileInput) {
+                fileInput.addEventListener('change', syncAttachmentWarning);
+            }
+
+            if (attachmentOption) {
+                attachmentOption.addEventListener('change', syncAttachmentWarning);
+            }
+
             sync();
         })();
     </script>
