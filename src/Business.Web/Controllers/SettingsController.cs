@@ -1,4 +1,5 @@
 using Business.Domain.Entities;
+using Business.Domain.Enums;
 using Business.Infrastructure.Data;
 using Business.Infrastructure.Identity;
 using Business.Web.Services;
@@ -82,6 +83,7 @@ public class SettingsController : Controller
     public async Task<IActionResult> Telegram(CancellationToken cancellationToken)
     {
         var settings = await _context.TelegramNotificationSettings
+            .Include(x => x.Recipients)
             .AsNoTracking()
             .OrderBy(x => x.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
@@ -92,14 +94,7 @@ public class SettingsController : Controller
             ["Telegram Ayarları"] = null
         };
 
-        return View(new TelegramSettingsViewModel
-        {
-            IsEnabled = settings?.IsEnabled ?? false,
-            BotUserName = settings?.BotUserName,
-            LinkCodeTtlMinutes = settings?.LinkCodeTtlMinutes ?? 15,
-            IsBotTokenConfigured = !string.IsNullOrWhiteSpace(_telegramBotOptions.Token),
-            IsWebhookSecretConfigured = !string.IsNullOrWhiteSpace(_telegramBotOptions.WebhookSecret)
-        });
+        return View(await CreateTelegramSettingsViewModelAsync(settings, cancellationToken));
     }
 
     [HttpPost]
@@ -117,6 +112,7 @@ public class SettingsController : Controller
 
         if (!ModelState.IsValid)
         {
+            model.AvailableRecipients = await GetTelegramRecipientOptionsAsync(cancellationToken);
             return View(model);
         }
 
@@ -128,6 +124,7 @@ public class SettingsController : Controller
         {
             settings = new TelegramNotificationSetting();
             _context.TelegramNotificationSettings.Add(settings);
+            await _context.SaveChangesAsync(cancellationToken);
         }
 
         settings.IsEnabled = model.IsEnabled;
@@ -135,6 +132,10 @@ public class SettingsController : Controller
             ? null
             : model.BotUserName.Trim().TrimStart('@');
         settings.LinkCodeTtlMinutes = model.LinkCodeTtlMinutes;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await SyncTelegramRecipientsAsync(settings.Id, TelegramNotificationModule.MaterialRequest, model.MaterialRequestRecipientUserIds, cancellationToken);
+        await SyncTelegramRecipientsAsync(settings.Id, TelegramNotificationModule.PurchaseOrder, model.PurchaseOrderRecipientUserIds, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
         TempData["Success"] = "Telegram ayarları kaydedildi.";
@@ -221,6 +222,7 @@ public class SettingsController : Controller
                 UserId = x.Id,
                 DisplayName = x.FullName ?? x.Email ?? x.UserName ?? x.Id,
                 TelegramUserName = x.TelegramUsername,
+                HasLinkedChat = x.TelegramChatId != null,
                 NotificationsEnabled = x.TelegramNotificationsEnabled
             })
             .ToListAsync(cancellationToken);
@@ -229,5 +231,75 @@ public class SettingsController : Controller
         {
             AvailableRecipients = recipients
         };
+    }
+
+    private async Task<TelegramSettingsViewModel> CreateTelegramSettingsViewModelAsync(TelegramNotificationSetting? settings, CancellationToken cancellationToken)
+    {
+        return new TelegramSettingsViewModel
+        {
+            IsEnabled = settings?.IsEnabled ?? false,
+            BotUserName = settings?.BotUserName,
+            LinkCodeTtlMinutes = settings?.LinkCodeTtlMinutes ?? 15,
+            IsBotTokenConfigured = !string.IsNullOrWhiteSpace(_telegramBotOptions.Token),
+            IsWebhookSecretConfigured = !string.IsNullOrWhiteSpace(_telegramBotOptions.WebhookSecret),
+            MaterialRequestRecipientUserIds = settings?.Recipients
+                .Where(x => x.Module == TelegramNotificationModule.MaterialRequest)
+                .Select(x => x.UserId)
+                .ToList() ?? [],
+            PurchaseOrderRecipientUserIds = settings?.Recipients
+                .Where(x => x.Module == TelegramNotificationModule.PurchaseOrder)
+                .Select(x => x.UserId)
+                .ToList() ?? [],
+            AvailableRecipients = await GetTelegramRecipientOptionsAsync(cancellationToken)
+        };
+    }
+
+    private async Task<List<TelegramMessageRecipientViewModel>> GetTelegramRecipientOptionsAsync(CancellationToken cancellationToken)
+    {
+        return await _context.Users
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.FullName)
+            .Select(x => new TelegramMessageRecipientViewModel
+            {
+                UserId = x.Id,
+                DisplayName = x.FullName ?? x.Email ?? x.UserName ?? x.Id,
+                TelegramUserName = x.TelegramUsername,
+                HasLinkedChat = x.TelegramChatId != null,
+                NotificationsEnabled = x.TelegramNotificationsEnabled
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task SyncTelegramRecipientsAsync(
+        Guid telegramNotificationSettingId,
+        TelegramNotificationModule module,
+        IEnumerable<string> selectedUserIds,
+        CancellationToken cancellationToken)
+    {
+        var selectedIds = selectedUserIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToHashSet(StringComparer.Ordinal);
+
+        var existingRecipients = await _context.TelegramNotificationRecipients
+            .Where(x => x.TelegramNotificationSettingId == telegramNotificationSettingId && x.Module == module)
+            .ToListAsync(cancellationToken);
+
+        _context.TelegramNotificationRecipients.RemoveRange(existingRecipients.Where(x => !selectedIds.Contains(x.UserId)));
+
+        var existingUserIds = existingRecipients
+            .Select(x => x.UserId)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var userId in selectedIds.Where(x => !existingUserIds.Contains(x)))
+        {
+            _context.TelegramNotificationRecipients.Add(new TelegramNotificationRecipient
+            {
+                TelegramNotificationSettingId = telegramNotificationSettingId,
+                Module = module,
+                UserId = userId
+            });
+        }
     }
 }

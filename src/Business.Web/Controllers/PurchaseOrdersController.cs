@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 
 namespace Business.Web.Controllers;
 
@@ -24,6 +25,7 @@ public class PurchaseOrdersController : Controller
     private readonly IProjectTimelineService _projectTimelineService;
     private readonly IPurchaseOrderTemplateService _purchaseOrderTemplateService;
     private readonly ApplicationDbContext _context;
+    private readonly ITelegramNotificationService _telegramNotificationService;
 
     public PurchaseOrdersController(
         IPurchaseOrderService purchaseOrderService,
@@ -32,7 +34,8 @@ public class PurchaseOrdersController : Controller
         UserManager<ApplicationUser> userManager,
         IProjectTimelineService projectTimelineService,
         IPurchaseOrderTemplateService purchaseOrderTemplateService,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        ITelegramNotificationService telegramNotificationService)
     {
         _purchaseOrderService = purchaseOrderService;
         _lookupService = lookupService;
@@ -41,6 +44,7 @@ public class PurchaseOrdersController : Controller
         _projectTimelineService = projectTimelineService;
         _purchaseOrderTemplateService = purchaseOrderTemplateService;
         _context = context;
+        _telegramNotificationService = telegramNotificationService;
     }
 
     public async Task<IActionResult> Index(
@@ -437,6 +441,7 @@ public class PurchaseOrdersController : Controller
         await FillLookupsAsync(cancellationToken);
         await PopulateReferenceInputNamesAsync(prefilledOrder, cancellationToken);
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+        ViewBag.SendTelegramNotification = false;
         return View(prefilledOrder ?? new PurchaseOrder
         {
             ProjectId = projectId,
@@ -455,6 +460,7 @@ public class PurchaseOrdersController : Controller
         ViewBag.PageTitle = "Hızlı sipariş ekleme";
         ViewBag.SubmitText = "Siparişleri Kaydet";
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+        ViewBag.SendTelegramNotification = false;
         return View(model);
     }
 
@@ -566,6 +572,7 @@ public class PurchaseOrdersController : Controller
             EnsureQuickRows(model);
             await FillQuickCreateLookupsAsync(cancellationToken);
             ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+            ViewBag.SendTelegramNotification = model.SendTelegramNotification;
             return View(model);
         }
 
@@ -586,6 +593,7 @@ public class PurchaseOrdersController : Controller
                 EnsureQuickRows(model);
                 await FillQuickCreateLookupsAsync(cancellationToken);
                 ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+                ViewBag.SendTelegramNotification = model.SendTelegramNotification;
                 return View(model);
             }
 
@@ -595,6 +603,7 @@ public class PurchaseOrdersController : Controller
                 EnsureQuickRows(model);
                 await FillQuickCreateLookupsAsync(cancellationToken);
                 ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+                ViewBag.SendTelegramNotification = model.SendTelegramNotification;
                 return View(model);
             }
 
@@ -639,6 +648,18 @@ public class PurchaseOrdersController : Controller
         foreach (var order in createdOrders)
         {
             await _projectTimelineService.AddForOrderAsync(order.Id, "Hızlı sipariş oluşturuldu", $"{order.OrderNumber} - {order.Content}", cancellationToken);
+        }
+
+        if (model.SendTelegramNotification)
+        {
+            var warningMessage = await SendPurchaseOrderTelegramNotificationAsync(
+                createdOrders.Select(x => x.Id).ToList(),
+                isBulk: true,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
+            }
         }
 
         TempData["Success"] = $"{createdOrders.Count} sipariş oluşturuldu.";
@@ -758,7 +779,7 @@ public class PurchaseOrdersController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanCreatePurchasing)]
-    public async Task<IActionResult> Create(PurchaseOrder order, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(PurchaseOrder order, bool sendTelegramNotification, string? returnUrl, CancellationToken cancellationToken)
     {
         order.Visibility = User.NormalizeRecordVisibility(order.Visibility);
         NormalizePurchaseOrderInput(order);
@@ -784,6 +805,7 @@ public class PurchaseOrdersController : Controller
         {
             await FillLookupsAsync(cancellationToken);
             ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+            ViewBag.SendTelegramNotification = sendTelegramNotification;
             return View(order);
         }
 
@@ -793,6 +815,7 @@ public class PurchaseOrdersController : Controller
         {
             await FillLookupsAsync(cancellationToken);
             ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+            ViewBag.SendTelegramNotification = sendTelegramNotification;
             return View(order);
         }
 
@@ -806,6 +829,16 @@ public class PurchaseOrdersController : Controller
         order.RequestedByUserId = currentUser?.Id;
         await _purchaseOrderService.CreateAsync(order, cancellationToken);
         await _projectTimelineService.AddForOrderAsync(order.Id, "Sipariş oluşturuldu", $"{order.OrderNumber} - {order.Content}", cancellationToken);
+        if (sendTelegramNotification)
+        {
+            var warningMessage = await SendPurchaseOrderTelegramNotificationAsync([order.Id], isBulk: false, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
+            }
+        }
+
+        TempData["Success"] = "Sipariş oluşturuldu.";
         return RedirectToLocal(returnUrl, order.ProjectId.HasValue ? new { projectId = order.ProjectId } : null);
     }
 
@@ -1580,6 +1613,169 @@ public class PurchaseOrdersController : Controller
     {
         return User.IsInRole(AppRoles.Admin) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.PurchasingDeleteActivity);
+    }
+
+    private async Task<string?> SendPurchaseOrderTelegramNotificationAsync(
+        IReadOnlyCollection<Guid> orderIds,
+        bool isBulk,
+        CancellationToken cancellationToken)
+    {
+        var settings = await _context.TelegramNotificationSettings
+            .AsNoTracking()
+            .Include(x => x.Recipients)
+            .OrderBy(x => x.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var recipientUserIds = settings?.Recipients
+            .Where(x => x.Module == TelegramNotificationModule.PurchaseOrder)
+            .Select(x => x.UserId)
+            .Distinct()
+            .ToList() ?? [];
+
+        if (recipientUserIds.Count == 0)
+        {
+            return "Telegram bildirimi seçildi ancak sipariş için ayarlarda alıcı tanımlanmadı.";
+        }
+
+        var message = isBulk
+            ? await BuildBulkPurchaseOrderTelegramMessageAsync(orderIds, cancellationToken)
+            : await BuildPurchaseOrderTelegramMessageAsync(orderIds.First(), cancellationToken);
+
+        var result = await _telegramNotificationService.SendMessageToUsersAsync(
+            recipientUserIds,
+            message,
+            cancellationToken: cancellationToken);
+
+        return BuildTelegramWarningMessage("sipariş", result);
+    }
+
+    private async Task<string> BuildPurchaseOrderTelegramMessageAsync(Guid orderId, CancellationToken cancellationToken)
+    {
+        var order = await _context.PurchaseOrders
+            .Include(x => x.Project)
+            .Include(x => x.Supplier)
+            .Include(x => x.Material)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == orderId, cancellationToken);
+
+        if (order is null)
+        {
+            throw new InvalidOperationException("Sipariş kaydı bulunamadığı için Telegram bildirimi hazırlanamadı.");
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("Yeni sipariş oluşturuldu.");
+        builder.AppendLine();
+        AddTelegramLine(builder, "Sipariş No", order.OrderNumber);
+        AddTelegramLine(builder, "Proje", order.Project is not null ? $"{order.Project.Code} - {order.Project.Name}" : "Genel");
+        AddTelegramLine(builder, "Tedarikçi", order.Supplier?.Name);
+        AddTelegramLine(builder, "Malzeme", order.Material?.Name);
+        AddTelegramLine(builder, "Sipariş İçeriği", order.Content);
+        AddTelegramLine(builder, "Miktar", order.QuantityText ?? (order.Quantity.HasValue ? order.Quantity.Value.ToString("0.####") : null));
+        AddTelegramLine(builder, "Birim", order.Unit);
+        AddTelegramLine(builder, "Durum", order.Status.ToDisplayName());
+        AddTelegramLine(builder, "Sipariş Tarihi", order.OrderDate?.ToString("dd.MM.yyyy"));
+        AddTelegramLine(builder, "Beklenen Varış", order.ExpectedArrivalDate?.ToString("dd.MM.yyyy"));
+        AddTelegramLine(builder, "Siparişi Oluşturan", order.RequestedBy);
+        AddTelegramLine(builder, "Not", order.Notes);
+        return builder.ToString().Trim();
+    }
+
+    private async Task<string> BuildBulkPurchaseOrderTelegramMessageAsync(
+        IReadOnlyCollection<Guid> orderIds,
+        CancellationToken cancellationToken)
+    {
+        var orders = await _context.PurchaseOrders
+            .Include(x => x.Project)
+            .Include(x => x.Supplier)
+            .Include(x => x.Material)
+            .AsNoTracking()
+            .Where(x => orderIds.Contains(x.Id))
+            .OrderBy(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        if (orders.Count == 0)
+        {
+            throw new InvalidOperationException("Sipariş kayıtları bulunamadığı için Telegram bildirimi hazırlanamadı.");
+        }
+
+        var firstOrder = orders[0];
+        var builder = new StringBuilder();
+        builder.AppendLine($"{orders.Count} adet sipariş oluşturuldu.");
+        builder.AppendLine();
+        AddTelegramLine(builder, "Proje", firstOrder.Project is not null ? $"{firstOrder.Project.Code} - {firstOrder.Project.Name}" : "Genel");
+        AddTelegramLine(builder, "Siparişi Oluşturan", firstOrder.RequestedBy);
+        builder.AppendLine("Özet:");
+
+        foreach (var order in orders.Take(5))
+        {
+            var summary = order.QuantityText;
+            if (string.IsNullOrWhiteSpace(summary) && order.Quantity.HasValue)
+            {
+                summary = string.IsNullOrWhiteSpace(order.Unit)
+                    ? order.Quantity.Value.ToString("0.####")
+                    : $"{order.Quantity.Value:0.####} {order.Unit}";
+            }
+
+            builder.Append("- ");
+            builder.Append(order.OrderNumber);
+            builder.Append(" / ");
+            builder.Append(order.Content);
+            if (!string.IsNullOrWhiteSpace(summary))
+            {
+                builder.Append(" / ");
+                builder.Append(summary);
+            }
+
+            if (!string.IsNullOrWhiteSpace(order.Supplier?.Name))
+            {
+                builder.Append(" / ");
+                builder.Append(order.Supplier.Name);
+            }
+
+            builder.AppendLine();
+        }
+
+        if (orders.Count > 5)
+        {
+            builder.AppendLine($"... ve {orders.Count - 5} kayıt daha");
+        }
+
+        return builder.ToString().Trim();
+    }
+
+    private static string? BuildTelegramWarningMessage(string subject, TelegramDispatchResult result)
+    {
+        if (!result.IsEnabled)
+        {
+            return $"Telegram bildirim sistemi kapalı olduğu için {subject} bildirimi gönderilemedi.";
+        }
+
+        if (!result.IsConfigured)
+        {
+            return $"Telegram bot ayarı eksik olduğu için {subject} bildirimi gönderilemedi.";
+        }
+
+        var parts = new List<string>();
+        if (result.MissingChatRecipients.Count > 0)
+        {
+            parts.Add($"Telegram hesabı bağlı olmayan kullanıcılar: {string.Join(", ", result.MissingChatRecipients)}");
+        }
+
+        if (result.FailedRecipients.Count > 0)
+        {
+            parts.Add($"Mesaj gönderilemeyen kullanıcılar: {string.Join(", ", result.FailedRecipients)}");
+        }
+
+        return parts.Count == 0 ? null : string.Join(" ", parts);
+    }
+
+    private static void AddTelegramLine(StringBuilder builder, string label, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            builder.AppendLine($"{label}: {value.Trim()}");
+        }
     }
 }
 

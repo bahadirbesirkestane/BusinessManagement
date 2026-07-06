@@ -11,6 +11,8 @@ public class QuickMaterialRequestViewModel
 
     public DateTime NeededBy { get; set; } = DateTime.Today.AddDays(3);
 
+    public bool SendTelegramNotification { get; set; }
+
     public List<QuickMaterialRequestLineViewModel> Lines { get; set; } =
     [
         new QuickMaterialRequestLineViewModel(),

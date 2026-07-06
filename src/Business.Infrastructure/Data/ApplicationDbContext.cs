@@ -58,6 +58,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<AdminRecoveryCode> AdminRecoveryCodes => Set<AdminRecoveryCode>();
     public DbSet<TaskEmailNotificationSetting> TaskEmailNotificationSettings => Set<TaskEmailNotificationSetting>();
     public DbSet<TelegramNotificationSetting> TelegramNotificationSettings => Set<TelegramNotificationSetting>();
+    public DbSet<TelegramNotificationRecipient> TelegramNotificationRecipients => Set<TelegramNotificationRecipient>();
     public DbSet<TelegramUserLinkRequest> TelegramUserLinkRequests => Set<TelegramUserLinkRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -271,6 +272,20 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.Property(x => x.BotUserName).HasMaxLength(128);
             entity.Property(x => x.LinkCodeTtlMinutes).HasDefaultValue(15);
+            entity.HasMany(x => x.Recipients)
+                .WithOne(x => x.TelegramNotificationSetting)
+                .HasForeignKey(x => x.TelegramNotificationSettingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<TelegramNotificationRecipient>(entity =>
+        {
+            entity.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            entity.HasIndex(x => new { x.TelegramNotificationSettingId, x.Module, x.UserId }).IsUnique();
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         builder.Entity<TelegramUserLinkRequest>(entity =>

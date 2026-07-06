@@ -108,6 +108,14 @@
                 <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
             </div>
         </div>
+        <div class="mb-3">
+            <label class="check-card check-inline">
+                <input type="checkbox" name="sendTelegramNotification" value="true" checked="@(ViewBag.SendTelegramNotification == true)" />
+                <span>Telegram bildirimi gönder</span>
+            </label>
+            <input type="hidden" name="sendTelegramNotification" value="false" />
+            <small class="text-muted d-block mt-2">İşaretlenirse ayarlarda tanımlı sipariş alıcılarına Telegram bildirimi gönderilir.</small>
+        </div>
         <div class="form-actions">
             @if (!string.IsNullOrWhiteSpace(returnUrl))
             {

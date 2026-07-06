@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 
 namespace Business.Web.Controllers;
 
@@ -22,6 +23,7 @@ public class MaterialRequestsController : Controller
     private readonly IProjectTimelineService _projectTimelineService;
     private readonly IRecordActivityService _recordActivityService;
     private readonly ApplicationDbContext _context;
+    private readonly ITelegramNotificationService _telegramNotificationService;
 
     public MaterialRequestsController(
         IMaterialRequestService materialRequestService,
@@ -29,7 +31,8 @@ public class MaterialRequestsController : Controller
         UserManager<ApplicationUser> userManager,
         IProjectTimelineService projectTimelineService,
         IRecordActivityService recordActivityService,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        ITelegramNotificationService telegramNotificationService)
     {
         _materialRequestService = materialRequestService;
         _lookupService = lookupService;
@@ -37,6 +40,7 @@ public class MaterialRequestsController : Controller
         _projectTimelineService = projectTimelineService;
         _recordActivityService = recordActivityService;
         _context = context;
+        _telegramNotificationService = telegramNotificationService;
     }
 
     public async Task<IActionResult> Index(
@@ -252,6 +256,7 @@ public class MaterialRequestsController : Controller
         }
 
         await FillLookupsAsync(cancellationToken, NormalizeReturnUrl(returnUrl));
+        ViewBag.SendTelegramNotification = false;
         return View(model);
     }
 
@@ -281,6 +286,7 @@ public class MaterialRequestsController : Controller
         ViewBag.FormAction = nameof(QuickCreate);
         ViewBag.PageTitle = "Hızlı malzeme ihtiyaç ekleme";
         ViewBag.SubmitText = "İhtiyaçları Kaydet";
+        ViewBag.SendTelegramNotification = false;
         return View(model);
     }
 
@@ -351,7 +357,7 @@ public class MaterialRequestsController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
-    public async Task<IActionResult> Create(MaterialRequest request, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(MaterialRequest request, bool sendTelegramNotification, string? returnUrl, CancellationToken cancellationToken)
     {
         returnUrl = NormalizeReturnUrl(returnUrl);
         NormalizeMaterialRequestInput(request);
@@ -360,6 +366,7 @@ public class MaterialRequestsController : Controller
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken, returnUrl);
+            ViewBag.SendTelegramNotification = sendTelegramNotification;
             return View(request);
         }
 
@@ -375,6 +382,16 @@ public class MaterialRequestsController : Controller
                 cancellationToken);
         }
 
+        if (sendTelegramNotification)
+        {
+            var warningMessage = await SendMaterialRequestTelegramNotificationAsync([request.Id], isBulk: false, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
+            }
+        }
+
+        TempData["Success"] = "İhtiyaç kaydı oluşturuldu.";
         return RedirectToLocal(returnUrl);
     }
 
@@ -410,6 +427,7 @@ public class MaterialRequestsController : Controller
         {
             EnsureQuickRows(model);
             await FillLookupsAsync(cancellationToken, returnUrl);
+            ViewBag.SendTelegramNotification = model.SendTelegramNotification;
             return View(model);
         }
 
@@ -423,6 +441,7 @@ public class MaterialRequestsController : Controller
             {
                 EnsureQuickRows(model);
                 await FillLookupsAsync(cancellationToken, returnUrl);
+                ViewBag.SendTelegramNotification = model.SendTelegramNotification;
                 return View(model);
             }
 
@@ -459,6 +478,18 @@ public class MaterialRequestsController : Controller
                     "Hızlı ihtiyaç kaydı oluşturuldu",
                     request.RequestedItem,
                     cancellationToken);
+            }
+        }
+
+        if (model.SendTelegramNotification)
+        {
+            var warningMessage = await SendMaterialRequestTelegramNotificationAsync(
+                createdRequests.Select(x => x.Id).ToList(),
+                isBulk: true,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
             }
         }
 
@@ -1068,5 +1099,160 @@ public class MaterialRequestsController : Controller
     {
         return User.IsInRole(AppRoles.Admin) ||
                User.HasClaim(AppClaimTypes.Permission, AppPermissions.MaterialRequestsDeleteActivity);
+    }
+
+    private async Task<string?> SendMaterialRequestTelegramNotificationAsync(
+        IReadOnlyCollection<Guid> requestIds,
+        bool isBulk,
+        CancellationToken cancellationToken)
+    {
+        var settings = await _context.TelegramNotificationSettings
+            .AsNoTracking()
+            .Include(x => x.Recipients)
+            .OrderBy(x => x.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var recipientUserIds = settings?.Recipients
+            .Where(x => x.Module == TelegramNotificationModule.MaterialRequest)
+            .Select(x => x.UserId)
+            .Distinct()
+            .ToList() ?? [];
+
+        if (recipientUserIds.Count == 0)
+        {
+            return "Telegram bildirimi seçildi ancak malzeme ihtiyacı için ayarlarda alıcı tanımlanmadı.";
+        }
+
+        var message = isBulk
+            ? await BuildBulkMaterialRequestTelegramMessageAsync(requestIds, cancellationToken)
+            : await BuildMaterialRequestTelegramMessageAsync(requestIds.First(), cancellationToken);
+
+        var result = await _telegramNotificationService.SendMessageToUsersAsync(
+            recipientUserIds,
+            message,
+            cancellationToken: cancellationToken);
+
+        return BuildTelegramWarningMessage("malzeme ihtiyacı", result);
+    }
+
+    private async Task<string> BuildMaterialRequestTelegramMessageAsync(Guid requestId, CancellationToken cancellationToken)
+    {
+        var request = await _context.MaterialRequests
+            .Include(x => x.Project)
+            .Include(x => x.Material)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == requestId, cancellationToken);
+
+        if (request is null)
+        {
+            throw new InvalidOperationException("Malzeme ihtiyacı kaydı bulunamadığı için Telegram bildirimi hazırlanamadı.");
+        }
+
+        var requesterName = await GetRequestedByNameAsync(request.RequestedByUserId, cancellationToken) ?? "Belirtilmedi";
+        var builder = new StringBuilder();
+        builder.AppendLine("Yeni malzeme ihtiyacı oluşturuldu.");
+        builder.AppendLine();
+        AddTelegramLine(builder, "Proje", request.Project is not null ? $"{request.Project.Code} - {request.Project.Name}" : "Genel");
+        AddTelegramLine(builder, "İstenen Malzeme", request.RequestedItem);
+        AddTelegramLine(builder, "Tanımlı Malzeme", request.Material?.Name);
+        AddTelegramLine(builder, "Miktar", request.QuantityText ?? (request.Quantity.HasValue ? request.Quantity.Value.ToString("0.###") : null));
+        AddTelegramLine(builder, "Birim", request.Unit);
+        AddTelegramLine(builder, "Kalite", request.Quality);
+        AddTelegramLine(builder, "Gerekli Tarih", request.NeededBy.ToString("dd.MM.yyyy"));
+        AddTelegramLine(builder, "Talebi Açan", requesterName);
+        AddTelegramLine(builder, "Not", request.Notes);
+        return builder.ToString().Trim();
+    }
+
+    private async Task<string> BuildBulkMaterialRequestTelegramMessageAsync(
+        IReadOnlyCollection<Guid> requestIds,
+        CancellationToken cancellationToken)
+    {
+        var requests = await _context.MaterialRequests
+            .Include(x => x.Project)
+            .Include(x => x.Material)
+            .AsNoTracking()
+            .Where(x => requestIds.Contains(x.Id))
+            .OrderBy(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        if (requests.Count == 0)
+        {
+            throw new InvalidOperationException("Malzeme ihtiyaçları bulunamadığı için Telegram bildirimi hazırlanamadı.");
+        }
+
+        var firstRequest = requests[0];
+        var requesterName = await GetRequestedByNameAsync(firstRequest.RequestedByUserId, cancellationToken) ?? "Belirtilmedi";
+        var projectName = firstRequest.Project is not null ? $"{firstRequest.Project.Code} - {firstRequest.Project.Name}" : "Genel";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{requests.Count} adet malzeme ihtiyacı oluşturuldu.");
+        builder.AppendLine();
+        AddTelegramLine(builder, "Proje", projectName);
+        AddTelegramLine(builder, "Talebi Açan", requesterName);
+        builder.AppendLine("Özet:");
+
+        foreach (var request in requests.Take(5))
+        {
+            var summary = request.QuantityText;
+            if (string.IsNullOrWhiteSpace(summary) && request.Quantity.HasValue)
+            {
+                summary = string.IsNullOrWhiteSpace(request.Unit)
+                    ? request.Quantity.Value.ToString("0.###")
+                    : $"{request.Quantity.Value:0.###} {request.Unit}";
+            }
+
+            builder.Append("- ");
+            builder.Append(request.RequestedItem);
+            if (!string.IsNullOrWhiteSpace(summary))
+            {
+                builder.Append(" / ");
+                builder.Append(summary);
+            }
+
+            builder.Append(" / ");
+            builder.Append(request.NeededBy.ToString("dd.MM.yyyy"));
+            builder.AppendLine();
+        }
+
+        if (requests.Count > 5)
+        {
+            builder.AppendLine($"... ve {requests.Count - 5} kayıt daha");
+        }
+
+        return builder.ToString().Trim();
+    }
+
+    private static string? BuildTelegramWarningMessage(string subject, TelegramDispatchResult result)
+    {
+        if (!result.IsEnabled)
+        {
+            return $"Telegram bildirim sistemi kapalı olduğu için {subject} bildirimi gönderilemedi.";
+        }
+
+        if (!result.IsConfigured)
+        {
+            return $"Telegram bot ayarı eksik olduğu için {subject} bildirimi gönderilemedi.";
+        }
+
+        var parts = new List<string>();
+        if (result.MissingChatRecipients.Count > 0)
+        {
+            parts.Add($"Telegram hesabı bağlı olmayan kullanıcılar: {string.Join(", ", result.MissingChatRecipients)}");
+        }
+
+        if (result.FailedRecipients.Count > 0)
+        {
+            parts.Add($"Mesaj gönderilemeyen kullanıcılar: {string.Join(", ", result.FailedRecipients)}");
+        }
+
+        return parts.Count == 0 ? null : string.Join(" ", parts);
+    }
+
+    private static void AddTelegramLine(StringBuilder builder, string label, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            builder.AppendLine($"{label}: {value.Trim()}");
+        }
     }
 }

@@ -18,5 +18,6 @@ public class TelegramMessageRecipientViewModel
     public string UserId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string? TelegramUserName { get; set; }
+    public bool HasLinkedChat { get; set; }
     public bool NotificationsEnabled { get; set; }
 }

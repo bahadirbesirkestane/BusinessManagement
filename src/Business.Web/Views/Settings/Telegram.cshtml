@@ -39,6 +39,76 @@
         </div>
 
         <div class="mb-3">
+            <label class="form-label">Malzeme ihtiyacı bildirim alıcıları</label>
+            @if (Model.AvailableRecipients.Count == 0)
+            {
+                <p class="empty-note">Aktif kullanıcı bulunmuyor.</p>
+            }
+            else
+            {
+                <div class="planning-user-checks">
+                    @foreach (var user in Model.AvailableRecipients)
+                    {
+                        <label class="check-card">
+                            <input type="checkbox" name="MaterialRequestRecipientUserIds" value="@user.UserId" checked="@Model.MaterialRequestRecipientUserIds.Contains(user.UserId)" />
+                            <span>
+                                @user.DisplayName
+                                @if (!string.IsNullOrWhiteSpace(user.TelegramUserName))
+                                {
+                                    <small class="d-block text-muted">@($"@{user.TelegramUserName}")</small>
+                                }
+                                @if (!user.HasLinkedChat)
+                                {
+                                    <small class="d-block text-muted">Telegram hesabı henüz bağlı değil</small>
+                                }
+                                @if (!user.NotificationsEnabled)
+                                {
+                                    <small class="d-block text-muted">Kullanıcının kişisel Telegram bildirim tercihi kapalı</small>
+                                }
+                            </span>
+                        </label>
+                    }
+                </div>
+            }
+            <small class="text-muted d-block mt-2">Malzeme ihtiyacı oluşturulurken işaretlenen Telegram bildirimi seçeneği bu listedeki kişilere gönderim yapar.</small>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Sipariş bildirim alıcıları</label>
+            @if (Model.AvailableRecipients.Count == 0)
+            {
+                <p class="empty-note">Aktif kullanıcı bulunmuyor.</p>
+            }
+            else
+            {
+                <div class="planning-user-checks">
+                    @foreach (var user in Model.AvailableRecipients)
+                    {
+                        <label class="check-card">
+                            <input type="checkbox" name="PurchaseOrderRecipientUserIds" value="@user.UserId" checked="@Model.PurchaseOrderRecipientUserIds.Contains(user.UserId)" />
+                            <span>
+                                @user.DisplayName
+                                @if (!string.IsNullOrWhiteSpace(user.TelegramUserName))
+                                {
+                                    <small class="d-block text-muted">@($"@{user.TelegramUserName}")</small>
+                                }
+                                @if (!user.HasLinkedChat)
+                                {
+                                    <small class="d-block text-muted">Telegram hesabı henüz bağlı değil</small>
+                                }
+                                @if (!user.NotificationsEnabled)
+                                {
+                                    <small class="d-block text-muted">Kullanıcının kişisel Telegram bildirim tercihi kapalı</small>
+                                }
+                            </span>
+                        </label>
+                    }
+                </div>
+            }
+            <small class="text-muted d-block mt-2">Sipariş oluşturulurken işaretlenen Telegram bildirimi seçeneği bu listedeki kişilere gönderim yapar.</small>
+        </div>
+
+        <div class="mb-3">
             <div class="list-stack">
                 <div class="list-row">
                     <span><strong>Bot token</strong><small>@(Model.IsBotTokenConfigured ? "Yapılandırılmış" : "Henüz yapılandırılmadı")</small></span>

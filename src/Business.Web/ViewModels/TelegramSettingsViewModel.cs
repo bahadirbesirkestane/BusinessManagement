@@ -17,4 +17,7 @@ public class TelegramSettingsViewModel
 
     public bool IsBotTokenConfigured { get; set; }
     public bool IsWebhookSecretConfigured { get; set; }
+    public List<string> MaterialRequestRecipientUserIds { get; set; } = [];
+    public List<string> PurchaseOrderRecipientUserIds { get; set; } = [];
+    public List<TelegramMessageRecipientViewModel> AvailableRecipients { get; set; } = [];
 }

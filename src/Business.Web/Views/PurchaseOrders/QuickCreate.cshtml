@@ -85,6 +85,14 @@
             </div> *@
         </div>
 
+        <div class="mb-3">
+            <label class="check-card">
+                <input asp-for="SendTelegramNotification" />
+                <span>Telegram bildirimi gönder</span>
+            </label>
+            <small class="text-muted d-block mt-2">İşaretlenirse ayarlarda tanımlı sipariş alıcılarına tek özet mesaj gönderilir.</small>
+        </div>
+
         <input asp-for="Scope" type="hidden" data-scope-input />
 
         <div class="quick-order-sheet-wrap quick-order-sheet-wrap-tall">

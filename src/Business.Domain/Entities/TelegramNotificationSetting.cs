@@ -12,4 +12,6 @@ public class TelegramNotificationSetting : BaseEntity
 
     [Range(1, 1440)]
     public int LinkCodeTtlMinutes { get; set; } = 15;
+
+    public ICollection<TelegramNotificationRecipient> Recipients { get; set; } = new List<TelegramNotificationRecipient>();
 }
