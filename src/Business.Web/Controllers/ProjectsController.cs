@@ -61,7 +61,7 @@ public class ProjectsController : Controller
         ViewBag.IsArchiveList = archivedOnly;
         ViewBag.Customers = await _context.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         ViewBag.StatusOptions = Enum.GetValues<ProjectStatus>()
-            .Where(x => archivedOnly || includeCompleted || x != ProjectStatus.Completed)
+            .Where(x => archivedOnly || includeCompleted || (x != ProjectStatus.Completed && x != ProjectStatus.Cancelled))
             .ToList();
 
         if (!load)
@@ -96,7 +96,7 @@ public class ProjectsController : Controller
         }
         else if (!archivedOnly && !includeCompleted)
         {
-            query = query.Where(x => x.Status != ProjectStatus.Completed);
+            query = query.Where(x => x.Status != ProjectStatus.Completed && x.Status != ProjectStatus.Cancelled);
         }
 
         if (priority.HasValue)

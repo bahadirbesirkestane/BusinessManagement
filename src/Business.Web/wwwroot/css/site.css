@@ -443,6 +443,10 @@ a:hover {
   margin-bottom: 18px;
 }
 
+.metric-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .metric-card,
 .panel-block,
 .welcome-panel,

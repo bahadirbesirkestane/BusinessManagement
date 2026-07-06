@@ -9,7 +9,7 @@
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksComplete);
 }
 
-<div class="metric-grid">
+<div class="metric-grid metric-grid-three">
     <div class="metric-card">
         <span>Aktif proje</span>
         <strong>@Model.ActiveProjectCount</strong>
@@ -25,11 +25,6 @@
         <strong>@Model.PendingMaterialRequestCount</strong>
         <small>Ustadan gelen bekleyen ihtiyaçlar</small>
     </div>
-    @* <div class="metric-card">
-        <span>Tedarikçi</span>
-        <strong>@Model.SupplierCount</strong>
-        <small>Kayıtlı firma ve kişiler</small>
-    </div> *@
 </div>
 
 <section class="welcome-panel dashboard-focus-panel">
