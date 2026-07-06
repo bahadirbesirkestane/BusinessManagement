@@ -100,6 +100,7 @@
                     <form asp-controller="PurchaseOrders" asp-action="Create" method="post" class="quick-inline-grid mt-3" data-inline-order-form>
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
+                        <input type="hidden" name="sendTelegramNotification" value="false" />
                         <input type="hidden" name="ProjectId" value="@Model.Project.Id" />
                         <input type="hidden" name="OrderDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
                         <input type="hidden" name="Status" value="@PurchaseOrderStatus.Requested" />
@@ -144,6 +145,12 @@
                         <div class="quick-inline-grid-wide">
                             <label class="form-label">Not</label>
                             <input name="Notes" class="form-control" maxlength="2000" />
+                        </div>
+                        <div class="quick-inline-grid-wide">
+                            <label class="check-card check-inline">
+                                <input type="checkbox" name="sendTelegramNotification" value="true" checked />
+                                <span>Bildirim Gönder</span>
+                            </label>
                         </div>
                         <div class="quick-inline-actions">
                             <button class="btn btn-primary" type="submit">Hızlı kaydet</button>
@@ -195,6 +202,7 @@
                     <input type="hidden" name="ProjectId" value="@Model.Project.Id" />
                     <input type="hidden" name="Status" value="@MaterialRequestStatus.Requested" />
                     <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
+                    <input type="hidden" name="sendTelegramNotification" value="false" />
                     <div>
                         <label class="form-label">İstenen malzeme</label>
                         <input name="RequestedItem" class="form-control" required maxlength="420" placeholder="Ne gerekiyor?" />
@@ -227,6 +235,12 @@
                     <div class="quick-inline-grid-wide">
                         <label class="form-label">Not</label>
                         <input name="Notes" class="form-control" maxlength="2000" />
+                    </div>
+                    <div class="quick-inline-grid-wide">
+                        <label class="check-card check-inline">
+                            <input type="checkbox" name="sendTelegramNotification" value="true" checked />
+                            <span>Bildirim Gönder</span>
+                        </label>
                     </div>
                     <div class="quick-inline-actions">
                         <button class="btn btn-primary" type="submit">Hızlı kaydet</button>

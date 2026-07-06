@@ -256,7 +256,7 @@ public class MaterialRequestsController : Controller
         }
 
         await FillLookupsAsync(cancellationToken, NormalizeReturnUrl(returnUrl));
-        ViewBag.SendTelegramNotification = false;
+        ViewBag.SendTelegramNotification = true;
         return View(model);
     }
 
@@ -286,7 +286,7 @@ public class MaterialRequestsController : Controller
         ViewBag.FormAction = nameof(QuickCreate);
         ViewBag.PageTitle = "Hızlı malzeme ihtiyaç ekleme";
         ViewBag.SubmitText = "İhtiyaçları Kaydet";
-        ViewBag.SendTelegramNotification = false;
+        ViewBag.SendTelegramNotification = true;
         return View(model);
     }
 

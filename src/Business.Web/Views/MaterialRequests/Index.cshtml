@@ -112,6 +112,7 @@
             <form asp-action="Create" method="post" class="quick-inline-grid mt-3">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
+                <input type="hidden" name="sendTelegramNotification" value="false" />
                 <input type="hidden" name="Status" value="@MaterialRequestStatus.Requested" />
                 <div>
                     <label class="form-label">İstenen malzeme</label>
@@ -155,6 +156,12 @@
                 <div class="quick-inline-grid-wide">
                     <label class="form-label">Not</label>
                     <input name="Notes" class="form-control" maxlength="2000" />
+                </div>
+                <div class="quick-inline-grid-wide">
+                    <label class="check-card check-inline">
+                        <input type="checkbox" name="sendTelegramNotification" value="true" checked />
+                        <span>Bildirim Gönder</span>
+                    </label>
                 </div>
                 <div class="quick-inline-actions">
                     <button class="btn btn-primary" type="submit">Hızlı kaydet</button>

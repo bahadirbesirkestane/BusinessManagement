@@ -441,7 +441,7 @@ public class PurchaseOrdersController : Controller
         await FillLookupsAsync(cancellationToken);
         await PopulateReferenceInputNamesAsync(prefilledOrder, cancellationToken);
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
-        ViewBag.SendTelegramNotification = false;
+        ViewBag.SendTelegramNotification = true;
         return View(prefilledOrder ?? new PurchaseOrder
         {
             ProjectId = projectId,
@@ -460,7 +460,7 @@ public class PurchaseOrdersController : Controller
         ViewBag.PageTitle = "Hızlı sipariş ekleme";
         ViewBag.SubmitText = "Siparişleri Kaydet";
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
-        ViewBag.SendTelegramNotification = false;
+        ViewBag.SendTelegramNotification = true;
         return View(model);
     }
 
