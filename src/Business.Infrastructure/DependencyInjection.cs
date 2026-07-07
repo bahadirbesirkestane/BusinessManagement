@@ -64,6 +64,9 @@ public static class DependencyInjection
             options.AddPolicy(AppPolicies.CanViewDashboard, policy =>
                 policy.RequireClaim(AppClaimTypes.Permission, AppPermissions.DashboardView));
 
+            options.AddPolicy(AppPolicies.CanViewReports, policy =>
+                policy.RequireClaim(AppClaimTypes.Permission, AppPermissions.ReportsView));
+
             options.AddPolicy(AppPolicies.CanViewProjects, policy =>
                 policy.RequireClaim(AppClaimTypes.Permission, AppPermissions.ProjectsView));
 
@@ -166,6 +169,9 @@ public static class DependencyInjection
 
             options.AddPolicy(AppPolicies.CanManageUsers, policy =>
                 policy.RequireClaim(AppClaimTypes.Permission, AppPermissions.UsersManage));
+
+            options.AddPolicy(AppPolicies.CanManageRoles, policy =>
+                policy.RequireClaim(AppClaimTypes.Permission, AppPermissions.RolesManage));
 
             options.AddPolicy(AppPolicies.CanManageSettings, policy =>
                 policy.RequireAssertion(context =>

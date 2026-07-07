@@ -22,7 +22,7 @@ public class ReportsController : Controller
         _userManager = userManager;
     }
 
-    [Authorize(Policy = AppPolicies.CanViewProjects)]
+    [Authorize(Policy = AppPolicies.CanViewReports)]
     public async Task<IActionResult> Gantt(CancellationToken cancellationToken)
     {
         var projectQuery = _context.Projects
@@ -101,7 +101,7 @@ public class ReportsController : Controller
         return View(model);
     }
 
-    [Authorize(Policy = AppPolicies.CanViewTasks)]
+    [Authorize(Policy = AppPolicies.CanViewReports)]
     public async Task<IActionResult> Kanban(Guid? projectId, CancellationToken cancellationToken)
     {
         var query = _context.ProjectTasks

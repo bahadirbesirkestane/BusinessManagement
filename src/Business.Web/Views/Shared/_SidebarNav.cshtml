@@ -250,17 +250,17 @@
 
         if (url.StartsWith("/Reports/Gantt", StringComparison.OrdinalIgnoreCase))
         {
-            return HasPermission(AppPermissions.ProjectsView, AppPermissions.ProjectsManage);
+            return HasPermission(AppPermissions.ReportsView);
         }
 
         if (url.StartsWith("/Reports/Kanban", StringComparison.OrdinalIgnoreCase))
         {
-            return HasPermission(AppPermissions.TasksView, AppPermissions.TasksManage, AppPermissions.ProjectsManage);
+            return HasPermission(AppPermissions.ReportsView);
         }
 
         if (url.StartsWith("/ProjectPlanning", StringComparison.OrdinalIgnoreCase))
         {
-            return HasPermission(AppPermissions.ProjectsView, AppPermissions.TasksManage, AppPermissions.ProjectsManage);
+            return HasPermission(AppPermissions.ReportsView);
         }
 
         if (url.StartsWith("/PurchaseOrders", StringComparison.OrdinalIgnoreCase))
@@ -336,7 +336,12 @@
         if (url.StartsWith("/Roles", StringComparison.OrdinalIgnoreCase) ||
             url.StartsWith("/Departments", StringComparison.OrdinalIgnoreCase))
         {
-            return HasPermission(AppPermissions.UsersManage, AppPermissions.RolesManage);
+            if (url.StartsWith("/Roles", StringComparison.OrdinalIgnoreCase))
+            {
+                return HasPermission(AppPermissions.RolesManage);
+            }
+
+            return HasPermission(AppPermissions.UsersManage);
         }
 
         if (url.StartsWith("/Backup", StringComparison.OrdinalIgnoreCase))

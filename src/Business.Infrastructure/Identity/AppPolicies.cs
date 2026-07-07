@@ -3,6 +3,7 @@ namespace Business.Infrastructure.Identity;
 public static class AppPolicies
 {
     public const string CanViewDashboard = "CanViewDashboard";
+    public const string CanViewReports = "CanViewReports";
     public const string CanViewProjects = "CanViewProjects";
     public const string CanManageProjects = "CanManageProjects";
     public const string CanCreateProjects = "CanCreateProjects";
@@ -40,6 +41,7 @@ public static class AppPolicies
     public const string CanManageStock = "CanManageStock";
     public const string CanViewUsers = "CanViewUsers";
     public const string CanManageUsers = "CanManageUsers";
+    public const string CanManageRoles = "CanManageRoles";
     public const string CanManageSettings = "CanManageSettings";
     public const string CanViewCompanyFiles = "CanViewCompanyFiles";
     public const string CanManageCompanyFiles = "CanManageCompanyFiles";

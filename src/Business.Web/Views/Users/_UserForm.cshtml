@@ -1,4 +1,7 @@
 @model Business.Web.ViewModels.UserFormViewModel
+@{
+    var canManageRoles = ViewBag.CanManageRoles as bool? ?? false;
+}
 
 <section class="panel-block form-panel">
     <div class="panel-heading">
@@ -35,36 +38,39 @@
                     }
                 </select>
             </div>
-            <div class="mb-3 wide">
-                <label class="form-label">Roller</label>
-                <div class="check-grid">
-                    @foreach (var role in Model.AvailableRoles)
-                    {
-                        <label class="check-card">
-                            <input type="checkbox" name="SelectedRoles" value="@role" checked="@Model.SelectedRoles.Contains(role)" />
-                            <span>@role</span>
-                        </label>
-                    }
-                </div>
-            </div>
-            <details class="mb-3 wide permission-toggle">
-                <summary>Kullanıcıya Özel Ek Yetkiler</summary>
-                @foreach (var group in AppPermissions.All.GroupBy(x => x.Group))
-                {
-                    <div class="permission-group">
-                        <h3>@group.Key</h3>
-                        <div class="check-grid">
-                            @foreach (var permission in group)
-                            {
-                                <label class="check-card">
-                                    <input type="checkbox" name="SelectedPermissions" value="@permission.Value" checked="@Model.SelectedPermissions.Contains(permission.Value)" />
-                                    <span>@permission.Name</span>
-                                </label>
-                            }
-                        </div>
+            @if (canManageRoles)
+            {
+                <div class="mb-3 wide">
+                    <label class="form-label">Roller</label>
+                    <div class="check-grid">
+                        @foreach (var role in Model.AvailableRoles)
+                        {
+                            <label class="check-card">
+                                <input type="checkbox" name="SelectedRoles" value="@role" checked="@Model.SelectedRoles.Contains(role)" />
+                                <span>@role</span>
+                            </label>
+                        }
                     </div>
-                }
-            </details>
+                </div>
+                <details class="mb-3 wide permission-toggle">
+                    <summary>Kullanıcıya Özel Ek Yetkiler</summary>
+                    @foreach (var group in AppPermissions.All.GroupBy(x => x.Group))
+                    {
+                        <div class="permission-group">
+                            <h3>@group.Key</h3>
+                            <div class="check-grid">
+                                @foreach (var permission in group)
+                                {
+                                    <label class="check-card">
+                                        <input type="checkbox" name="SelectedPermissions" value="@permission.Value" checked="@Model.SelectedPermissions.Contains(permission.Value)" />
+                                        <span>@permission.Name</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    }
+                </details>
+            }
             <div class="mb-3 wide">
                 <label class="check-card check-inline">
                     <input asp-for="IsActive" />

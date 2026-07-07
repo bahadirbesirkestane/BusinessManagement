@@ -141,6 +141,7 @@ public class UsersController : Controller
         var roles = await _userManager.GetRolesAsync(user);
         var claims = await _userManager.GetClaimsAsync(user);
         ViewBag.Departments = await GetDepartmentsAsync();
+        ViewBag.CanManageRoles = CanManageRoles();
         return View(new UserFormViewModel
         {
             Id = user.Id,
@@ -452,6 +453,7 @@ public class UsersController : Controller
         {
             model.AvailableRoles = await GetRoleNamesAsync();
             ViewBag.Departments = await GetDepartmentsAsync();
+            ViewBag.CanManageRoles = CanManageRoles();
             return View(model);
         }
 
@@ -474,19 +476,25 @@ public class UsersController : Controller
             AddIdentityErrors(result);
             model.AvailableRoles = await GetRoleNamesAsync();
             ViewBag.Departments = await GetDepartmentsAsync();
+            ViewBag.CanManageRoles = CanManageRoles();
             return View(model);
         }
 
-        if (!await CanApplyRoleChangesAsync(user, model.SelectedRoles))
+        if (CanManageRoles() && !await CanApplyRoleChangesAsync(user, model.SelectedRoles))
         {
             ModelState.AddModelError(string.Empty, "Sistemde en az bir aktif yönetici kalmalıdır.");
             model.AvailableRoles = await GetRoleNamesAsync();
             ViewBag.Departments = await GetDepartmentsAsync();
+            ViewBag.CanManageRoles = true;
             return View(model);
         }
 
-        await SyncRolesAsync(user, model.SelectedRoles);
-        await SyncUserPermissionsAsync(user, model.SelectedPermissions);
+        if (CanManageRoles())
+        {
+            await SyncRolesAsync(user, model.SelectedRoles);
+            await SyncUserPermissionsAsync(user, model.SelectedPermissions);
+        }
+
         await _userManager.UpdateSecurityStampAsync(user);
         return RedirectToAction(nameof(Index));
     }
@@ -590,6 +598,12 @@ public class UsersController : Controller
     private async Task<List<string>> GetRoleNamesAsync()
     {
         return await _roleManager.Roles.OrderBy(x => x.Name).Select(x => x.Name!).ToListAsync();
+    }
+
+    private bool CanManageRoles()
+    {
+        return User.IsInRole(AppRoles.Admin) ||
+               User.HasClaim(AppClaimTypes.Permission, AppPermissions.RolesManage);
     }
 
     private async Task<string> CreateInviteLinkAsync(ApplicationUser user)

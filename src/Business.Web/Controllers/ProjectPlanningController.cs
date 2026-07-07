@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Business.Web.Controllers;
 
-[Authorize(Policy = AppPolicies.CanViewProjects)]
+[Authorize(Policy = AppPolicies.CanViewReports)]
 public class ProjectPlanningController : Controller
 {
     private readonly ApplicationDbContext _context;

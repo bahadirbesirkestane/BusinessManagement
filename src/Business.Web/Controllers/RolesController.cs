@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Business.Web.Controllers;
 
-[Authorize(Policy = AppPolicies.CanManageUsers)]
+[Authorize(Policy = AppPolicies.CanManageRoles)]
 public class RolesController : Controller
 {
     private readonly RoleManager<IdentityRole> _roleManager;

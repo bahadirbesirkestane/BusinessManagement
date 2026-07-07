@@ -7,6 +7,7 @@ public static class AppPermissionCatalog
         [AppRoles.Admin] =
         [
             AppPermissions.DashboardView,
+            AppPermissions.ReportsView,
             AppPermissions.ProjectsView,
             AppPermissions.ProjectsCreate,
             AppPermissions.ProjectsUpdate,
@@ -60,6 +61,7 @@ public static class AppPermissionCatalog
         [AppRoles.Employee] =
         [
             AppPermissions.DashboardView,
+            AppPermissions.ReportsView,
             AppPermissions.ProjectsView,
             AppPermissions.TasksView,
             AppPermissions.TasksUpdate,
@@ -74,6 +76,7 @@ public static class AppPermissionCatalog
         [AppRoles.Manager] =
         [
             AppPermissions.DashboardView,
+            AppPermissions.ReportsView,
             AppPermissions.ProjectsView,
             AppPermissions.ProjectsCreate,
             AppPermissions.ProjectsUpdate,
@@ -103,6 +106,7 @@ public static class AppPermissionCatalog
         [AppRoles.Purchasing] =
         [
             AppPermissions.DashboardView,
+            AppPermissions.ReportsView,
             AppPermissions.ProjectsView,
             AppPermissions.TasksView,
             AppPermissions.PurchasingView,
@@ -123,6 +127,7 @@ public static class AppPermissionCatalog
         [AppRoles.ProjectUser] =
         [
             AppPermissions.DashboardView,
+            AppPermissions.ReportsView,
             AppPermissions.ProjectsView,
             AppPermissions.TasksView,
             AppPermissions.TasksCreate,
@@ -139,6 +144,7 @@ public static class AppPermissionCatalog
         [AppRoles.Workshop] =
         [
             AppPermissions.DashboardView,
+            AppPermissions.ReportsView,
             AppPermissions.TasksView,
             AppPermissions.MaterialRequestsView,
             AppPermissions.MaterialRequestsManage,

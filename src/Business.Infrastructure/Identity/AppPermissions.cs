@@ -3,6 +3,7 @@ namespace Business.Infrastructure.Identity;
 public static class AppPermissions
 {
     public const string DashboardView = "dashboard.view";
+    public const string ReportsView = "reports.view";
     public const string ProjectsView = "projects.view";
     public const string ProjectsCreate = "projects.create";
     public const string ProjectsUpdate = "projects.update";
@@ -56,6 +57,7 @@ public static class AppPermissions
     public static readonly IReadOnlyList<PermissionDefinition> All =
     [
         new(DashboardView, "Dashboard", "Dashboard görüntüle"),
+        new(ReportsView, "Raporlar ve Diyagramlar", "Raporlar ve diyagramları görüntüle"),
         new(ProjectsView, "Projeler", "Projeleri görüntüle"),
         new(ProjectsCreate, "Projeler", "Proje oluştur"),
         new(ProjectsUpdate, "Projeler", "Proje güncelle"),
