@@ -9,7 +9,7 @@ public class QuickMaterialRequestViewModel
 
     public MaterialRequestStatus Status { get; set; } = MaterialRequestStatus.Requested;
 
-    public DateTime NeededBy { get; set; } = DateTime.Today.AddDays(3);
+    public DateTime NeededBy { get; set; } = DateTime.Today;
 
     public bool SendTelegramNotification { get; set; } = true;
 

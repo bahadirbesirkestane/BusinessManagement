@@ -150,7 +150,7 @@
                 </div>
                 <div>
                     <label class="form-label">Gerekli tarih</label>
-                    <input name="NeededBy" type="date" class="form-control" value="@DateTime.Today.AddDays(3).ToString("yyyy-MM-dd")" />
+                    <input name="NeededBy" type="date" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
                 </div>
                 <div class="quick-inline-grid-wide">
                     <label class="form-label">Not</label>
@@ -247,7 +247,8 @@
                                     ? request.Quantity.Value.ToString("0.###")
                                     : $"{request.Quantity.Value:0.###} {request.Unit}"
                                 : "-");
-                        var requestedByName = !string.IsNullOrWhiteSpace(request.RequestedByUserId) && requestedByNames.TryGetValue(request.RequestedByUserId, out var resolvedRequestedByName)
+                        var requesterId = request.RequestedByUserId ?? request.CreatedByUserId;
+                        var requestedByName = !string.IsNullOrWhiteSpace(requesterId) && requestedByNames.TryGetValue(requesterId, out var resolvedRequestedByName)
                             ? resolvedRequestedByName
                             : "-";
                         var previewDescription = !string.IsNullOrWhiteSpace(request.Notes)
@@ -294,7 +295,9 @@
                                     <span class="status-pill status-@request.Status.ToString().ToLowerInvariant()">@request.Status.ToDisplayName()</span>
                                 }
                             </td>
-                            <td>@(request.Notes ?? "-")</td>
+                            <td>
+                                <span class="material-request-note-clamp" title="@(request.Notes ?? "-")">@(request.Notes ?? "-")</span>
+                            </td>
                             <td class="text-end action-cell">
                                 <div class="action-shell">
                                     <button class="preview-trigger" type="button" data-preview-trigger title="Hızlı önizleme" aria-label="Hızlı önizleme">i</button>

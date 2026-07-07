@@ -78,7 +78,7 @@ public class MaterialRequestsController : Controller
 
         var requests = await query.ToListAsync(cancellationToken);
         ViewBag.RequestedByNames = await GetRequestedByNamesAsync(
-            requests.Select(x => x.RequestedByUserId).Where(x => !string.IsNullOrWhiteSpace(x))!,
+            requests.Select(x => x.RequestedByUserId ?? x.CreatedByUserId).Where(x => !string.IsNullOrWhiteSpace(x))!,
             cancellationToken);
 
         return View(requests);
@@ -111,7 +111,7 @@ public class MaterialRequestsController : Controller
                 x.Quality,
                 x.Status.ToDisplayName(),
                 x.NeededBy,
-                x.RequestedByUserId,
+                x.RequestedByUserId ?? x.CreatedByUserId,
                 x.Notes
             })
             .ToListAsync(cancellationToken);
@@ -224,7 +224,13 @@ public class MaterialRequestsController : Controller
             return NotFound();
         }
 
-        ViewBag.RequestedByName = await GetRequestedByNameAsync(request.RequestedByUserId, cancellationToken);
+        var userNames = await GetUserNamesAsync(
+            [request.RequestedByUserId, request.CreatedByUserId, request.UpdatedByUserId],
+            cancellationToken);
+        ViewBag.RequestedByName = ResolveUserDisplayName(request.RequestedByUserId, userNames)
+            ?? ResolveUserDisplayName(request.CreatedByUserId, userNames);
+        ViewBag.CreatedByName = ResolveUserDisplayName(request.CreatedByUserId, userNames);
+        ViewBag.UpdatedByName = ResolveUserDisplayName(request.UpdatedByUserId, userNames);
         ViewBag.Breadcrumbs = request.Project is not null
             ? new Dictionary<string, string?>
             {
@@ -287,7 +293,7 @@ public class MaterialRequestsController : Controller
         {
             model = new MaterialRequest
             {
-                NeededBy = DateTime.Today.AddDays(3),
+                NeededBy = DateTime.Today,
                 Status = MaterialRequestStatus.Requested,
                 ProjectId = projectId
             };
@@ -326,7 +332,7 @@ public class MaterialRequestsController : Controller
         var model = new QuickMaterialRequestViewModel
         {
             ProjectId = projectId,
-            NeededBy = DateTime.Today.AddDays(3),
+            NeededBy = DateTime.Today,
             Status = MaterialRequestStatus.Requested
         };
 
@@ -400,6 +406,7 @@ public class MaterialRequestsController : Controller
         ViewBag.FormAction = nameof(BulkQuickEditSave);
         ViewBag.PageTitle = "Toplu hızlı malzeme ihtiyaç düzenleme";
         ViewBag.SubmitText = "İhtiyaçları Güncelle";
+        ViewBag.SendTelegramNotification = model.SendTelegramNotification;
         return View(nameof(QuickCreate), model);
     }
 
@@ -433,7 +440,7 @@ public class MaterialRequestsController : Controller
 
         if (sendTelegramNotification)
         {
-            var warningMessage = await SendMaterialRequestTelegramNotificationAsync([request.Id], isBulk: false, cancellationToken);
+            var warningMessage = await SendMaterialRequestTelegramNotificationAsync([request.Id], isBulk: false, isUpdate: false, cancellationToken);
             if (!string.IsNullOrWhiteSpace(warningMessage))
             {
                 TempData["Error"] = warningMessage;
@@ -535,6 +542,7 @@ public class MaterialRequestsController : Controller
             var warningMessage = await SendMaterialRequestTelegramNotificationAsync(
                 createdRequests.Select(x => x.Id).ToList(),
                 isBulk: true,
+                isUpdate: false,
                 cancellationToken);
             if (!string.IsNullOrWhiteSpace(warningMessage))
             {
@@ -604,6 +612,7 @@ public class MaterialRequestsController : Controller
             ViewBag.FormAction = nameof(BulkQuickEditSave);
             ViewBag.PageTitle = "Toplu hızlı malzeme ihtiyaç düzenleme";
             ViewBag.SubmitText = "İhtiyaçları Güncelle";
+            ViewBag.SendTelegramNotification = model.SendTelegramNotification;
             return View(nameof(QuickCreate), model);
         }
 
@@ -630,6 +639,7 @@ public class MaterialRequestsController : Controller
             ViewBag.FormAction = nameof(BulkQuickEditSave);
             ViewBag.PageTitle = "Toplu hızlı malzeme ihtiyaç düzenleme";
             ViewBag.SubmitText = "İhtiyaçları Güncelle";
+            ViewBag.SendTelegramNotification = model.SendTelegramNotification;
             return View(nameof(QuickCreate), model);
         }
 
@@ -644,6 +654,19 @@ public class MaterialRequestsController : Controller
                     "İhtiyaç toplu hızlı düzenlendi",
                     request.RequestedItem,
                     cancellationToken);
+            }
+        }
+
+        if (model.SendTelegramNotification)
+        {
+            var warningMessage = await SendMaterialRequestTelegramNotificationAsync(
+                existingRequests.Select(x => x.Id).ToList(),
+                isBulk: true,
+                isUpdate: true,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
             }
         }
 
@@ -662,13 +685,14 @@ public class MaterialRequestsController : Controller
 
         await PopulateMaterialInputNameAsync(request, cancellationToken);
         await FillLookupsAsync(cancellationToken, NormalizeReturnUrl(returnUrl));
+        ViewBag.SendTelegramNotification = true;
         return View(request);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanRequestMaterials)]
-    public async Task<IActionResult> Edit(Guid id, MaterialRequest request, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, MaterialRequest request, bool sendTelegramNotification, string? returnUrl, CancellationToken cancellationToken)
     {
         if (id != request.Id)
         {
@@ -682,20 +706,53 @@ public class MaterialRequestsController : Controller
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(cancellationToken, returnUrl);
+            ViewBag.SendTelegramNotification = sendTelegramNotification;
             return View(request);
         }
 
-        await _materialRequestService.UpdateAsync(request, cancellationToken);
+        var existingRequest = await _context.MaterialRequests.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (existingRequest is null)
+        {
+            return NotFound();
+        }
 
-        if (request.ProjectId.HasValue)
+        existingRequest.ProjectId = request.ProjectId;
+        existingRequest.MaterialId = request.MaterialId;
+        existingRequest.MaterialNameInput = request.MaterialNameInput;
+        existingRequest.RequestedItem = request.RequestedItem;
+        existingRequest.Quantity = request.Quantity;
+        existingRequest.QuantityText = request.QuantityText;
+        existingRequest.Unit = request.Unit;
+        existingRequest.Quality = request.Quality;
+        existingRequest.Status = request.Status;
+        existingRequest.NeededBy = request.NeededBy;
+        existingRequest.Notes = request.Notes;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        if (existingRequest.ProjectId.HasValue)
         {
             await _projectTimelineService.AddAsync(
-                request.ProjectId.Value,
+                existingRequest.ProjectId.Value,
                 "İhtiyaç kaydı güncellendi",
-                request.RequestedItem,
+                existingRequest.RequestedItem,
                 cancellationToken);
         }
 
+        if (sendTelegramNotification)
+        {
+            var warningMessage = await SendMaterialRequestTelegramNotificationAsync(
+                [existingRequest.Id],
+                isBulk: false,
+                isUpdate: true,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
+            }
+        }
+
+        TempData["Success"] = "İhtiyaç kaydı güncellendi.";
         return RedirectToLocal(returnUrl);
     }
 
@@ -723,6 +780,16 @@ public class MaterialRequestsController : Controller
                     "İhtiyaç durumu güncellendi",
                     $"{request.RequestedItem} - {status.ToDisplayName()}",
                     cancellationToken);
+            }
+
+            var warningMessage = await SendMaterialRequestTelegramNotificationAsync(
+                [request.Id],
+                isBulk: false,
+                isUpdate: true,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
             }
         }
 
@@ -772,6 +839,20 @@ public class MaterialRequestsController : Controller
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (requests.Count > 0)
+        {
+            var warningMessage = await SendMaterialRequestTelegramNotificationAsync(
+                requests.Select(x => x.Id).ToList(),
+                isBulk: true,
+                isUpdate: true,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
+            }
+        }
+
         return RedirectToLocal(returnUrl);
     }
 
@@ -898,7 +979,7 @@ public class MaterialRequestsController : Controller
                 (x.Notes != null && x.Notes.Contains(term)) ||
                 (x.Project != null && (x.Project.Code.Contains(term) || x.Project.Name.Contains(term))) ||
                 (x.Material != null && x.Material.Name.Contains(term)) ||
-                matchingRequesterIds.Contains(x.RequestedByUserId!));
+                matchingRequesterIds.Contains((x.RequestedByUserId ?? x.CreatedByUserId)!));
         }
 
         if (status.HasValue)
@@ -917,7 +998,7 @@ public class MaterialRequestsController : Controller
 
         if (!string.IsNullOrWhiteSpace(requestedByUserId))
         {
-            query = query.Where(x => x.RequestedByUserId == requestedByUserId);
+            query = query.Where(x => (x.RequestedByUserId ?? x.CreatedByUserId) == requestedByUserId);
         }
 
         if (neededFrom.HasValue)
@@ -1064,8 +1145,14 @@ public class MaterialRequestsController : Controller
 
     private async Task<Dictionary<string, string>> GetRequestedByNamesAsync(IEnumerable<string> userIds, CancellationToken cancellationToken)
     {
+        return await GetUserNamesAsync(userIds, cancellationToken);
+    }
+
+    private async Task<Dictionary<string, string>> GetUserNamesAsync(IEnumerable<string?> userIds, CancellationToken cancellationToken)
+    {
         var ids = userIds
             .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
             .Distinct()
             .ToList();
 
@@ -1085,16 +1172,18 @@ public class MaterialRequestsController : Controller
 
     private async Task<string?> GetRequestedByNameAsync(string? userId, CancellationToken cancellationToken)
     {
+        var userNames = await GetUserNamesAsync([userId], cancellationToken);
+        return ResolveUserDisplayName(userId, userNames);
+    }
+
+    private static string? ResolveUserDisplayName(string? userId, IReadOnlyDictionary<string, string> userNames)
+    {
         if (string.IsNullOrWhiteSpace(userId))
         {
             return null;
         }
 
-        var user = await _userManager.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
-
-        return user is null ? null : user.FullName ?? user.Email ?? user.UserName ?? user.Id;
+        return userNames.TryGetValue(userId, out var userName) ? userName : null;
     }
 
     private async Task<List<ApplicationUser>> GetActiveUsersAsync(CancellationToken cancellationToken)
@@ -1131,6 +1220,7 @@ public class MaterialRequestsController : Controller
     private async Task<string?> SendMaterialRequestTelegramNotificationAsync(
         IReadOnlyCollection<Guid> requestIds,
         bool isBulk,
+        bool isUpdate,
         CancellationToken cancellationToken)
     {
         var settings = await _context.TelegramNotificationSettings
@@ -1151,8 +1241,8 @@ public class MaterialRequestsController : Controller
         }
 
         var message = isBulk
-            ? await BuildBulkMaterialRequestTelegramMessageAsync(requestIds, cancellationToken)
-            : await BuildMaterialRequestTelegramMessageAsync(requestIds.First(), cancellationToken);
+            ? await BuildBulkMaterialRequestTelegramMessageAsync(requestIds, isUpdate, cancellationToken)
+            : await BuildMaterialRequestTelegramMessageAsync(requestIds.First(), isUpdate, cancellationToken);
 
         var result = await _telegramNotificationService.SendMessageToUsersAsync(
             recipientUserIds,
@@ -1162,7 +1252,7 @@ public class MaterialRequestsController : Controller
         return BuildTelegramWarningMessage("malzeme ihtiyacı", result);
     }
 
-    private async Task<string> BuildMaterialRequestTelegramMessageAsync(Guid requestId, CancellationToken cancellationToken)
+    private async Task<string> BuildMaterialRequestTelegramMessageAsync(Guid requestId, bool isUpdate, CancellationToken cancellationToken)
     {
         var request = await _context.MaterialRequests
             .Include(x => x.Project)
@@ -1175,10 +1265,10 @@ public class MaterialRequestsController : Controller
             throw new InvalidOperationException("Malzeme ihtiyacı kaydı bulunamadığı için Telegram bildirimi hazırlanamadı.");
         }
 
-        var requesterName = await GetRequestedByNameAsync(request.RequestedByUserId, cancellationToken) ?? "Belirtilmedi";
+        var requesterName = await GetRequestedByNameAsync(request.RequestedByUserId ?? request.CreatedByUserId, cancellationToken) ?? "Belirtilmedi";
         var builder = new StringBuilder();
         var listUrl = BuildMaterialRequestListUrl();
-        builder.AppendLine("Yeni malzeme ihtiyacı oluşturuldu.");
+        builder.AppendLine(isUpdate ? "Malzeme ihtiyacı güncellendi." : "Yeni malzeme ihtiyacı oluşturuldu.");
         builder.AppendLine();
         AddTelegramLine(builder, "Proje", request.Project is not null ? $"{request.Project.Code} - {request.Project.Name}" : "Genel");
         AddTelegramLine(builder, "İstenen Malzeme", request.RequestedItem);
@@ -1195,6 +1285,7 @@ public class MaterialRequestsController : Controller
 
     private async Task<string> BuildBulkMaterialRequestTelegramMessageAsync(
         IReadOnlyCollection<Guid> requestIds,
+        bool isUpdate,
         CancellationToken cancellationToken)
     {
         var requests = await _context.MaterialRequests
@@ -1211,11 +1302,13 @@ public class MaterialRequestsController : Controller
         }
 
         var firstRequest = requests[0];
-        var requesterName = await GetRequestedByNameAsync(firstRequest.RequestedByUserId, cancellationToken) ?? "Belirtilmedi";
+        var requesterName = await GetRequestedByNameAsync(firstRequest.RequestedByUserId ?? firstRequest.CreatedByUserId, cancellationToken) ?? "Belirtilmedi";
         var projectName = firstRequest.Project is not null ? $"{firstRequest.Project.Code} - {firstRequest.Project.Name}" : "Genel";
         var listUrl = BuildMaterialRequestListUrl();
         var builder = new StringBuilder();
-        builder.AppendLine($"{requests.Count} adet malzeme ihtiyacı oluşturuldu.");
+        builder.AppendLine(isUpdate
+            ? $"{requests.Count} adet malzeme ihtiyacı güncellendi."
+            : $"{requests.Count} adet malzeme ihtiyacı oluşturuldu.");
         builder.AppendLine();
         AddTelegramLine(builder, "Proje", projectName);
         AddTelegramLine(builder, "Talebi Açan", requesterName);
