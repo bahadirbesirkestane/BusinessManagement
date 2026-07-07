@@ -148,21 +148,26 @@
                         <div class="file-upload-list" data-file-upload-list></div>
                     </div>
                 </div>
+            }
 
-                <div class="mb-3 wide">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               id="sendTelegramNotification"
-                               name="sendTelegramNotification"
-                               value="true"
-                               checked="@sendTelegramNotification" />
-                        <label class="form-check-label" for="sendTelegramNotification">Görev oluşturulunca Telegram bildirimi gönderilsin</label>
-                    </div>
-                    <input type="hidden" name="sendTelegramNotification" value="false" />
-                    <small class="text-muted">Atanan ve Telegram hesabını bağlamış kullanıcılara bildirim gönderilir. Görev kaydı başarısız olmaz.</small>
+            <div class="mb-3 wide">
+                <div class="form-check form-switch">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           id="sendTelegramNotification"
+                           name="sendTelegramNotification"
+                           value="true"
+                           checked="@sendTelegramNotification" />
+                    <label class="form-check-label" for="sendTelegramNotification">@(isCreateMode ? "Görev oluşturulunca Telegram bildirimi gönderilsin" : "Bu düzenleme sonrası Telegram bildirimi gönderilsin")</label>
                 </div>
+                <input type="hidden" name="sendTelegramNotification" value="false" />
+                <small class="text-muted">@(isCreateMode
+                    ? "Atanan ve Telegram hesabını bağlamış kullanıcılara bildirim gönderilir. Görev kaydı başarısız olmaz."
+                    : "İşaretlenirse görevi oluşturan kişi ile atanan kullanıcılara Telegram bildirimi gönderilir.")</small>
+            </div>
 
+            @if (isCreateMode)
+            {
                 <div class="mb-3 wide">
                     <div class="form-check form-switch">
                         <input class="form-check-input"

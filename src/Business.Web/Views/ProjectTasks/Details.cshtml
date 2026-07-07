@@ -9,6 +9,8 @@
     var canDeleteTask = User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksDelete) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.TasksManage) ||
         User.HasClaim(AppClaimTypes.Permission, AppPermissions.ProjectsManage);
+    var createdByName = ViewBag.CreatedByName as string;
+    var updatedByName = ViewBag.UpdatedByName as string;
     ViewData["Title"] = "Görev Detayı";
 }
 
@@ -94,6 +96,9 @@
         <dt class="col-sm-3">Başlangıç</dt><dd class="col-sm-9">@(Model.StartDate?.ToString("dd.MM.yyyy") ?? "-")</dd>
         <dt class="col-sm-3">Termin</dt><dd class="col-sm-9">@(Model.DueDate?.ToString("dd.MM.yyyy") ?? "-")</dd>
         <dt class="col-sm-3">Oluşturma</dt><dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+        <dt class="col-sm-3">Görevi oluşturan</dt><dd class="col-sm-9">@(createdByName ?? "-")</dd>
+        <dt class="col-sm-3">Son güncelleme</dt><dd class="col-sm-9">@(Model.UpdatedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "-")</dd>
+        <dt class="col-sm-3">Güncelleyen</dt><dd class="col-sm-9">@(updatedByName ?? "-")</dd>
         <dt class="col-sm-3">Açıklama</dt><dd class="col-sm-9">@(Model.Description ?? "-")</dd>
     </dl>
 </section>

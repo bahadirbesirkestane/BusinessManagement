@@ -351,6 +351,10 @@ public class ProjectTasksController : Controller
         ViewBag.Breadcrumbs = await CreateTaskBreadcrumbsAsync(task, cancellationToken);
         ViewBag.ResponsibleName = await GetUserDisplayNameAsync(task.ResponsibleUserId);
         ViewBag.AssignedUsers = await GetAssignedUserNamesAsync(task.Assignments.Select(x => x.UserId), cancellationToken);
+        ViewBag.CreatedByName = await GetUserDisplayNameAsync(task.CreatedByUserId);
+        ViewBag.UpdatedByName = string.IsNullOrWhiteSpace(task.UpdatedByUserId)
+            ? null
+            : await GetUserDisplayNameAsync(task.UpdatedByUserId);
         ViewBag.TaskUpdates = task.Updates
             .OrderByDescending(x => x.CreatedAt)
             .ToList();
@@ -679,6 +683,7 @@ public class ProjectTasksController : Controller
         }
 
         await FillLookupsAsync(task.Status, cancellationToken);
+        ViewBag.SendTelegramNotification = true;
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(task);
     }
@@ -686,7 +691,7 @@ public class ProjectTasksController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanUpdateTasks)]
-    public async Task<IActionResult> Edit(Guid id, ProjectTask task, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, ProjectTask task, bool sendTelegramNotification, string? returnUrl, CancellationToken cancellationToken)
     {
         if (id != task.Id)
         {
@@ -716,14 +721,66 @@ public class ProjectTasksController : Controller
         if (!ModelState.IsValid)
         {
             await FillLookupsAsync(task.Status, cancellationToken);
+            ViewBag.SendTelegramNotification = sendTelegramNotification;
             ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
             return View(task);
         }
 
-        _context.Update(task);
+        var existingTask = await _context.ProjectTasks
+            .Include(x => x.Project)
+            .Include(x => x.Assignments)
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (existingTask is null || !existingTask.IsVisibleTo(User))
+        {
+            return NotFound();
+        }
+
+        var previousStatus = existingTask.Status;
+
+        existingTask.ProjectId = task.ProjectId;
+        existingTask.CustomerId = task.CustomerId;
+        existingTask.TaskCategoryId = task.TaskCategoryId;
+        existingTask.AssignedToUserId = task.AssignedToUserId;
+        existingTask.ResponsibleUserId = task.ResponsibleUserId;
+        existingTask.Status = task.Status;
+        existingTask.Visibility = task.Visibility;
+        existingTask.Title = task.Title;
+        existingTask.Priority = task.Priority;
+        existingTask.ProgressPercent = task.ProgressPercent;
+        existingTask.StartDate = task.StartDate;
+        existingTask.DueDate = task.DueDate;
+        existingTask.Description = task.Description;
+        existingTask.Notes = task.Notes;
+        existingTask.ManualProjectName = task.ManualProjectName;
+        existingTask.ManualCustomerName = task.ManualCustomerName;
+        existingTask.SubmittedForReviewAt = task.Status == WorkTaskStatus.InReview && previousStatus != WorkTaskStatus.InReview
+            ? DateTime.UtcNow
+            : task.Status == WorkTaskStatus.InReview
+                ? existingTask.SubmittedForReviewAt
+                : null;
+        existingTask.CompletedAt = task.Status == WorkTaskStatus.Done && previousStatus != WorkTaskStatus.Done
+            ? DateTime.UtcNow
+            : task.Status == WorkTaskStatus.Done
+                ? existingTask.CompletedAt
+                : null;
+
         await _context.SaveChangesAsync(cancellationToken);
-        await SyncAssignmentsAsync(task.Id, Request.Form["AssignedUserIds"].Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!), cancellationToken);
+
+        var selectedAssignedUserIds = Request.Form["AssignedUserIds"].Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).ToList();
+        await SyncAssignmentsAsync(task.Id, selectedAssignedUserIds, cancellationToken);
         await _projectTimelineService.AddForTaskAsync(task.Id, "Görev güncellendi", task.Title, cancellationToken);
+
+        if (sendTelegramNotification)
+        {
+            var warningMessage = await SendTaskTelegramNotificationAsync(task.Id, selectedAssignedUserIds, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
+            }
+        }
+
+        TempData["Success"] = "Görev güncellendi.";
         return RedirectToLocal(returnUrl, fallbackRouteValues: task.ProjectId.HasValue ? new { projectId = task.ProjectId } : null);
     }
 
@@ -734,6 +791,7 @@ public class ProjectTasksController : Controller
     {
         var task = await _context.ProjectTasks
             .Include(x => x.Project)
+            .Include(x => x.Assignments)
             .ApplyRecordVisibility(User)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (task is null || !task.IsVisibleTo(User))
@@ -746,6 +804,13 @@ public class ProjectTasksController : Controller
         task.SubmittedForReviewAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         await _projectTimelineService.AddForTaskAsync(id, "Görev kontrole gönderildi", task.Title, cancellationToken);
+
+        var reviewWarningMessage = await SendTaskTelegramNotificationAsync(task.Id, task.Assignments.Select(x => x.UserId), cancellationToken);
+        if (!string.IsNullOrWhiteSpace(reviewWarningMessage))
+        {
+            TempData["Error"] = reviewWarningMessage;
+        }
+
         return RedirectToLocal(returnUrl, nameof(Details), new { id });
     }
 
@@ -756,6 +821,7 @@ public class ProjectTasksController : Controller
     {
         var task = await _context.ProjectTasks
             .Include(x => x.Project)
+            .Include(x => x.Assignments)
             .ApplyRecordVisibility(User)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (task is null || !task.IsVisibleTo(User))
@@ -768,6 +834,13 @@ public class ProjectTasksController : Controller
         task.CompletedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         await _projectTimelineService.AddForTaskAsync(id, "Görev tamamlandı", task.Title, cancellationToken);
+
+        var completeWarningMessage = await SendTaskTelegramNotificationAsync(task.Id, task.Assignments.Select(x => x.UserId), cancellationToken);
+        if (!string.IsNullOrWhiteSpace(completeWarningMessage))
+        {
+            TempData["Error"] = completeWarningMessage;
+        }
+
         return RedirectToLocal(returnUrl, nameof(Details), new { id });
     }
 
@@ -784,6 +857,7 @@ public class ProjectTasksController : Controller
 
         var task = await _context.ProjectTasks
             .Include(x => x.Project)
+            .Include(x => x.Assignments)
             .ApplyRecordVisibility(User)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (task is null || !task.IsVisibleTo(User))
@@ -799,6 +873,16 @@ public class ProjectTasksController : Controller
             task.CompletedAt = status == WorkTaskStatus.Done ? DateTime.UtcNow : task.CompletedAt;
             await _context.SaveChangesAsync(cancellationToken);
             await _projectTimelineService.AddForTaskAsync(id, "Görev durumu değişti", $"{task.Title} - {status.ToDisplayName()}", cancellationToken);
+
+            if (status == WorkTaskStatus.InReview || status == WorkTaskStatus.Done)
+            {
+                var selectedAssignedUserIds = task.Assignments.Select(x => x.UserId).ToList();
+                var warningMessage = await SendTaskTelegramNotificationAsync(task.Id, selectedAssignedUserIds, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(warningMessage))
+                {
+                    TempData["Error"] = warningMessage;
+                }
+            }
         }
 
         return RedirectToLocal(returnUrl);
@@ -868,6 +952,7 @@ public class ProjectTasksController : Controller
         }
 
         var tasks = await _context.ProjectTasks
+            .Include(x => x.Assignments)
             .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
             .Where(x => selectedIds.Contains(x.Id) && !x.IsArchived)
             .ToListAsync(cancellationToken);
@@ -1222,7 +1307,68 @@ public class ProjectTasksController : Controller
             .ToList();
     }
 
-    private async Task<string> BuildTaskTelegramMessageAsync(Guid taskId, CancellationToken cancellationToken)
+    private async Task<string?> SendTaskTelegramNotificationAsync(Guid taskId, IEnumerable<string> selectedAssignedUserIds, CancellationToken cancellationToken)
+    {
+        var task = await _context.ProjectTasks
+            .Include(x => x.Assignments)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == taskId, cancellationToken);
+
+        if (task is null)
+        {
+            return "Görev güncellendi ancak Telegram bildirimi hazırlanamadı.";
+        }
+
+        var telegramRecipientIds = CollectTelegramRecipientUserIds(
+                task.AssignedToUserId,
+                selectedAssignedUserIds.Any() ? selectedAssignedUserIds : task.Assignments.Select(x => x.UserId))
+            .Append(task.CreatedByUserId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct()
+            .ToList();
+        if (telegramRecipientIds.Count == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            var telegramResult = await _telegramNotificationService.SendMessageToUsersAsync(
+                telegramRecipientIds,
+                await BuildTaskTelegramMessageAsync(task.Id, cancellationToken, isUpdate: true),
+                cancellationToken: cancellationToken);
+
+            if (!telegramResult.IsEnabled)
+            {
+                return null;
+            }
+
+            if (!telegramResult.IsConfigured)
+            {
+                return "Görev güncellendi fakat Telegram bot ayarları eksik olduğu için bildirim gönderilemedi.";
+            }
+
+            var warnings = new List<string>();
+            if (telegramResult.MissingChatRecipients.Count > 0)
+            {
+                warnings.Add($"Telegram hesabı bağlı olmayan atanan kullanıcılar için bildirim gönderilemedi: {string.Join(", ", telegramResult.MissingChatRecipients)}.");
+            }
+
+            if (telegramResult.FailedRecipients.Count > 0)
+            {
+                warnings.Add($"Bazı atanan kullanıcılara Telegram bildirimi gönderilemedi: {string.Join(", ", telegramResult.FailedRecipients)}.");
+            }
+
+            return warnings.Count == 0 ? null : string.Join(" ", warnings);
+        }
+        catch (Exception)
+        {
+            return "Görev güncellendi fakat Telegram bildirimi gönderilemedi.";
+        }
+    }
+
+    private async Task<string> BuildTaskTelegramMessageAsync(Guid taskId, CancellationToken cancellationToken, bool isUpdate = false)
     {
         var task = await _context.ProjectTasks
             .Include(x => x.Project)
@@ -1249,7 +1395,7 @@ public class ProjectTasksController : Controller
         var taskDetailUrl = BuildTaskDetailUrl(task.Id);
 
         var builder = new StringBuilder();
-        builder.AppendLine("Yeni görev atandı.");
+        builder.AppendLine(isUpdate ? "Görev güncellendi." : "Yeni görev atandı.");
         builder.AppendLine();
         builder.AppendLine($"Görev: {task.Title}");
         AddTelegramLine(builder, "Durum", task.Status.ToDisplayName());

@@ -312,8 +312,13 @@ public class PurchaseOrdersController : Controller
             requesterName = requester?.FullName ?? requester?.Email ?? requester?.UserName;
         }
 
+        var createdByName = await GetUserDisplayNameAsync(order.CreatedByUserId);
+        var updatedByName = await GetUserDisplayNameAsync(order.UpdatedByUserId);
+
         ViewBag.ReturnUrl = !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null;
         ViewBag.RequesterName = requesterName;
+        ViewBag.CreatedByName = createdByName;
+        ViewBag.UpdatedByName = updatedByName;
         ViewBag.Breadcrumbs = order.Project is not null
             ? new Dictionary<string, string?>
             {
@@ -670,6 +675,7 @@ public class PurchaseOrdersController : Controller
             var warningMessage = await SendPurchaseOrderTelegramNotificationAsync(
                 createdOrders.Select(x => x.Id).ToList(),
                 isBulk: true,
+                isUpdate: false,
                 cancellationToken);
             if (!string.IsNullOrWhiteSpace(warningMessage))
             {
@@ -787,6 +793,19 @@ public class PurchaseOrdersController : Controller
             await _projectTimelineService.AddForOrderAsync(order.Id, "Sipariş toplu hızlı düzenlendi", $"{order.OrderNumber} - {order.Content}", cancellationToken);
         }
 
+        if (model.SendTelegramNotification)
+        {
+            var warningMessage = await SendPurchaseOrderTelegramNotificationAsync(
+                existingOrders.Select(x => x.Id).ToList(),
+                isBulk: true,
+                isUpdate: true,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
+            }
+        }
+
         TempData["Success"] = $"{existingOrders.Count} sipariş güncellendi.";
         return RedirectToLocal(returnUrl, model.ProjectId.HasValue ? new { projectId = model.ProjectId } : null);
     }
@@ -846,7 +865,7 @@ public class PurchaseOrdersController : Controller
         await _projectTimelineService.AddForOrderAsync(order.Id, "Sipariş oluşturuldu", $"{order.OrderNumber} - {order.Content}", cancellationToken);
         if (sendTelegramNotification)
         {
-            var warningMessage = await SendPurchaseOrderTelegramNotificationAsync([order.Id], isBulk: false, cancellationToken);
+            var warningMessage = await SendPurchaseOrderTelegramNotificationAsync([order.Id], isBulk: false, isUpdate: false, cancellationToken);
             if (!string.IsNullOrWhiteSpace(warningMessage))
             {
                 TempData["Error"] = warningMessage;
@@ -872,13 +891,14 @@ public class PurchaseOrdersController : Controller
         await FillLookupsAsync(cancellationToken);
         await PopulateReferenceInputNamesAsync(order, cancellationToken);
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+        ViewBag.SendTelegramNotification = true;
         return View(order);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = AppPolicies.CanUpdatePurchasing)]
-    public async Task<IActionResult> Edit(Guid id, PurchaseOrder order, string? returnUrl, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, PurchaseOrder order, bool sendTelegramNotification, string? returnUrl, CancellationToken cancellationToken)
     {
         if (id != order.Id)
         {
@@ -919,6 +939,7 @@ public class PurchaseOrdersController : Controller
         {
             await FillLookupsAsync(cancellationToken);
             ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+            ViewBag.SendTelegramNotification = sendTelegramNotification;
             return View(order);
         }
 
@@ -928,19 +949,62 @@ public class PurchaseOrdersController : Controller
         {
             await FillLookupsAsync(cancellationToken);
             ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+            ViewBag.SendTelegramNotification = sendTelegramNotification;
             return View(order);
         }
 
-        var oldStatus = await _context.PurchaseOrders
-            .AsNoTracking()
-            .ApplyRecordVisibility(User)
-            .Where(x => x.Id == id)
-            .Select(x => (PurchaseOrderStatus?)x.Status)
-            .FirstOrDefaultAsync(cancellationToken);
-        await _purchaseOrderService.UpdateAsync(order, cancellationToken);
-        var updateTitle = oldStatus.HasValue && oldStatus.Value != order.Status ? "Sipariş durumu değişti" : "Sipariş güncellendi";
-        await _projectTimelineService.AddForOrderAsync(order.Id, updateTitle, $"{order.OrderNumber} - {order.Content} - {order.Status.ToDisplayName()}", cancellationToken);
-        return RedirectToLocal(returnUrl, order.ProjectId.HasValue ? new { projectId = order.ProjectId } : null);
+        var existingTrackedOrder = await _context.PurchaseOrders
+            .Include(x => x.Project)
+            .ApplyRecordVisibility(User, includeArchived: true, onlyArchived: false)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (existingTrackedOrder is null || !existingTrackedOrder.IsVisibleTo(User))
+        {
+            return NotFound();
+        }
+
+        var oldStatus = existingTrackedOrder.Status;
+        existingTrackedOrder.ProjectId = order.ProjectId;
+        existingTrackedOrder.SupplierId = order.SupplierId;
+        existingTrackedOrder.MaterialId = order.MaterialId;
+        existingTrackedOrder.OrderNumber = order.OrderNumber;
+        existingTrackedOrder.Visibility = order.Visibility;
+        existingTrackedOrder.Scope = order.Scope;
+        existingTrackedOrder.Content = order.Content;
+        existingTrackedOrder.Quantity = order.Quantity;
+        existingTrackedOrder.QuantityText = order.QuantityText;
+        existingTrackedOrder.Unit = order.Unit;
+        existingTrackedOrder.Quality = order.Quality;
+        existingTrackedOrder.Status = order.Status;
+        existingTrackedOrder.OrderDate = order.OrderDate;
+        existingTrackedOrder.ExpectedArrivalDate = order.ExpectedArrivalDate;
+        existingTrackedOrder.ArrivalDate = order.ArrivalDate;
+        existingTrackedOrder.RequestedBy = existingOrder.RequestedBy;
+        existingTrackedOrder.RequestedByUserId = existingOrder.RequestedByUserId;
+        existingTrackedOrder.PaymentTerm = order.PaymentTerm;
+        existingTrackedOrder.UnitPrice = order.UnitPrice;
+        existingTrackedOrder.UnitPriceText = order.UnitPriceText;
+        existingTrackedOrder.OrderTotal = order.OrderTotal;
+        existingTrackedOrder.Currency = order.Currency;
+        existingTrackedOrder.VatRate = order.VatRate;
+        existingTrackedOrder.Notes = order.Notes;
+        existingTrackedOrder.IsActive = order.IsActive;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var updateTitle = oldStatus != existingTrackedOrder.Status ? "Sipariş durumu değişti" : "Sipariş güncellendi";
+        await _projectTimelineService.AddForOrderAsync(existingTrackedOrder.Id, updateTitle, $"{existingTrackedOrder.OrderNumber} - {existingTrackedOrder.Content} - {existingTrackedOrder.Status.ToDisplayName()}", cancellationToken);
+
+        if (sendTelegramNotification)
+        {
+            var warningMessage = await SendPurchaseOrderTelegramNotificationAsync([existingTrackedOrder.Id], isBulk: false, isUpdate: true, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(warningMessage))
+            {
+                TempData["Error"] = warningMessage;
+            }
+        }
+
+        TempData["Success"] = "Sipariş güncellendi.";
+        return RedirectToLocal(returnUrl, existingTrackedOrder.ProjectId.HasValue ? new { projectId = existingTrackedOrder.ProjectId } : null);
     }
 
     [Authorize(Policy = AppPolicies.CanDeletePurchasing)]
@@ -1017,6 +1081,15 @@ public class PurchaseOrdersController : Controller
             order.ArrivalDate = status == PurchaseOrderStatus.Delivered ? DateTime.Today : order.ArrivalDate;
             await _context.SaveChangesAsync(cancellationToken);
             await _projectTimelineService.AddForOrderAsync(order.Id, "Sipariş durumu değişti", $"{order.OrderNumber} - {order.Content} - {status.ToDisplayName()}", cancellationToken);
+
+            if (status == PurchaseOrderStatus.Delivered)
+            {
+                var warningMessage = await SendPurchaseOrderTelegramNotificationAsync([order.Id], isBulk: false, isUpdate: true, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(warningMessage))
+                {
+                    TempData["Error"] = warningMessage;
+                }
+            }
         }
 
         return RedirectToLocal(returnUrl);
@@ -1598,6 +1671,17 @@ public class PurchaseOrdersController : Controller
         order.ArchivedAt = archived ? DateTime.UtcNow : null;
     }
 
+    private async Task<string?> GetUserDisplayNameAsync(string? userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+        return user?.FullName ?? user?.Email ?? user?.UserName ?? user?.Id;
+    }
+
     private static bool CanKeepExistingTransferredSchedule(PurchaseOrder existingOrder, PurchaseOrder updatedOrder)
     {
         if (!existingOrder.OrderDate.HasValue ||
@@ -1633,6 +1717,7 @@ public class PurchaseOrdersController : Controller
     private async Task<string?> SendPurchaseOrderTelegramNotificationAsync(
         IReadOnlyCollection<Guid> orderIds,
         bool isBulk,
+        bool isUpdate,
         CancellationToken cancellationToken)
     {
         var settings = await _context.TelegramNotificationSettings
@@ -1653,8 +1738,8 @@ public class PurchaseOrdersController : Controller
         }
 
         var message = isBulk
-            ? await BuildBulkPurchaseOrderTelegramMessageAsync(orderIds, cancellationToken)
-            : await BuildPurchaseOrderTelegramMessageAsync(orderIds.First(), cancellationToken);
+            ? await BuildBulkPurchaseOrderTelegramMessageAsync(orderIds, isUpdate, cancellationToken)
+            : await BuildPurchaseOrderTelegramMessageAsync(orderIds.First(), isUpdate, cancellationToken);
 
         var result = await _telegramNotificationService.SendMessageToUsersAsync(
             recipientUserIds,
@@ -1664,7 +1749,7 @@ public class PurchaseOrdersController : Controller
         return BuildTelegramWarningMessage("sipariş", result);
     }
 
-    private async Task<string> BuildPurchaseOrderTelegramMessageAsync(Guid orderId, CancellationToken cancellationToken)
+    private async Task<string> BuildPurchaseOrderTelegramMessageAsync(Guid orderId, bool isUpdate, CancellationToken cancellationToken)
     {
         var order = await _context.PurchaseOrders
             .Include(x => x.Project)
@@ -1679,7 +1764,7 @@ public class PurchaseOrdersController : Controller
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine("Yeni sipariş oluşturuldu.");
+        builder.AppendLine(isUpdate ? "Sipariş güncellendi." : "Yeni sipariş oluşturuldu.");
         builder.AppendLine();
         AddTelegramLine(builder, "Sipariş No", order.OrderNumber);
         AddTelegramLine(builder, "Proje", order.Project is not null ? $"{order.Project.Code} - {order.Project.Name}" : "Genel");
@@ -1699,6 +1784,7 @@ public class PurchaseOrdersController : Controller
 
     private async Task<string> BuildBulkPurchaseOrderTelegramMessageAsync(
         IReadOnlyCollection<Guid> orderIds,
+        bool isUpdate,
         CancellationToken cancellationToken)
     {
         var orders = await _context.PurchaseOrders
@@ -1718,7 +1804,9 @@ public class PurchaseOrdersController : Controller
         var firstOrder = orders[0];
         var listUrl = BuildPurchaseOrderListUrl();
         var builder = new StringBuilder();
-        builder.AppendLine($"{orders.Count} adet sipariş oluşturuldu.");
+        builder.AppendLine(isUpdate
+            ? $"{orders.Count} adet sipariş güncellendi."
+            : $"{orders.Count} adet sipariş oluşturuldu.");
         builder.AppendLine();
         AddTelegramLine(builder, "Proje", firstOrder.Project is not null ? $"{firstOrder.Project.Code} - {firstOrder.Project.Name}" : "Genel");
         AddTelegramLine(builder, "Siparişi Oluşturan", firstOrder.RequestedBy);

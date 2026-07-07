@@ -782,14 +782,19 @@ public class MaterialRequestsController : Controller
                     cancellationToken);
             }
 
-            var warningMessage = await SendMaterialRequestTelegramNotificationAsync(
-                [request.Id],
-                isBulk: false,
-                isUpdate: true,
-                cancellationToken);
-            if (!string.IsNullOrWhiteSpace(warningMessage))
+            if (status == MaterialRequestStatus.Fulfilled)
             {
-                TempData["Error"] = warningMessage;
+                var requesterUserId = request.RequestedByUserId ?? request.CreatedByUserId;
+                var warningMessage = await SendMaterialRequestTelegramNotificationAsync(
+                    [request.Id],
+                    isBulk: false,
+                    isUpdate: true,
+                    cancellationToken,
+                    string.IsNullOrWhiteSpace(requesterUserId) ? [] : [requesterUserId]);
+                if (!string.IsNullOrWhiteSpace(warningMessage))
+                {
+                    TempData["Error"] = warningMessage;
+                }
             }
         }
 
@@ -839,20 +844,6 @@ public class MaterialRequestsController : Controller
         }
 
         await _context.SaveChangesAsync(cancellationToken);
-
-        if (requests.Count > 0)
-        {
-            var warningMessage = await SendMaterialRequestTelegramNotificationAsync(
-                requests.Select(x => x.Id).ToList(),
-                isBulk: true,
-                isUpdate: true,
-                cancellationToken);
-            if (!string.IsNullOrWhiteSpace(warningMessage))
-            {
-                TempData["Error"] = warningMessage;
-            }
-        }
-
         return RedirectToLocal(returnUrl);
     }
 
@@ -1221,7 +1212,8 @@ public class MaterialRequestsController : Controller
         IReadOnlyCollection<Guid> requestIds,
         bool isBulk,
         bool isUpdate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? additionalRecipientUserIds = null)
     {
         var settings = await _context.TelegramNotificationSettings
             .AsNoTracking()
@@ -1235,7 +1227,13 @@ public class MaterialRequestsController : Controller
             .Distinct()
             .ToList() ?? [];
 
-        if (recipientUserIds.Count == 0)
+        var allRecipientUserIds = recipientUserIds
+            .Concat(additionalRecipientUserIds ?? [])
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToList();
+
+        if (allRecipientUserIds.Count == 0)
         {
             return "Telegram bildirimi seçildi ancak malzeme ihtiyacı için ayarlarda alıcı tanımlanmadı.";
         }
@@ -1245,7 +1243,7 @@ public class MaterialRequestsController : Controller
             : await BuildMaterialRequestTelegramMessageAsync(requestIds.First(), isUpdate, cancellationToken);
 
         var result = await _telegramNotificationService.SendMessageToUsersAsync(
-            recipientUserIds,
+            allRecipientUserIds,
             message,
             cancellationToken: cancellationToken);
 
