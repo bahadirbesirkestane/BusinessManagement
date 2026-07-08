@@ -317,7 +317,7 @@
                         <th>Veren</th>
                         <th>Tedarikçi</th>
                         <th>Oluşturma tarihi</th>
-                        <th>Tarih</th>
+                        @* <th>Tarih</th> *@
                         <th>Durum</th>
                         <th>Birim fiyat</th>
                         <th>Tutar</th>
@@ -360,7 +360,7 @@
                             <td>@(order.RequestedBy ?? "-")</td>
                             <td>@(order.Supplier?.Name ?? "-")</td>
                             <td>@order.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                            <td>@(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-")</td>
+                            @* <td>@(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-")</td> *@
                             <td>
                                 @if (canChangeOrderStatus && !isArchiveList)
                                 {

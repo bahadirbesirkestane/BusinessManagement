@@ -432,6 +432,7 @@ public class MaterialRequestsController : Controller
             ProjectId = projectIds[0],
             Status = requests[0].Status,
             NeededBy = requests[0].NeededBy,
+            SendTelegramNotification = false,
             Lines = requests.Select(x => new QuickMaterialRequestLineViewModel
             {
                 Id = x.Id,
@@ -451,7 +452,7 @@ public class MaterialRequestsController : Controller
         ViewBag.FormAction = nameof(BulkQuickEditSave);
         ViewBag.PageTitle = "Toplu hızlı malzeme ihtiyaç düzenleme";
         ViewBag.SubmitText = "İhtiyaçları Güncelle";
-        ViewBag.SendTelegramNotification = model.SendTelegramNotification;
+        ViewBag.SendTelegramNotification = false;
         return View(nameof(QuickCreate), model);
     }
 
@@ -730,7 +731,7 @@ public class MaterialRequestsController : Controller
 
         await PopulateMaterialInputNameAsync(request, cancellationToken);
         await FillLookupsAsync(cancellationToken, NormalizeReturnUrl(returnUrl));
-        ViewBag.SendTelegramNotification = true;
+        ViewBag.SendTelegramNotification = false;
         return View(request);
     }
 

@@ -683,7 +683,7 @@ public class ProjectTasksController : Controller
         }
 
         await FillLookupsAsync(task.Status, cancellationToken);
-        ViewBag.SendTelegramNotification = true;
+        ViewBag.SendTelegramNotification = false;
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
         return View(task);
     }

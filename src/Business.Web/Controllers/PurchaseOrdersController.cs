@@ -531,6 +531,7 @@ public class PurchaseOrdersController : Controller
             OrderDate = orders[0].OrderDate ?? DateTime.Today,
             ExpectedArrivalDate = orders[0].ExpectedArrivalDate,
             PaymentTerm = orders[0].PaymentTerm,
+            SendTelegramNotification = false,
             Lines = orders.Select(x => new QuickPurchaseOrderLineViewModel
             {
                 Id = x.Id,
@@ -556,6 +557,7 @@ public class PurchaseOrdersController : Controller
         ViewBag.PageTitle = "Toplu hızlı sipariş düzenleme";
         ViewBag.SubmitText = "Siparişleri Güncelle";
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
+        ViewBag.SendTelegramNotification = false;
         return View(nameof(QuickCreate), model);
     }
 
@@ -891,7 +893,7 @@ public class PurchaseOrdersController : Controller
         await FillLookupsAsync(cancellationToken);
         await PopulateReferenceInputNamesAsync(order, cancellationToken);
         ViewBag.ReturnUrl = NormalizeReturnUrl(returnUrl);
-        ViewBag.SendTelegramNotification = true;
+        ViewBag.SendTelegramNotification = false;
         return View(order);
     }
 
