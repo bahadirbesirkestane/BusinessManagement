@@ -301,14 +301,14 @@
             <table class="table app-table align-middle">
                 <thead>
                     <tr>
-                        <th>Görev</th>
-                        <th>Bağlantı</th>
                         @if (canUseBulkActions)
                         {
                             <th class="bulk-check-cell">
                                 <input type="checkbox" data-bulk-toggle="bulkActionForm" aria-label="Tüm görevleri seç" />
                             </th>
                         }
+                        <th>Görev</th>
+                        <th>Bağlantı</th>
                         <th>Kategori</th>
                         <th>Görev Sahibi</th>
                         <th>Atananlar</th>
@@ -338,6 +338,10 @@
                             data-preview-meta="Görev sahibi: @(!string.IsNullOrWhiteSpace(task.ResponsibleUserId) && userNames.TryGetValue(task.ResponsibleUserId, out var responsibleName) ? responsibleName : "Atanmadı") | İlerleme: %@task.ProgressPercent"
                             data-preview-description="@previewDescription"
                             data-preview-status="@task.Status.ToDisplayName()">
+                            @if (canUseBulkActions)
+                            {
+                                <td><input type="checkbox" name="ids" value="@task.Id" form="bulkActionForm" /></td>
+                            }
                             <td>
                                 <strong>@task.Title</strong>
                                 <small class="d-block text-muted table-note-clamp">
@@ -349,10 +353,6 @@
                                 </small>
                             </td>
                             <td>@(task.Project?.Code ?? task.Customer?.Name ?? task.ManualProjectName ?? task.ManualCustomerName ?? "Genel")</td>
-                            @if (canUseBulkActions)
-                            {
-                                <td><input type="checkbox" name="ids" value="@task.Id" form="bulkActionForm" /></td>
-                            }
                             <td>@(task.TaskCategory?.Name ?? "-")</td>
                             <td>@(!string.IsNullOrWhiteSpace(task.ResponsibleUserId) && userNames.TryGetValue(task.ResponsibleUserId, out var responsibleDisplay) ? responsibleDisplay : "-")</td>
                             <td>@(assignedNames.Any() ? string.Join(", ", assignedNames) : "-")</td>

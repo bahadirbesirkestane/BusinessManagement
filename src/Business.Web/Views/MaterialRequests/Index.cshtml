@@ -249,13 +249,13 @@
             <table class="table app-table align-middle">
                 <thead>
                     <tr>
-                        <th>Malzeme</th>
                         @if (canUseBulkSelection)
                         {
                             <th class="bulk-check-cell">
                                 <input type="checkbox" data-bulk-toggle="bulkRequestSelectionForm" aria-label="Tüm ihtiyaç kayıtlarını seç" />
                             </th>
                         }
+                        <th>Malzeme</th>
                         <th>Proje</th>
                         <th>Miktar</th>
                         <th>Kalite</th>
@@ -296,14 +296,14 @@
                             data-preview-meta="Veren kişi: @requestedByName | Gerekli tarih: @request.NeededBy.ToString("dd.MM.yyyy") | Kalite: @(request.Quality ?? "Belirtilmedi")"
                             data-preview-description="@previewDescription"
                             data-preview-status="@request.Status.ToDisplayName()">
-                            <td>
-                                <strong>@request.RequestedItem</strong>
-                                <small class="d-block text-muted table-note-clamp">@request.Material?.Name</small>
-                            </td>
                             @if (canUseBulkSelection)
                             {
                                 <td><input type="checkbox" name="ids" value="@request.Id" form="bulkRequestSelectionForm" /></td>
                             }
+                            <td>
+                                <strong>@request.RequestedItem</strong>
+                                <small class="d-block text-muted table-note-clamp">@request.Material?.Name</small>
+                            </td>
                             <td>@(request.Project?.Code ?? "Genel")</td>
                             <td>@quantityDisplay</td>
                             <td>@(request.Quality ?? "-")</td>

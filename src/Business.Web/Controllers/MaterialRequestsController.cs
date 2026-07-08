@@ -836,7 +836,8 @@ public class MaterialRequestsController : Controller
                     isBulk: false,
                     isUpdate: true,
                     cancellationToken,
-                    string.IsNullOrWhiteSpace(requesterUserId) ? [] : [requesterUserId]);
+                    string.IsNullOrWhiteSpace(requesterUserId) ? [] : [requesterUserId],
+                    customIntro: "Malzeme ihtiyacı karşılandı.");
                 if (!string.IsNullOrWhiteSpace(warningMessage))
                 {
                     TempData["Error"] = warningMessage;
@@ -1259,7 +1260,8 @@ public class MaterialRequestsController : Controller
         bool isBulk,
         bool isUpdate,
         CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? additionalRecipientUserIds = null)
+        IReadOnlyCollection<string>? additionalRecipientUserIds = null,
+        string? customIntro = null)
     {
         var settings = await _context.TelegramNotificationSettings
             .AsNoTracking()
@@ -1286,7 +1288,7 @@ public class MaterialRequestsController : Controller
 
         var message = isBulk
             ? await BuildBulkMaterialRequestTelegramMessageAsync(requestIds, isUpdate, cancellationToken)
-            : await BuildMaterialRequestTelegramMessageAsync(requestIds.First(), isUpdate, cancellationToken);
+            : await BuildMaterialRequestTelegramMessageAsync(requestIds.First(), isUpdate, cancellationToken, customIntro);
 
         var result = await _telegramNotificationService.SendMessageToUsersAsync(
             allRecipientUserIds,
@@ -1296,7 +1298,7 @@ public class MaterialRequestsController : Controller
         return BuildTelegramWarningMessage("malzeme ihtiyacı", result);
     }
 
-    private async Task<string> BuildMaterialRequestTelegramMessageAsync(Guid requestId, bool isUpdate, CancellationToken cancellationToken)
+    private async Task<string> BuildMaterialRequestTelegramMessageAsync(Guid requestId, bool isUpdate, CancellationToken cancellationToken, string? customIntro = null)
     {
         var request = await _context.MaterialRequests
             .Include(x => x.Project)
@@ -1312,7 +1314,7 @@ public class MaterialRequestsController : Controller
         var requesterName = await GetRequestedByNameAsync(request.RequestedByUserId ?? request.CreatedByUserId, cancellationToken) ?? "Belirtilmedi";
         var builder = new StringBuilder();
         var listUrl = BuildMaterialRequestListUrl();
-        builder.AppendLine(isUpdate ? "Malzeme ihtiyacı güncellendi." : "Yeni malzeme ihtiyacı oluşturuldu.");
+        builder.AppendLine(string.IsNullOrWhiteSpace(customIntro) ? (isUpdate ? "Malzeme ihtiyacı güncellendi." : "Yeni malzeme ihtiyacı oluşturuldu.") : customIntro);
         builder.AppendLine();
         AddTelegramLine(builder, "Proje", request.Project is not null ? $"{request.Project.Code} - {request.Project.Name}" : "Genel");
         AddTelegramLine(builder, "İstenen Malzeme", request.RequestedItem);

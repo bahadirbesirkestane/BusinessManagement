@@ -1086,7 +1086,12 @@ public class PurchaseOrdersController : Controller
 
             if (status == PurchaseOrderStatus.Delivered)
             {
-                var warningMessage = await SendPurchaseOrderTelegramNotificationAsync([order.Id], isBulk: false, isUpdate: true, cancellationToken);
+                var warningMessage = await SendPurchaseOrderTelegramNotificationAsync(
+                    [order.Id],
+                    isBulk: false,
+                    isUpdate: true,
+                    cancellationToken,
+                    customIntro: "Sipariş teslim edildi.");
                 if (!string.IsNullOrWhiteSpace(warningMessage))
                 {
                     TempData["Error"] = warningMessage;
@@ -1720,7 +1725,8 @@ public class PurchaseOrdersController : Controller
         IReadOnlyCollection<Guid> orderIds,
         bool isBulk,
         bool isUpdate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? customIntro = null)
     {
         var settings = await _context.TelegramNotificationSettings
             .AsNoTracking()
@@ -1741,7 +1747,7 @@ public class PurchaseOrdersController : Controller
 
         var message = isBulk
             ? await BuildBulkPurchaseOrderTelegramMessageAsync(orderIds, isUpdate, cancellationToken)
-            : await BuildPurchaseOrderTelegramMessageAsync(orderIds.First(), isUpdate, cancellationToken);
+            : await BuildPurchaseOrderTelegramMessageAsync(orderIds.First(), isUpdate, cancellationToken, customIntro);
 
         var result = await _telegramNotificationService.SendMessageToUsersAsync(
             recipientUserIds,
@@ -1751,7 +1757,7 @@ public class PurchaseOrdersController : Controller
         return BuildTelegramWarningMessage("sipariş", result);
     }
 
-    private async Task<string> BuildPurchaseOrderTelegramMessageAsync(Guid orderId, bool isUpdate, CancellationToken cancellationToken)
+    private async Task<string> BuildPurchaseOrderTelegramMessageAsync(Guid orderId, bool isUpdate, CancellationToken cancellationToken, string? customIntro = null)
     {
         var order = await _context.PurchaseOrders
             .Include(x => x.Project)
@@ -1766,7 +1772,7 @@ public class PurchaseOrdersController : Controller
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine(isUpdate ? "Sipariş güncellendi." : "Yeni sipariş oluşturuldu.");
+        builder.AppendLine(string.IsNullOrWhiteSpace(customIntro) ? (isUpdate ? "Sipariş güncellendi." : "Yeni sipariş oluşturuldu.") : customIntro);
         builder.AppendLine();
         AddTelegramLine(builder, "Sipariş No", order.OrderNumber);
         AddTelegramLine(builder, "Proje", order.Project is not null ? $"{order.Project.Code} - {order.Project.Name}" : "Genel");

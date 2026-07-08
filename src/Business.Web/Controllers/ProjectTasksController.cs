@@ -805,7 +805,11 @@ public class ProjectTasksController : Controller
         await _context.SaveChangesAsync(cancellationToken);
         await _projectTimelineService.AddForTaskAsync(id, "Görev kontrole gönderildi", task.Title, cancellationToken);
 
-        var reviewWarningMessage = await SendTaskTelegramNotificationAsync(task.Id, task.Assignments.Select(x => x.UserId), cancellationToken);
+        var reviewWarningMessage = await SendTaskTelegramNotificationAsync(
+            task.Id,
+            task.Assignments.Select(x => x.UserId),
+            cancellationToken,
+            customIntro: "Görev kontrole gönderildi.");
         if (!string.IsNullOrWhiteSpace(reviewWarningMessage))
         {
             TempData["Error"] = reviewWarningMessage;
@@ -835,7 +839,11 @@ public class ProjectTasksController : Controller
         await _context.SaveChangesAsync(cancellationToken);
         await _projectTimelineService.AddForTaskAsync(id, "Görev tamamlandı", task.Title, cancellationToken);
 
-        var completeWarningMessage = await SendTaskTelegramNotificationAsync(task.Id, task.Assignments.Select(x => x.UserId), cancellationToken);
+        var completeWarningMessage = await SendTaskTelegramNotificationAsync(
+            task.Id,
+            task.Assignments.Select(x => x.UserId),
+            cancellationToken,
+            customIntro: "Görev tamamlandı.");
         if (!string.IsNullOrWhiteSpace(completeWarningMessage))
         {
             TempData["Error"] = completeWarningMessage;
@@ -877,7 +885,13 @@ public class ProjectTasksController : Controller
             if (status == WorkTaskStatus.InReview || status == WorkTaskStatus.Done)
             {
                 var selectedAssignedUserIds = task.Assignments.Select(x => x.UserId).ToList();
-                var warningMessage = await SendTaskTelegramNotificationAsync(task.Id, selectedAssignedUserIds, cancellationToken);
+                var warningMessage = await SendTaskTelegramNotificationAsync(
+                    task.Id,
+                    selectedAssignedUserIds,
+                    cancellationToken,
+                    customIntro: status == WorkTaskStatus.InReview
+                        ? "Görev kontrole gönderildi."
+                        : "Görev tamamlandı.");
                 if (!string.IsNullOrWhiteSpace(warningMessage))
                 {
                     TempData["Error"] = warningMessage;
@@ -1307,7 +1321,11 @@ public class ProjectTasksController : Controller
             .ToList();
     }
 
-    private async Task<string?> SendTaskTelegramNotificationAsync(Guid taskId, IEnumerable<string> selectedAssignedUserIds, CancellationToken cancellationToken)
+    private async Task<string?> SendTaskTelegramNotificationAsync(
+        Guid taskId,
+        IEnumerable<string> selectedAssignedUserIds,
+        CancellationToken cancellationToken,
+        string? customIntro = null)
     {
         var task = await _context.ProjectTasks
             .Include(x => x.Assignments)
@@ -1336,7 +1354,7 @@ public class ProjectTasksController : Controller
         {
             var telegramResult = await _telegramNotificationService.SendMessageToUsersAsync(
                 telegramRecipientIds,
-                await BuildTaskTelegramMessageAsync(task.Id, cancellationToken, isUpdate: true),
+                await BuildTaskTelegramMessageAsync(task.Id, cancellationToken, isUpdate: true, customIntro: customIntro),
                 cancellationToken: cancellationToken);
 
             if (!telegramResult.IsEnabled)
@@ -1368,7 +1386,11 @@ public class ProjectTasksController : Controller
         }
     }
 
-    private async Task<string> BuildTaskTelegramMessageAsync(Guid taskId, CancellationToken cancellationToken, bool isUpdate = false)
+    private async Task<string> BuildTaskTelegramMessageAsync(
+        Guid taskId,
+        CancellationToken cancellationToken,
+        bool isUpdate = false,
+        string? customIntro = null)
     {
         var task = await _context.ProjectTasks
             .Include(x => x.Project)
@@ -1395,7 +1417,7 @@ public class ProjectTasksController : Controller
         var taskDetailUrl = BuildTaskDetailUrl(task.Id);
 
         var builder = new StringBuilder();
-        builder.AppendLine(isUpdate ? "Görev güncellendi." : "Yeni görev atandı.");
+        builder.AppendLine(string.IsNullOrWhiteSpace(customIntro) ? (isUpdate ? "Görev güncellendi." : "Yeni görev atandı.") : customIntro);
         builder.AppendLine();
         builder.AppendLine($"Görev: {task.Title}");
         AddTelegramLine(builder, "Durum", task.Status.ToDisplayName());

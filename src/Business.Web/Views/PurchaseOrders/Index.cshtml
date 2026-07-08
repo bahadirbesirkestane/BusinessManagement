@@ -304,13 +304,13 @@
             <table class="table app-table align-middle">
                 <thead>
                     <tr>
-                        <th>Sipariş</th>
                         @if (canUseBulkActions)
                         {
                             <th class="bulk-check-cell">
                                 <input type="checkbox" data-bulk-toggle="bulkActionForm" aria-label="Tüm siparişleri seç" />
                             </th>
                         }
+                        <th>Sipariş</th>
                         <th>Proje</th>
                         <th>Adet / Miktar</th>
                         <th>Kalite</th>
@@ -339,6 +339,10 @@
                             data-preview-meta="Sipariş tarihi: @(order.OrderDate?.ToString("dd.MM.yyyy") ?? "-") | Beklenen varış: @(order.ExpectedArrivalDate?.ToString("dd.MM.yyyy") ?? "-")"
                             data-preview-description="@previewDescription"
                             data-preview-status="@order.Status.ToDisplayName()">
+                            @if (canUseBulkActions)
+                            {
+                                <td><input type="checkbox" name="ids" value="@order.Id" form="bulkActionForm" /></td>
+                            }
                             <td>
                                 <strong>@order.Content</strong>
                                 <small class="d-block text-muted table-note-clamp">
@@ -350,10 +354,6 @@
                                 </small>
                             </td>
                             @* <td><strong>@order.Content</strong><small class="d-block text-muted table-note-clamp">@order.Notes</small></td> *@
-                            @if (canUseBulkActions)
-                            {
-                                <td><input type="checkbox" name="ids" value="@order.Id" form="bulkActionForm" /></td>
-                            }
                             <td>@(order.Project?.Code ?? "Genel")</td>
                             <td>@(order.QuantityText ?? order.Quantity?.ToString("0.####") ?? "-")</td>
                             <td>@(order.Quality ?? "-")</td>
