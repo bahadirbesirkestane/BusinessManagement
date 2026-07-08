@@ -6,9 +6,35 @@
     var canUseBulkSelection = canManageRequest || canCreateOrder;
     var includeFulfilled = ViewBag.IncludeFulfilled == true;
     var listAction = (string)(ViewBag.ListAction ?? "Index");
+    var hasMore = ViewBag.HasMore == true;
+    var currentTake = (int)(ViewBag.CurrentTake ?? 50);
+    var nextTake = (int)(ViewBag.NextTake ?? (currentTake + 50));
+    var showAll = ViewBag.ShowAll == true;
     var currentReturnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
     var defaultProjectId = ViewBag.ProjectId?.ToString();
     var requestedByNames = ViewBag.RequestedByNames as IReadOnlyDictionary<string, string> ?? new Dictionary<string, string>();
+    var moreRoute = new Dictionary<string, string?>();
+    var showAllRoute = new Dictionary<string, string?>();
+    moreRoute["projectId"] = ViewBag.ProjectId?.ToString();
+    moreRoute["q"] = ViewBag.FilterQ;
+    moreRoute["status"] = ViewBag.FilterStatus?.ToString();
+    moreRoute["materialId"] = ViewBag.FilterMaterialId?.ToString();
+    moreRoute["requestedByUserId"] = ViewBag.FilterRequestedByUserId;
+    moreRoute["neededFrom"] = ViewBag.FilterNeededFrom;
+    moreRoute["neededTo"] = ViewBag.FilterNeededTo;
+    moreRoute["sort"] = ViewBag.Sort;
+    moreRoute["includeFulfilled"] = includeFulfilled ? "true" : null;
+    moreRoute["take"] = nextTake.ToString();
+    showAllRoute["projectId"] = ViewBag.ProjectId?.ToString();
+    showAllRoute["q"] = ViewBag.FilterQ;
+    showAllRoute["status"] = ViewBag.FilterStatus?.ToString();
+    showAllRoute["materialId"] = ViewBag.FilterMaterialId?.ToString();
+    showAllRoute["requestedByUserId"] = ViewBag.FilterRequestedByUserId;
+    showAllRoute["neededFrom"] = ViewBag.FilterNeededFrom;
+    showAllRoute["neededTo"] = ViewBag.FilterNeededTo;
+    showAllRoute["sort"] = ViewBag.Sort;
+    showAllRoute["includeFulfilled"] = includeFulfilled ? "true" : null;
+    showAllRoute["showAll"] = "true";
 }
 
 <section class="panel-block">
@@ -16,7 +42,7 @@
         <div>
             <p class="section-kicker">Atölye ve proje ekibi</p>
             <h2>@(ViewBag.RequestListTitle ?? "Gerekli malzeme listesi")</h2>
-            <p class="record-count">Kayıt sayısı: <strong>@Model.Count</strong></p>
+            <p class="record-count">Gösterilen kayıt sayısı: <strong>@Model.Count</strong></p>
         </div>
         <div class="toolbar-actions">
             @if (string.Equals(listAction, "Fulfilled", StringComparison.OrdinalIgnoreCase))
@@ -37,6 +63,8 @@
                asp-route-neededFrom="@ViewBag.FilterNeededFrom"
                asp-route-neededTo="@ViewBag.FilterNeededTo"
                asp-route-sort="@ViewBag.Sort"
+               asp-route-take="@ViewBag.CurrentTake"
+               asp-route-showAll="@ViewBag.ShowAll"
                asp-route-includeFulfilled="@ViewBag.IncludeFulfilled">Excel indir</a>
             @if (canManageRequest)
             {
@@ -55,6 +83,7 @@
         {
             <input type="hidden" name="includeFulfilled" value="true" />
         }
+        <input type="hidden" name="take" value="@currentTake" />
         <div class="filter-field filter-search">
             <span class="filter-icon" aria-hidden="true">⌕</span>
             <input name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Malzeme, kalite, proje, veren kişi veya not ara" />
@@ -231,7 +260,7 @@
                         <th>Miktar</th>
                         <th>Kalite</th>
                         <th>Veren kişi</th>
-                        <th>Gerekli tarih</th>
+                        <th>Oluşturma tarihi</th>
                         <th>Durum</th>
                         <th>Not</th>
                         <th></th>
@@ -251,6 +280,11 @@
                         var requestedByName = !string.IsNullOrWhiteSpace(requesterId) && requestedByNames.TryGetValue(requesterId, out var resolvedRequestedByName)
                             ? resolvedRequestedByName
                             : "-";
+                        var notePreview = string.IsNullOrWhiteSpace(request.Notes)
+                            ? "-"
+                            : request.Notes.Length > 40
+                                ? $"{request.Notes.Substring(0, 40)}..."
+                                : request.Notes;
                         var previewDescription = !string.IsNullOrWhiteSpace(request.Notes)
                             ? request.Notes
                             : "Bu ihtiyaç kaydı için ek not girilmemiş. Detay sayfasından dosyaları ve yorumları inceleyebilirsiniz.";
@@ -274,7 +308,7 @@
                             <td>@quantityDisplay</td>
                             <td>@(request.Quality ?? "-")</td>
                             <td>@requestedByName</td>
-                            <td>@request.NeededBy.ToString("dd.MM.yyyy")</td>
+                            <td>@request.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
                             <td>
                                 @if (canManageRequest)
                                 {
@@ -296,7 +330,7 @@
                                 }
                             </td>
                             <td>
-                                <span class="material-request-note-clamp" title="@(request.Notes ?? "-")">@(request.Notes ?? "-")</span>
+                                <span class="material-request-note-clamp" title="@(request.Notes ?? "-")">@notePreview</span>
                             </td>
                             <td class="text-end action-cell">
                                 <div class="action-shell">
@@ -328,6 +362,20 @@
                 </tbody>
             </table>
         </div>
+
+        @if (hasMore || showAll)
+        {
+            <div class="list-load-more">
+                @if (hasMore)
+                {
+                    <a class="btn btn-outline-secondary btn-sm" asp-action="@listAction" asp-all-route-data="moreRoute">Daha fazla göster</a>
+                }
+                @if (!showAll)
+                {
+                    <a class="btn btn-outline-primary btn-sm" asp-action="@listAction" asp-all-route-data="showAllRoute">Tümünü göster</a>
+                }
+            </div>
+        }
     }
 </section>
 

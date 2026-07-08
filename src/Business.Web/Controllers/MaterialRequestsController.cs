@@ -18,6 +18,8 @@ namespace Business.Web.Controllers;
 [Authorize(Policy = AppPolicies.CanViewMaterialRequests)]
 public class MaterialRequestsController : Controller
 {
+    private const int DefaultListTake = 50;
+
     private readonly IMaterialRequestService _materialRequestService;
     private readonly ILookupService _lookupService;
     private readonly UserManager<ApplicationUser> _userManager;
@@ -56,11 +58,14 @@ public class MaterialRequestsController : Controller
         DateTime? neededFrom,
         DateTime? neededTo,
         string? sort,
+        int take = DefaultListTake,
+        bool showAll = false,
         bool includeFulfilled = false,
         CancellationToken cancellationToken = default)
     {
         var query = await BuildListQueryAsync(projectId, q, status, materialId, requestedByUserId, neededFrom, neededTo, includeFulfilled, cancellationToken);
         query = ApplyListSorting(query, sort);
+        take = Math.Max(DefaultListTake, take);
 
         ViewBag.FilterQ = q;
         ViewBag.FilterStatus = status;
@@ -75,8 +80,32 @@ public class MaterialRequestsController : Controller
         ViewBag.Projects = await _lookupService.GetProjectsAsync(cancellationToken);
         ViewBag.Materials = await _lookupService.GetMaterialsAsync(cancellationToken);
         ViewBag.Users = await GetActiveUsersAsync(cancellationToken);
+        ViewBag.CurrentTake = take;
+        ViewBag.ShowAll = showAll;
 
-        var requests = await query.ToListAsync(cancellationToken);
+        var hasMore = false;
+        List<MaterialRequest> requests;
+
+        if (showAll)
+        {
+            requests = await query.ToListAsync(cancellationToken);
+        }
+        else
+        {
+            requests = await query
+                .Take(take + 1)
+                .ToListAsync(cancellationToken);
+
+            if (requests.Count > take)
+            {
+                hasMore = true;
+                requests.RemoveAt(requests.Count - 1);
+            }
+        }
+
+        ViewBag.HasMore = hasMore;
+        ViewBag.NextTake = take + DefaultListTake;
+        ViewBag.ResultCount = requests.Count;
         ViewBag.RequestedByNames = await GetRequestedByNamesAsync(
             requests.Select(x => x.RequestedByUserId ?? x.CreatedByUserId).Where(x => !string.IsNullOrWhiteSpace(x))!,
             cancellationToken);
@@ -94,11 +123,19 @@ public class MaterialRequestsController : Controller
         DateTime? neededFrom,
         DateTime? neededTo,
         string? sort,
+        int take = DefaultListTake,
+        bool showAll = false,
         bool includeFulfilled = false,
         CancellationToken cancellationToken = default)
     {
         var query = await BuildListQueryAsync(projectId, q, status, materialId, requestedByUserId, neededFrom, neededTo, includeFulfilled, cancellationToken);
         query = ApplyListSorting(query, sort);
+        take = Math.Max(DefaultListTake, take);
+
+        if (!showAll)
+        {
+            query = query.Take(take);
+        }
 
         var rows = await query
             .Select(x => (IReadOnlyList<object?>)new object?[]
@@ -168,7 +205,9 @@ public class MaterialRequestsController : Controller
         DateTime? neededFrom,
         DateTime? neededTo,
         string? sort,
-        CancellationToken cancellationToken)
+        int take = DefaultListTake,
+        bool showAll = false,
+        CancellationToken cancellationToken = default)
     {
         var result = await Index(
             projectId,
@@ -179,6 +218,8 @@ public class MaterialRequestsController : Controller
             neededFrom,
             neededTo,
             sort,
+            take,
+            showAll,
             includeFulfilled: true,
             cancellationToken);
 
@@ -195,7 +236,9 @@ public class MaterialRequestsController : Controller
         DateTime? neededFrom,
         DateTime? neededTo,
         string? sort,
-        CancellationToken cancellationToken)
+        int take = DefaultListTake,
+        bool showAll = false,
+        CancellationToken cancellationToken = default)
     {
         var result = await Index(
             projectId,
@@ -206,6 +249,8 @@ public class MaterialRequestsController : Controller
             neededFrom,
             neededTo,
             sort,
+            take,
+            showAll,
             includeFulfilled: true,
             cancellationToken);
 
